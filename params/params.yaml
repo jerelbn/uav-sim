@@ -1,0 +1,3 @@
+# simulation final time and time step
+tf: 10.0
+dt: 0.004

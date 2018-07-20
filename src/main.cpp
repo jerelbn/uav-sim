@@ -17,8 +17,13 @@
 //     contains landmarks
 //     contains wind
 //     logs all self data
+#include "common_cpp/common.h"
 
 int main()
 {
-  // do stuff
+  // Load simulation parameters
+  std::string param_file = "../params/params.yaml";
+  double tf, dt;
+  common::get_yaml_node("tf", param_file, tf);
+  common::get_yaml_node("dt", param_file, dt);
 }   

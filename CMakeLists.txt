@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required(VERSION 2.8.3)
 project (uav_sim)
 
 # default to release build
