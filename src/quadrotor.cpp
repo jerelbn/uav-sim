@@ -13,6 +13,12 @@ Quadrotor::Quadrotor(const std::string filename)
 }
 
 
+Quadrotor::~Quadrotor()
+{
+  true_state_log_.close();
+}
+
+
 void Quadrotor::load(std::string filename)
 {
   // Instantiate Sensors, Controller, and Estimator classes
@@ -41,7 +47,12 @@ void Quadrotor::load(std::string filename)
   vw.setZero(); // get vw from environment
   updateAccel(u_,vw);
 
+  // Initialize loggers
+  common::get_yaml_node("log_directory", filename, directory_);
+  log_init();
+
   // Log initial data
+  log(0);
 }
 
 
@@ -101,9 +112,10 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
 
 void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw)
 {
-  propagate(dt, u_, vw); // propagate to next time step
-  controller_.computeControl(get_state(), t, u_); // update control input
-  updateAccel(u_, vw); // update acceleration
+  propagate(dt, u_, vw); // Propagate to next time step
+  controller_.computeControl(get_state(), t, u_); // Update control input
+  updateAccel(u_, vw); // Update acceleration
+  log(t); // Log current data
 }
 
 
@@ -112,6 +124,28 @@ void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
   dxVector dx;
   f(x_, u, dx, vw);
   x_.segment<3>(AX) = dx.segment<3>(DVX);
+}
+
+
+void Quadrotor::log_init()
+{
+  // Create logs directory if it doesn't exist
+  if(!std::experimental::filesystem::exists(directory_))
+  {
+    if (std::experimental::filesystem::create_directory(directory_))
+      std::cout << "*** Created logs/ directory! ***\n";
+  }
+
+  // Initialize loggers
+  true_state_log_.open(directory_ + "/true_state.bin");
+}
+
+
+void Quadrotor::log(const double t)
+{
+  // Write data to binary files and plot in another program
+  true_state_log_.write((char*)&t, sizeof(double));
+  true_state_log_.write((char*)x_.data(), x_.rows() * sizeof(double));
 }
 
 

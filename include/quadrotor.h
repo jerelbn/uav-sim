@@ -1,5 +1,8 @@
 #pragma once
 
+#include <fstream>
+#include <experimental/filesystem>
+
 #include "common_cpp/common.h"
 #include "controller.h"
 
@@ -14,6 +17,7 @@ public:
 
   Quadrotor();
   Quadrotor(const std::string filename);
+  ~Quadrotor();
 
   void load(std::string filename);
   void run(const double t, const double dt, const Eigen::Vector3d& vw);
@@ -27,6 +31,9 @@ private:
   void propagate(const double dt, const commandVector& u, const Eigen::Vector3d& vw);
   void updateAccel(const commandVector& u, const Eigen::Vector3d& vw);
 
+  void log_init();
+  void log(const double t);
+
   controller::Controller controller_;
 
   xVector x_, x2_, x3_, x4_;
@@ -39,6 +46,9 @@ private:
   Eigen::Matrix3d linear_drag_matrix_;
   Eigen::Matrix3d angular_drag_matrix_;
   Eigen::Vector3d v_rel_;
+
+  std::string directory_;
+  std::ofstream true_state_log_;
 
 };
 
