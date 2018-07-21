@@ -7,7 +7,7 @@ namespace quadrotor
 Quadrotor::Quadrotor() {}
 
 
-Quadrotor::Quadrotor(std::string filename)
+Quadrotor::Quadrotor(const std::string filename)
 {
   load(filename);
 }
@@ -16,7 +16,7 @@ Quadrotor::Quadrotor(std::string filename)
 void Quadrotor::load(std::string filename)
 {
   // Instantiate Sensors, Controller, and Estimator classes
-
+  controller_.load(filename);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -36,12 +36,10 @@ void Quadrotor::load(std::string filename)
     angular_drag_matrix_ = angular_drag_diag.asDiagonal();
 
   // Compute initial control and corresponding acceleration
-  Eigen::Vector4d u;
   Eigen::Vector3d vw;
-//  cont_.computeControl(get_state(), 0, u);
-  u.setZero(); // get from controller
+  controller_.computeControl(get_state(), 0, u_);
   vw.setZero(); // get vw from environment
-  updateAccel(u,vw);
+  updateAccel(u_,vw);
 
   // Log initial data
 }
@@ -103,11 +101,9 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
 
 void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw)
 {
-  //
-  Eigen::Vector4d u(0,0,0,0);
-  propagate(dt, u, vw); // propagate to next time step
-  // update control input
-  updateAccel(u, vw); // update acceleration
+  propagate(dt, u_, vw); // propagate to next time step
+  controller_.computeControl(get_state(), t, u_); // update control input
+  updateAccel(u_, vw); // update acceleration
 }
 
 

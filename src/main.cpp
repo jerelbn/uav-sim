@@ -30,10 +30,12 @@ int main()
   common::ProgressBar prog_bar;
   prog_bar.init(tf/dt,40);
 
+  // Create environment
+
   // Create vehicles
   quadrotor::Quadrotor quad1(param_file);
 
-  // Create environment and store initial vehicle states in environment
+  // Store initial vehicle states in environment
 
   // Main simulation loop
   while (t < tf)
