@@ -19,18 +19,40 @@
 //     logs all self data
 #include "common_cpp/common.h"
 #include "quadrotor.h"
+#include "environment.h"
+
+
+void log_init(const std::string filename)
+{
+  // Load directory name
+  std::string directory;
+  common::get_yaml_node("log_directory", filename, directory);
+
+  // Create logs directory if it doesn't exist
+  if(!std::experimental::filesystem::exists(directory))
+  {
+    if (std::experimental::filesystem::create_directory(directory))
+      std::cout << "*** Created logs/ directory! ***\n";
+  }
+}
+
+
 
 int main()
 {
   // Load simulation parameters
   std::string param_file = "../params/params.yaml";
+  log_init(param_file);
+
   double t(0), tf, dt;
   common::get_yaml_node("tf", param_file, tf);
   common::get_yaml_node("dt", param_file, dt);
+
   common::ProgressBar prog_bar;
   prog_bar.init(tf/dt,40);
 
   // Create environment
+  environment::Environment env(param_file);
 
   // Create vehicles
   quadrotor::Quadrotor quad1(param_file);
@@ -41,8 +63,7 @@ int main()
   while (t < tf)
   {
     // Run each vehicle
-    Eigen::Vector3d vw(0,0,0);
-    quad1.run(t,dt,vw);
+    quad1.run(t,dt,env.get_vw());
 
     // Update wind and stored vehicle states in environment
 

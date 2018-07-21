@@ -64,26 +64,11 @@ waypoint_velocity_threshold: 0.5
 # Environment Setup
 wind_vel: [0,0,0]
 wind_vel_stdev: 0.5
-wall_density: 12 # Average points per square meter of wall
-wall_max_offset: 0.2 # Points are distributed normally about the wall
-wall_0: [-12, -15, -8, # bottom left
-         1, 0, 0, # normal
-         30, 8] # width, height
-wall_1: [-12, 15, -8, # bottom left
-         0, 1, 0, # normal
-         24, 8] # width, height
-wall_2: [12, -15, -8, # bottom left
-         1, 0, 0, # normal
-         30, 8] # width, height
-wall_3: [-12, -15, -8, # bottom left
-         0, 1, 0, # normal
-         24, 8] # width, height
-wall_4: [-12, -15, 0, # bottom left
-         0, 0, 1, # normal
-         24, 30] # width, height
-wall_5: [-12, -15, -8, # bottom left
-         0, 0, 1, # normal
-         24, 30] # width, height
+wall_pts_density: 10 # Average points per square meter of wall
+wall_max_deviation: 0.2 # Maximum deviation from wall center
+wall_north_dim: 30 # Total room length in north dimension
+wall_east_dim: 30 # Total room length in east dimension
+wall_height: 10 # Total room height
 
 
 # Sensor Configuration

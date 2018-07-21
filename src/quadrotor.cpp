@@ -50,7 +50,8 @@ void Quadrotor::load(std::string filename)
 
   // Initialize loggers
   common::get_yaml_node("log_directory", filename, directory_);
-  log_init();
+  true_state_log_.open(directory_ + "/true_state.bin");
+  command_log_.open(directory_ + "/command.bin");
 
   // Log initial data
   log(0);
@@ -125,21 +126,6 @@ void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
   dxVector dx;
   f(x_, u, dx, vw);
   x_.segment<3>(AX) = dx.segment<3>(DVX);
-}
-
-
-void Quadrotor::log_init()
-{
-  // Create logs directory if it doesn't exist
-  if(!std::experimental::filesystem::exists(directory_))
-  {
-    if (std::experimental::filesystem::create_directory(directory_))
-      std::cout << "*** Created logs/ directory! ***\n";
-  }
-
-  // Initialize loggers
-  true_state_log_.open(directory_ + "/true_state.bin");
-  command_log_.open(directory_ + "/command.bin");
 }
 
 

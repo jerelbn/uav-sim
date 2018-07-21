@@ -12,5 +12,8 @@ plot_covariance = 1;
 directory = '../logs/';
 read_logs;
 
+%% Plot environment
+plot_environment;
+
 %% Plot states
 plot_states;

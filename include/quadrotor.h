@@ -31,7 +31,6 @@ private:
   void propagate(const double dt, const commandVector& u, const Eigen::Vector3d& vw);
   void updateAccel(const commandVector& u, const Eigen::Vector3d& vw);
 
-  void log_init();
   void log(const double t);
 
   controller::Controller controller_;
