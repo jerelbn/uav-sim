@@ -16,6 +16,7 @@ Quadrotor::Quadrotor(const std::string filename)
 Quadrotor::~Quadrotor()
 {
   true_state_log_.close();
+  command_log_.close();
 }
 
 
@@ -62,7 +63,7 @@ void Quadrotor::f(const xVector& x, const commandVector& u, dxVector& dx, const 
   v_rel_ = x.segment<3>(VX) - q_i2b.rot(vw);
   dx.segment<3>(PX) = q_i2b.inv().rot(x.segment<3>(VX));
   dx.segment<3>(QW) = x.segment<3>(WX);
-  dx.segment<3>(DVX) = -common::e1 * u(THRUST)*max_thrust_ / mass_ - linear_drag_matrix_ * v_rel_.cwiseProduct(v_rel_) +
+  dx.segment<3>(DVX) = -common::e3 * u(THRUST)*max_thrust_ / mass_ - linear_drag_matrix_ * v_rel_.cwiseProduct(v_rel_) +
                       common::gravity * q_i2b.rot(common::e3) + x.segment<3>(VX).cross(x.segment<3>(WX));
   dx.segment<3>(DWX) = inertia_inv_ * (u.segment<3>(TAUX) - x.segment<3>(WX).cross(inertia_matrix_ * x.segment<3>(WX)) -
                        angular_drag_matrix_ * x.segment<3>(WX));
@@ -138,6 +139,7 @@ void Quadrotor::log_init()
 
   // Initialize loggers
   true_state_log_.open(directory_ + "/true_state.bin");
+  command_log_.open(directory_ + "/command.bin");
 }
 
 
@@ -146,6 +148,8 @@ void Quadrotor::log(const double t)
   // Write data to binary files and plot in another program
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x_.data(), x_.rows() * sizeof(double));
+  controller::Controller::state_t commanded_state = controller_.getCommandedState();
+  command_log_.write((char*)&commanded_state, sizeof(controller::Controller::state_t));
 }
 
 

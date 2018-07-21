@@ -49,6 +49,7 @@ private:
 
   std::string directory_;
   std::ofstream true_state_log_;
+  std::ofstream command_log_;
 
 };
 

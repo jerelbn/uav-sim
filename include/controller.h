@@ -12,32 +12,6 @@ class Controller
 
 public:
 
-  Controller();
-  Controller(const std::string filename);
-
-  void load(const std::string filename);
-  void computeControl(const quadrotor::xVector &x, const double t, quadrotor::commandVector& u);
-
-private:
-
-  // Waypoint Enumerations
-  enum
-  {
-    PX,
-    PY,
-    PZ,
-    PSI
-  };
-
-  typedef struct
-  {
-    double roll;
-    double pitch;
-    double yaw_rate;
-    double throttle;
-    double vel;
-  } max_t;
-
   typedef struct
   {
     double t;
@@ -59,6 +33,33 @@ private:
 
     double throttle;
   } state_t;
+
+  Controller();
+  Controller(const std::string filename);
+
+  void load(const std::string filename);
+  void computeControl(const quadrotor::xVector &x, const double t, quadrotor::commandVector& u);
+  inline state_t getCommandedState() const { return xc_; }
+
+private:
+
+  // Waypoint Enumerations
+  enum
+  {
+    PX,
+    PY,
+    PZ,
+    PSI
+  };
+
+  typedef struct
+  {
+    double roll;
+    double pitch;
+    double yaw_rate;
+    double throttle;
+    double vel;
+  } max_t;
 
   struct PID
   {
