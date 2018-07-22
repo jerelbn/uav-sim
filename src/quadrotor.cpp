@@ -31,7 +31,7 @@ void Quadrotor::load(std::string filename)
   common::get_yaml_node("max_thrust", filename, max_thrust_);
 
   Eigen::Vector3d inertia_diag, linear_drag_diag, angular_drag_diag;
-  common::get_yaml_eigen<xVector>("x0", filename, x_);
+  common::get_yaml_eigen<vehicle::xVector>("x0", filename, x_);
   if (common::get_yaml_eigen<Eigen::Vector3d>("inertia", filename, inertia_diag))
   {
     inertia_matrix_ = inertia_diag.asDiagonal();
@@ -58,16 +58,17 @@ void Quadrotor::load(std::string filename)
 }
 
 
-void Quadrotor::f(const xVector& x, const commandVector& u, dxVector& dx, const Eigen::Vector3d& vw)
+void Quadrotor::f(const vehicle::xVector& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw)
 {
-  common::Quaternion q_i2b(x.segment<4>(QW));
-  v_rel_ = x.segment<3>(VX) - q_i2b.rot(vw);
-  dx.segment<3>(PX) = q_i2b.inv().rot(x.segment<3>(VX));
-  dx.segment<3>(QW) = x.segment<3>(WX);
-  dx.segment<3>(DVX) = -common::e3 * u(THRUST)*max_thrust_ / mass_ - linear_drag_matrix_ * v_rel_.cwiseProduct(v_rel_) +
-                      common::gravity * q_i2b.rot(common::e3) + x.segment<3>(VX).cross(x.segment<3>(WX));
-  dx.segment<3>(DWX) = inertia_inv_ * (u.segment<3>(TAUX) - x.segment<3>(WX).cross(inertia_matrix_ * x.segment<3>(WX)) -
-                       angular_drag_matrix_ * x.segment<3>(WX));
+  common::Quaternion q_i2b(x.segment<4>(vehicle::QW));
+  v_rel_ = x.segment<3>(vehicle::VX) - q_i2b.rot(vw);
+  dx.segment<3>(vehicle::PX) = q_i2b.inv().rot(x.segment<3>(vehicle::VX));
+  dx.segment<3>(vehicle::QW) = x.segment<3>(vehicle::WX);
+  dx.segment<3>(vehicle::DVX) = -common::e3 * u(THRUST)*max_thrust_ / mass_ - linear_drag_matrix_ * v_rel_.cwiseProduct(v_rel_) +
+                      common::gravity * q_i2b.rot(common::e3) + x.segment<3>(vehicle::VX).cross(x.segment<3>(vehicle::WX));
+  dx.segment<3>(vehicle::DWX) = inertia_inv_ * (u.segment<3>(TAUX) -
+                       x.segment<3>(vehicle::WX).cross(inertia_matrix_ * x.segment<3>(vehicle::WX)) -
+                       angular_drag_matrix_ * x.segment<3>(vehicle::WX).cwiseProduct(x.segment<3>(vehicle::WX)));
 }
 
 
@@ -79,21 +80,21 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
     f(x_, u, k1_, vw);
 
     x2_ = x_;
-    x2_.segment<3>(PX) += k1_.segment<3>(PX) * dt / 2;
-    x2_.segment<4>(QW) = (common::Quaternion(x2_.segment<4>(QW)) + (k1_.segment<3>(QW)) * dt / 2).toEigen();
-    x2_.segment<6>(VX) += k1_.segment<6>(DVX) * dt / 2;
+    x2_.segment<3>(vehicle::PX) += k1_.segment<3>(vehicle::PX) * dt / 2;
+    x2_.segment<4>(vehicle::QW) = (common::Quaternion(x2_.segment<4>(vehicle::QW)) + (k1_.segment<3>(vehicle::QW)) * dt / 2).toEigen();
+    x2_.segment<6>(vehicle::VX) += k1_.segment<6>(vehicle::DVX) * dt / 2;
     f(x2_, u, k2_, vw);
 
     x3_ = x_;
-    x3_.segment<3>(PX) += k2_.segment<3>(PX) * dt / 2;
-    x3_.segment<4>(QW) = (common::Quaternion(x3_.segment<4>(QW)) + (k2_.segment<3>(QW)) * dt / 2).toEigen();
-    x3_.segment<6>(VX) += k2_.segment<6>(DVX) * dt / 2;
+    x3_.segment<3>(vehicle::PX) += k2_.segment<3>(vehicle::PX) * dt / 2;
+    x3_.segment<4>(vehicle::QW) = (common::Quaternion(x3_.segment<4>(vehicle::QW)) + (k2_.segment<3>(vehicle::QW)) * dt / 2).toEigen();
+    x3_.segment<6>(vehicle::VX) += k2_.segment<6>(vehicle::DVX) * dt / 2;
     f(x3_, u, k3_, vw);
 
     x4_ = x_;
-    x4_.segment<3>(PX) += k3_.segment<3>(PX) * dt;
-    x4_.segment<4>(QW) = (common::Quaternion(x4_.segment<4>(QW)) + (k3_.segment<3>(QW)) * dt).toEigen();
-    x4_.segment<6>(VX) += k3_.segment<6>(DVX) * dt;
+    x4_.segment<3>(vehicle::PX) += k3_.segment<3>(vehicle::PX) * dt;
+    x4_.segment<4>(vehicle::QW) = (common::Quaternion(x4_.segment<4>(vehicle::QW)) + (k3_.segment<3>(vehicle::QW)) * dt).toEigen();
+    x4_.segment<6>(vehicle::VX) += k3_.segment<6>(vehicle::DVX) * dt;
     f(x4_, u, k4_, vw);
 
     dx_ = (k1_ + 2 * k2_ + 2 * k3_ + k4_) * dt / 6.0;
@@ -106,9 +107,9 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
   }
 
   // Copy output
-  x_.segment<3>(PX) += dx_.segment<3>(PX);
-  x_.segment<4>(QW) = (common::Quaternion(x_.segment<4>(QW)) + dx_.segment<3>(QW)).toEigen();
-  x_.segment<6>(VX) += dx_.segment<6>(DVX);
+  x_.segment<3>(vehicle::PX) += dx_.segment<3>(vehicle::PX);
+  x_.segment<4>(vehicle::QW) = (common::Quaternion(x_.segment<4>(vehicle::QW)) + dx_.segment<3>(vehicle::QW)).toEigen();
+  x_.segment<6>(vehicle::VX) += dx_.segment<6>(vehicle::DVX);
 }
 
 
@@ -123,9 +124,9 @@ void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw)
 
 void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
 {
-  dxVector dx;
+  vehicle::dxVector dx;
   f(x_, u, dx, vw);
-  x_.segment<3>(AX) = dx.segment<3>(DVX);
+  x_.segment<3>(vehicle::AX) = dx.segment<3>(vehicle::DVX);
 }
 
 

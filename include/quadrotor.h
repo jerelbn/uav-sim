@@ -23,11 +23,11 @@ public:
   void run(const double t, const double dt, const Eigen::Vector3d& vw);
 
 
-  const xVector& get_state() const { return x_; }
+  const vehicle::xVector& get_state() const { return x_; }
 
 private:
 
-  void f(const xVector& x, const commandVector& u, dxVector& dx, const Eigen::Vector3d& vw);
+  void f(const vehicle::xVector& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw);
   void propagate(const double dt, const commandVector& u, const Eigen::Vector3d& vw);
   void updateAccel(const commandVector& u, const Eigen::Vector3d& vw);
 
@@ -35,8 +35,8 @@ private:
 
   controller::Controller controller_;
 
-  xVector x_, x2_, x3_, x4_;
-  dxVector dx_, k1_, k2_, k3_, k4_;
+  vehicle::xVector x_, x2_, x3_, x4_;
+  vehicle::dxVector dx_, k1_, k2_, k3_, k4_;
   commandVector u_;
 
   bool accurate_integration_;

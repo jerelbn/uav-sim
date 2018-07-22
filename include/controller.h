@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common_cpp/common.h"
-#include "quadrotor_common.h"
+#include "vehicle_common.h"
 
 
 namespace controller
@@ -38,7 +38,7 @@ public:
   Controller(const std::string filename);
 
   void load(const std::string filename);
-  void computeControl(const quadrotor::xVector &x, const double t, quadrotor::commandVector& u);
+  void computeControl(const vehicle::xVector &x, const double t, quadrotor::commandVector& u);
   inline state_t getCommandedState() const { return xc_; }
 
 private:

@@ -3,12 +3,11 @@
 #include <eigen3/Eigen/Eigen>
 
 
-namespace quadrotor
+namespace vehicle
 {
 
 typedef Eigen::Matrix<double, 16, 1> xVector;
 typedef Eigen::Matrix<double, 12, 1> dxVector;
-typedef Eigen::Matrix<double, 4, 1> commandVector;
 
 // State Indices
 enum
@@ -30,13 +29,22 @@ enum
   AY = 14,
   AZ = 15,
 
-  DVX = 6, // Derivative indices
+  // Derivative indices
+  DVX = 6,
   DVY = 7,
   DVZ = 8,
   DWX = 9,
   DWY = 10,
   DWZ = 11,
 };
+
+}
+
+
+namespace quadrotor
+{
+
+typedef Eigen::Matrix<double, 4, 1> commandVector;
 
 // Input indices
 enum
