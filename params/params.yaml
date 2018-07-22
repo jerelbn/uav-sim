@@ -62,6 +62,7 @@ waypoint_velocity_threshold: 0.5
 
 
 # Environment Setup
+enable_wind: false # Turn wind on and off
 wind_init_stdev: 1.0 # Variation on the initial wind direction
 wind_walk_stdev: 0.2 # Amount of random walk in wind components
 wall_pts_density: 10 # Average points per square meter of wall

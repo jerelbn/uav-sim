@@ -37,6 +37,8 @@ private:
   double max_deviation_;
   double north_dim_, east_dim_, height_;
   double t_prev_;
+
+  bool enable_wind_;
   std::default_random_engine rng_;
   std::normal_distribution<double> vw_walk_dist_;
 
