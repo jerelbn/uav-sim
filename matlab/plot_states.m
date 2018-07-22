@@ -79,3 +79,16 @@ for i=1:3
 %     title(titles(i))
 %     legend('truth', 'measured')
 end
+
+%% Plot the wind velocity
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'Wind', 'NumberTitle', 'off');
+titles = ["vw_x", "vw_y","vw_z"];
+idx = 1;
+for i=1:3
+    subplot(3,1,i); hold on;
+    plot(vw(1,:), vw(i + idx, :), 'linewidth', 1.3);
+%     plot(u(1,:), u(i+4,:));
+%     title(titles(i))
+%     legend('truth', 'measured')
+end

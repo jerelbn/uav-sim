@@ -15,5 +15,5 @@ read_logs;
 %% Plot environment
 plot_environment;
 
-%% Plot states
+%% Plot states and wind
 plot_states;

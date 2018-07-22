@@ -12,3 +12,8 @@ command = reshape(command, 14, []);
 file = fopen(strcat(directory,'environment.bin'), 'r');
 env = fread(file, 'double');
 env = reshape(env, 3, []);
+
+% Load wind
+file = fopen(strcat(directory,'wind.bin'), 'r');
+vw = fread(file, 'double');
+vw = reshape(vw, 4, []);

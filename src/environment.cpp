@@ -4,11 +4,15 @@ namespace environment
 {
 
 
-Environment::Environment() {}
+Environment::Environment()
+{
+  t_prev_ = 0;
+}
 
 
 Environment::Environment(const std::string filename)
 {
+  t_prev_ = 0;
   load(filename);
 }
 
@@ -22,8 +26,18 @@ Environment::~Environment()
 
 void Environment::load(const std::string filename)
 {
-  points_.resize(0,0);
-  vw_.setZero();
+  // Initialize random number generator
+  bool use_random_seed;
+  common::get_yaml_node("use_random_seed", filename, use_random_seed);
+  if (use_random_seed)
+    rng_ = std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count());
+
+  // Initialize wind and its walk parameters
+  double vw_init_var, vw_walk_stdev;
+  common::get_yaml_node("wind_init_stdev", filename, vw_init_var);
+  common::get_yaml_node("wind_walk_stdev", filename, vw_walk_stdev);
+  vw_ = vw_init_var * Eigen::Vector3d::Random();
+  vw_walk_dist_ = std::normal_distribution<double>(0.0,vw_walk_stdev);
 
   // Build the room
   common::get_yaml_node("wall_pts_density", filename, density_);
@@ -119,6 +133,15 @@ void Environment::log(const double t)
   // Write data to binary files and plot in another program
   wind_log_.write((char*)&t, sizeof(double));
   wind_log_.write((char*)vw_.data(), vw_.rows() * sizeof(double));
+}
+
+
+void Environment::updateWind(const double t)
+{
+  common::randomNormalMatrix(vw_walk_, vw_walk_dist_, rng_);
+  vw_ += vw_walk_ * (t - t_prev_);
+  t_prev_ = t;
+  log(t);
 }
 
 
