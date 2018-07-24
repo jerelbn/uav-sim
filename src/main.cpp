@@ -20,7 +20,6 @@
 #include "common_cpp/common.h"
 #include "quadrotor.h"
 #include "environment.h"
-#include <time.h>
 
 
 void init(const std::string filename)
@@ -67,7 +66,7 @@ int main()
   // Store initial vehicle states in environment
 
   // Main simulation loop
-  while (t < tf)
+  while (t <= tf)
   {
     // Run each vehicle
     quad1.run(t,dt,env.get_vw());
@@ -79,4 +78,6 @@ int main()
     t += dt;
     prog_bar.print(t/dt);
   }
+
+  return 0;
 }   

@@ -1,18 +1,14 @@
 # simulation final time and time step
-tf: 120.0
+tf: 60.0
 dt: 0.004
-use_random_seed: false
+use_random_seed: true
+accurate_integration: false
 log_directory: "../logs"
-
 
 # Truth Configuration
 use_accel_truth: false
 use_gyro_truth: false
 use_camera_truth: false
-use_altimeter_truth: false
-use_depth_truth: false
-
-accurate_integration: false
 
 x0: [0, 0, -1,   # POS
      1, 0, 0, 0, # ATT
@@ -62,10 +58,10 @@ waypoint_velocity_threshold: 0.5
 
 
 # Environment Setup
-enable_wind: false # Turn wind on and off
+enable_wind: true # Turn wind on and off
 wind_init_stdev: 1.0 # Variation on the initial wind direction
 wind_walk_stdev: 0.2 # Amount of random walk in wind components
-wall_pts_density: 10 # Average points per square meter of wall
+wall_pts_density: 5 # Average points per square meter of wall
 wall_max_deviation: 0.2 # Maximum deviation from wall center
 wall_north_dim: 30 # Total room length in north dimension
 wall_east_dim: 30 # Total room length in east dimension
@@ -74,41 +70,28 @@ wall_height: 10 # Total room height
 
 # Sensor Configuration
 
-## Active Measurements
-feature_update_active: true
-drag_update_active: false
-attitude_update_active: false
-depth_update_active: false
-altimeter_update_active: false
-
 ## IMU
 imu_update_rate: 250
 
-accel_init_stdev: 0.3
 accel_noise_stdev: 0.5
-accel_bias_walk: 0.01
+accel_bias_init_bound: 0.5
+accel_walk_stdev: 0.01
 
-gyro_init_stdev: 0.1
 gyro_noise_stdev: 0.1
-gyro_bias_walk: 0.001
+gyro_bias_init_bound: 0.2
+gyro_walk_stdev: 0.001
 
 ## Camera
 camera_update_rate: 30
 pixel_noise_stdev: 0.5
 focal_len: [250.0, 250.0]
-cam_center: [320, 240]
+image_center: [320, 240]
 image_size: [640, 480]
-q_b_c: [1, 0, 0, 0]
-p_b_c: [0, 0, 0]
-
-## Altimeter
-altimeter_update_rate: 100
-altimeter_noise_stdev: 0.2
+q_b2c: [1, 0, 0, 0]
+p_b2c: [0, 0, 0]
 
 ## Depth
-depth_update_rate: 30
-depth_noise_stdev: 0.5
-
-## Attitude
-attitude_update_rate: 100
-
+## Altimeter
+## Barometer
+## Magnetometer
+## GPS

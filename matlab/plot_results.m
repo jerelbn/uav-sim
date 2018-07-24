@@ -17,3 +17,6 @@ plot_environment;
 
 %% Plot states and wind
 plot_states;
+
+%% Plot sensor measurements
+plot_measurements;

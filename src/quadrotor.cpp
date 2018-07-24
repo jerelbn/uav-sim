@@ -24,6 +24,7 @@ void Quadrotor::load(std::string filename)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   controller_.load(filename);
+  sensors_.load(filename);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -44,7 +45,7 @@ void Quadrotor::load(std::string filename)
 
   // Compute initial control and corresponding acceleration
   Eigen::Vector3d vw;
-  controller_.computeControl(get_state(), 0, u_);
+  controller_.computeControl(get_true_state(), 0, u_);
   vw.setZero(); // get vw from environment
   updateAccel(u_,vw);
 
@@ -52,9 +53,6 @@ void Quadrotor::load(std::string filename)
   common::get_yaml_node("log_directory", filename, directory_);
   true_state_log_.open(directory_ + "/true_state.bin");
   command_log_.open(directory_ + "/command.bin");
-
-  // Log initial data
-  log(0);
 }
 
 
@@ -115,10 +113,11 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
 
 void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw)
 {
-  propagate(dt, u_, vw); // Propagate to next time step
-  controller_.computeControl(get_state(), t, u_); // Update control input
-  updateAccel(u_, vw); // Update acceleration
+  sensors_.updateMeasurements(t, x_); // Update sensor measurements
   log(t); // Log current data
+  propagate(dt, u_, vw); // Propagate to next time step
+  controller_.computeControl(get_true_state(), t, u_); // Update control input
+  updateAccel(u_, vw); // Update acceleration
 }
 
 

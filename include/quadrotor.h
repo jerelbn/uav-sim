@@ -5,6 +5,7 @@
 
 #include "common_cpp/common.h"
 #include "controller.h"
+#include "sensors.h"
 
 namespace quadrotor
 {
@@ -22,18 +23,17 @@ public:
   void load(std::string filename);
   void run(const double t, const double dt, const Eigen::Vector3d& vw);
 
-
-  const vehicle::xVector& get_state() const { return x_; }
+  const vehicle::xVector& get_true_state() const { return x_; }
 
 private:
 
   void f(const vehicle::xVector& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw);
   void propagate(const double dt, const commandVector& u, const Eigen::Vector3d& vw);
   void updateAccel(const commandVector& u, const Eigen::Vector3d& vw);
-
   void log(const double t);
 
   controller::Controller controller_;
+  sensors::Sensors sensors_;
 
   vehicle::xVector x_, x2_, x3_, x4_;
   vehicle::dxVector dx_, k1_, k2_, k3_, k4_;

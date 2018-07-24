@@ -9,8 +9,8 @@ idx = 1;
 for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
-    plot(true_state(1,:), command(i + idx, :), 'r--');
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
+    plot(true_state(1,:), command(i + idx, :), 'r--');
 %     plot(est(1,:), est(i+idx,:));
     
 %     if (plot_covariance)
@@ -27,6 +27,7 @@ titles = ["qw","qx","qy","qz"];
 idx = 4;
 for i=1:4
     subplot(4, 1, i); hold on;
+    title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
 %     plot(est(1,:), est(i+idx,:));
 %     title(titles(i))
@@ -44,6 +45,7 @@ titles = ['u','v','w'];
 idx = 8;
 for i=1:3
     subplot(3, 1, i); hold on;
+    title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
 %     plot(est(1,:), est(i+idx,:));
 %     title(titles(i))
@@ -61,6 +63,7 @@ titles = ["wx", "wy","wz"];
 idx = 11;
 for i=1:3
     subplot(3,1,i); hold on;
+    title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
 %     plot(u(1,:), u(i+4,:));
 %     title(titles(i))
@@ -74,6 +77,7 @@ titles = ["ax", "ay","az"];
 idx = 14;
 for i=1:3
     subplot(3,1,i); hold on;
+    title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
 %     plot(u(1,:), u(i+4,:));
 %     title(titles(i))
@@ -87,6 +91,7 @@ titles = ["vw_x", "vw_y","vw_z"];
 idx = 1;
 for i=1:3
     subplot(3,1,i); hold on;
+    title(titles(i));
     plot(vw(1,:), vw(i + idx, :), 'linewidth', 1.3);
 %     plot(u(1,:), u(i+4,:));
 %     title(titles(i))

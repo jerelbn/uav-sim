@@ -17,3 +17,17 @@ env = reshape(env, 3, []);
 file = fopen(strcat(directory,'wind.bin'), 'r');
 vw = fread(file, 'double');
 vw = reshape(vw, 4, []);
+
+% Load accelerometer measurements
+file = fopen(strcat(directory,'accel.bin'), 'r');
+accel = fread(file, 'double');
+accel = reshape(accel, 10, []);
+accel_bias = accel(5:7,:);
+accel_noise = accel(8:10,:);
+
+% Load rate gyro measurements
+file = fopen(strcat(directory,'gyro.bin'), 'r');
+gyro = fread(file, 'double');
+gyro = reshape(gyro, 10, []);
+gyro_bias = gyro(5:7,:);
+gyro_noise = gyro(8:10,:);

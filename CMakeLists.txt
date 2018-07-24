@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
-project (uav_sim)
+project(uav_sim)
 
 # default to release build
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
-set(CMAKE_CXX_FLAGS "-std=c++14 -openmp")
+set(CMAKE_CXX_FLAGS "-std=c++14 -mavx -mfma")
 
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
