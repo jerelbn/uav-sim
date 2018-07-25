@@ -10,6 +10,7 @@ Sensors::Sensors() {}
 
 Sensors::Sensors(const std::string filename)
 {
+  cam_.reserve(10000);
   load(filename);
 }
 
@@ -18,6 +19,7 @@ Sensors::~Sensors()
 {
   accel_log_.close();
   gyro_log_.close();
+  cam_log_.close();
 }
 
 
@@ -61,7 +63,8 @@ void Sensors::load(const std::string filename)
   double pixel_noise_stdev;
   Eigen::Vector2d focal_lengths, image_center;
   Eigen::Vector4d q_b2c;
-  common::get_yaml_node("camera_update_rate", filename, cam_update_rate_);
+  common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
+  common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
   common::get_yaml_node("pixel_noise_stdev", filename, pixel_noise_stdev);
   common::get_yaml_eigen("focal_len", filename, focal_lengths);
   common::get_yaml_eigen("image_center", filename, image_center);
@@ -69,40 +72,28 @@ void Sensors::load(const std::string filename)
   common::get_yaml_eigen("q_b2c", filename, q_b2c);
   common::get_yaml_eigen("p_b2c", filename, p_b2c_);
   last_camera_update_ = 0.0;
-  pix_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
+  pixel_noise_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
   K_ << focal_lengths(0), 0, image_center(0), 0, focal_lengths(1), image_center(1), 0, 0, 1;
   K_inv_ = K_.inverse();
   q_b2c_ = common::Quaternion(q_b2c);
   q_b2c_.normalize();
-
+  pixel_noise_.setZero();
+  fov_x_ = 2.0 * atan(image_size_(0) / (2.0 * focal_lengths(0)));
+  fov_y_ = 2.0 * atan(image_size_(1) / (2.0 * focal_lengths(1)));
 
   // Initialize loggers
   common::get_yaml_node("log_directory", filename, directory_);
   accel_log_.open(directory_ + "/accel.bin");
   gyro_log_.open(directory_ + "/gyro.bin");
+  cam_log_.open(directory_ + "/camera.bin");
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::xVector &x)
+void Sensors::updateMeasurements(const double t, const vehicle::xVector &x, const Eigen::MatrixXd& lm)
 {
   // Update all sensor measurements
   imu(t, x);
-
-  // Log all sensor measurements
-  log(t);
-}
-
-
-void Sensors::log(const double t)
-{
-  accel_log_.write((char*)&t, sizeof(double));
-  accel_log_.write((char*)accel_.data(), accel_.rows() * sizeof(double));
-  accel_log_.write((char*)accel_bias_.data(), accel_bias_.rows() * sizeof(double));
-  accel_log_.write((char*)accel_noise_.data(), accel_noise_.rows() * sizeof(double));
-  gyro_log_.write((char*)&t, sizeof(double));
-  gyro_log_.write((char*)gyro_.data(), gyro_.rows() * sizeof(double));
-  gyro_log_.write((char*)gyro_bias_.data(), gyro_bias_.rows() * sizeof(double));
-  gyro_log_.write((char*)gyro_noise_.data(), gyro_noise_.rows() * sizeof(double));
+  camera(t, x, lm);
 }
 
 
@@ -127,16 +118,72 @@ void Sensors::imu(const double t, const vehicle::xVector& x)
     body_gravity_ = common::gravity * common::Quaternion(x.segment<4>(vehicle::QW)).rot(common::e3);
     accel_ = x.segment<3>(vehicle::AX) - body_gravity_ + accel_bias_ + accel_noise_;
     gyro_ = x.segment<3>(vehicle::WX) + gyro_bias_ + gyro_noise_;
+
+    // Log IMU data
+    accel_log_.write((char*)&t, sizeof(double));
+    accel_log_.write((char*)accel_.data(), accel_.rows() * sizeof(double));
+    accel_log_.write((char*)accel_bias_.data(), accel_bias_.rows() * sizeof(double));
+    accel_log_.write((char*)accel_noise_.data(), accel_noise_.rows() * sizeof(double));
+    gyro_log_.write((char*)&t, sizeof(double));
+    gyro_log_.write((char*)gyro_.data(), gyro_.rows() * sizeof(double));
+    gyro_log_.write((char*)gyro_bias_.data(), gyro_bias_.rows() * sizeof(double));
+    gyro_log_.write((char*)gyro_noise_.data(), gyro_noise_.rows() * sizeof(double));
   }
 }
 
 
-void Sensors::camera(const vehicle::xVector& x) {}
-void Sensors::depth(const vehicle::xVector& x) {}
-void Sensors::gps(const vehicle::xVector& x) {}
-void Sensors::baro(const vehicle::xVector& x) {}
-void Sensors::alt(const vehicle::xVector& x) {}
-void Sensors::mag(const vehicle::xVector& x) {}
+void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::MatrixXd &lm)
+{
+  double dt = t - last_camera_update_;
+  if (t == 0 || dt >= 1.0 / camera_update_rate_)
+  {
+    last_camera_update_ = t;
+    if (!use_camera_truth_)
+      common::randomNormalMatrix(pixel_noise_,pixel_noise_dist_,rng_);
+
+    // Compute camera pose
+    common::Quaternion q_i2b = common::Quaternion(x.segment<4>(vehicle::QW));
+    common::Quaternion q_i2c = q_i2b * q_b2c_;
+    Eigen::Vector3d p_i2c = x.segment<3>(vehicle::PX) + q_i2b.inv().rot(p_b2c_);
+
+    // Project landmarks into image
+    cam_.clear();
+    for (int i = 0; i < lm.cols(); ++i)
+    {
+      // Landmark vector in camera frame
+      Eigen::Vector3d l = q_i2c.rot(lm.col(i) - p_i2c);
+
+      // Check if landmark is in front of camera
+      if (l(2) < 0)
+        continue;
+
+      // Project landmark into image and save it to the list
+      Eigen::Vector2d pix;
+      common::projToImg(pix, l, K_);
+      pix += pixel_noise_;
+      if (pix(0) >= 1 && pix(1) >= 1 && pix(0) <= image_size_(0) && pix(1) <= image_size_(1))
+        cam_.push_back(Eigen::Vector3d(pix(0), pix(1), i));
+    }
+
+    // Log up to 5000 pixel measurements per measurement cycle
+    if (cam_.size() > 0)
+    {
+      cam_log_.write((char*)&t, sizeof(double));
+      Eigen::Matrix<double,3*5000,1> cam_save = Eigen::Matrix<double,3*5000,1>::Constant(-1);
+      int num_saves = std::min(5000, int(cam_.size()));
+      for (int i = 0; i < num_saves; ++i)
+        cam_save.segment<3>(3*i) = cam_[i];
+      cam_log_.write((char*)cam_save.data(), cam_save.rows() * sizeof(double));
+    }
+  }
+}
+
+
+void Sensors::depth(const double t, const vehicle::xVector& x) {}
+void Sensors::gps(const double t, const vehicle::xVector& x) {}
+void Sensors::baro(const double t, const vehicle::xVector& x) {}
+void Sensors::alt(const double t, const vehicle::xVector& x) {}
+void Sensors::mag(const double t, const vehicle::xVector& x) {}
 
 
 }

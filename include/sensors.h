@@ -21,19 +21,17 @@ public:
   ~Sensors();
 
   void load(const std::string filename);
-  void updateMeasurements(const double t, const vehicle::xVector& x);
+  void updateMeasurements(const double t, const vehicle::xVector& x, const Eigen::MatrixXd &lm);
 
 private:
 
   void imu(const double t, const vehicle::xVector& x);
-  void camera(const vehicle::xVector& x);
-  void depth(const vehicle::xVector& x);
-  void gps(const vehicle::xVector& x);
-  void baro(const vehicle::xVector& x);
-  void alt(const vehicle::xVector& x);
-  void mag(const vehicle::xVector& x);
-
-  void log(const double t);
+  void camera(const double t, const vehicle::xVector& x, const Eigen::MatrixXd& lm);
+  void depth(const double t, const vehicle::xVector& x);
+  void gps(const double t, const vehicle::xVector& x);
+  void baro(const double t, const vehicle::xVector& x);
+  void alt(const double t, const vehicle::xVector& x);
+  void mag(const double t, const vehicle::xVector& x);
 
   std::string directory_;
   bool use_random_seed_;
@@ -51,15 +49,18 @@ private:
   std::ofstream accel_log_, gyro_log_;
 
   // Camera
+  bool use_camera_truth_;
   double last_camera_update_;
-  double cam_update_rate_;
-  std::normal_distribution<double> pix_dist_;
-  Eigen::Vector2d pix_noise_;
-  std::vector<Eigen::Vector2d> cam_;
+  double camera_update_rate_;
+  double fov_x_, fov_y_;
+  std::normal_distribution<double> pixel_noise_dist_;
+  Eigen::Vector2d pixel_noise_;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
   Eigen::Matrix3d K_, K_inv_;
   Eigen::Vector2d image_size_;
   common::Quaternion q_b2c_;
   Eigen::Vector3d p_b2c_;
+  std::ofstream cam_log_;
 
 };
 

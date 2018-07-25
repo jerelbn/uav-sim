@@ -111,13 +111,13 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
 }
 
 
-void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw)
+void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw, const Eigen::MatrixXd& lm)
 {
-  sensors_.updateMeasurements(t, x_); // Update sensor measurements
+  sensors_.updateMeasurements(t, x_, lm); // Update sensor measurements
   log(t); // Log current data
-  propagate(dt, u_, vw); // Propagate to next time step
+  propagate(dt, u_, vw); // Propagate truth to next time step
   controller_.computeControl(get_true_state(), t, u_); // Update control input
-  updateAccel(u_, vw); // Update acceleration
+  updateAccel(u_, vw); // Update true acceleration
 }
 
 

@@ -31,3 +31,8 @@ gyro = fread(file, 'double');
 gyro = reshape(gyro, 10, []);
 gyro_bias = gyro(5:7,:);
 gyro_noise = gyro(8:10,:);
+
+% Load pixel measurements
+file = fopen(strcat(directory,'camera.bin'), 'r');
+pix = fread(file, 'double');
+pix = reshape(pix, 15001, []);

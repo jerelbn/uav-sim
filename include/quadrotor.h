@@ -21,7 +21,7 @@ public:
   ~Quadrotor();
 
   void load(std::string filename);
-  void run(const double t, const double dt, const Eigen::Vector3d& vw);
+  void run(const double t, const double dt, const Eigen::Vector3d& vw, const Eigen::MatrixXd &lm);
 
   const vehicle::xVector& get_true_state() const { return x_; }
 

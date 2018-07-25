@@ -56,3 +56,25 @@ enum
 };
 
 }
+
+
+namespace sensors
+{
+
+typedef enum
+{
+  IMU,
+  CAM
+} measurement_type_t;
+
+typedef struct
+{
+  measurement_type_t type;
+  Eigen::MatrixXd z;
+  Eigen::MatrixXd R;
+} measurement_t;
+
+
+typedef std::vector<measurement_t, Eigen::aligned_allocator<measurement_t> > measurement_list_t;
+
+}

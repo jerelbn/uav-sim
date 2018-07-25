@@ -25,9 +25,9 @@ inertia: [0.02, 0.02, 0.04]
 linear_drag: [0.1, 0.1, 0.01]
 angular_drag: [0.001, 0.001, 0.001]
 
-Kp: [1, 1, 5]
+Kp: [1, 1, 1]
 Kd: [0.0, 0.0, 0.0]
-Kv: [2, 2, 5]
+Kv: [2, 2, 2]
 
 roll_kp: 10.0
 roll_ki: 0.0
@@ -47,12 +47,17 @@ max_tau_x: 1.0
 max_tau_y: 1.0
 max_tau_z: 1.0
 
-waypoints: [10, 0, -5, .705,
-            10, 10, -4, 3.0,
-            -10, 10, -5.5, -1.5,
-            -10, -7, -5, .80,
-            -8, -12, -4.5, -2.3,
-            8, -5, -4, 1.7]
+waypoints: [0, 0, -4, 0,
+            10, 0, -4, 0,
+            10, 0, -8, 1.57,
+            10, 10, -8, 1.57,
+            10, 10, -4, 3.14,
+            -10, 10, -4, 3.14,
+            -10, 10, -8, -1.57,
+            -10, -10, -8, -1.57,
+            -10, -10, -4, 0,
+            10, -10, -4, 0,
+            10, 0, -4, 1.57]
 waypoint_threshold: 0.1
 waypoint_velocity_threshold: 0.5
 
@@ -82,12 +87,12 @@ gyro_bias_init_bound: 0.2
 gyro_walk_stdev: 0.001
 
 ## Camera
-camera_update_rate: 30
+camera_update_rate: 50
 pixel_noise_stdev: 0.5
-focal_len: [250.0, 250.0]
+focal_len: [480.0, 480.0]
 image_center: [320, 240]
 image_size: [640, 480]
-q_b2c: [1, 0, 0, 0]
+q_b2c: [0.5, 0.5, 0.5, 0.5]
 p_b2c: [0, 0, 0]
 
 ## Depth
