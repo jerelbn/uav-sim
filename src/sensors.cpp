@@ -165,7 +165,7 @@ void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::Mat
         cam_.push_back(Eigen::Vector3d(pix(0), pix(1), i));
     }
 
-    // Log up to 5000 pixel measurements per measurement cycle
+    // Log up to 5000 pixel measurements per measurement cycle, can't allocate much more on the stack...
     if (cam_.size() > 0)
     {
       cam_log_.write((char*)&t, sizeof(double));
