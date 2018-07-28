@@ -95,7 +95,8 @@ public:
 
   void load(const std::string filename);
   void propagate(const double t, const uVector&u);
-  void imageUpdate(const Eigen::MatrixXd &pts, const Eigen::Matrix<double, 5, 5> &R);
+  void imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
+                   const State &x, const Eigen::Matrix<double, 5, 5> &R);
 
 private:
 
@@ -103,6 +104,14 @@ private:
   void getF(dxMatrix &F, const State &x, const uVector &u);
   void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
   void imageH(Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x);
+  void optimizePose(common::Quaternion& q, common::Quaternion& qt,
+                    const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
+                    const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
+                    const unsigned iters);
+  void se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E);
+  void dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE);
+
+  double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
 
   double t_prev_;
   State x_;
@@ -112,11 +121,17 @@ private:
   Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> G_;
   Eigen::Matrix<double, NUM_INPUTS, NUM_INPUTS> Qu_;
   Eigen::Matrix<double, 5, NUM_DOF> H_vo_;
+
   Eigen::Vector3d pk_; // Keyframe inertial position
   common::Quaternion qk_; // Keyframe body attitude
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > pts_k_; // Keyframe image points
+  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > pts_match_;
+  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > pts_match_k_;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > dv_, dv_k_; // Landmark direction vectors
+
   common::Quaternion q_bc_;
   Eigen::Vector3d p_bc_;
-  Eigen::MatrixXd pts_k_;
+  Eigen::Matrix3d K_, K_inv_;
 
 };
 

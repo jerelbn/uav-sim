@@ -44,9 +44,29 @@ State State::operator+=(const dxVector &delta)
 }
 
 
+EKF::EKF() {}
+
+
+EKF::EKF(std::string filename)
+{
+  load(filename);
+  pts_k_.reserve(10000);
+  pts_match_.reserve(10000);
+  pts_match_k_.reserve(10000);
+  dv_.reserve(10000);
+  dv_k_.reserve(10000);
+}
+
+
+EKF::~EKF()
+{
+  // close log files
+}
+
+
 void EKF::load(const std::string filename)
 {
-
+  pixel_disparity_threshold_ = 30;
 }
 
 
@@ -67,12 +87,58 @@ void EKF::propagate(const double t, const uVector&u)
 }
 
 
-void EKF::imageUpdate(const Eigen::MatrixXd &pts, const Eigen::Matrix<double, 5, 5> &R)
+void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
+                      const State &x, const Eigen::Matrix<double, 5, 5> &R)
 {
-  // Match current landmarks to keyframe landmarks
+  // Match current image points to keyframe image points
+  pts_match_.clear();
+  pts_match_k_.clear();
+  for (int i = 0; i < pts_k_.size(); ++i)
+  {
+    for (int j = 0; j < pts.size(); ++j)
+    {
+      if (pts_k_[i](2) == pts[j](2))
+      {
+        pts_match_.push_back(pts[j].topRows(2));
+        pts_match_k_.push_back(pts_k_[i].topRows(2));
+      }
+    }
+  }
 
+  // Create new keyframe if necessary
+  if (pts_match_.size() < 30)
+  {
+    pts_k_ = pts;
+    return;
+  }
 
-  // Estimate camera pose relative to keyframe via nonlinear optimization
+  // Remove camera rotation and compute mean image point disparity
+  dv_.clear();
+  dv_k_.clear();
+  double mean_disparity = 0;
+  common::Quaternion q_c2ck = q_bc_.inv() * x.q.inv() * qk_ * q_bc_;
+  for (int n = 0; n < pts_match_.size(); ++n)
+  {
+    // Image points without rotation
+    Eigen::Vector3d pt1 = K_ * q_c2ck.rot(K_inv_ * Eigen::Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0));
+    Eigen::Vector3d pt2 = pt1 / pt1(2);
+
+    // Recursive mean of disparity
+    mean_disparity = (n * mean_disparity + (pt2.topRows(2) - pts_match_k_[n]).norm()) / (n + 1);
+
+    // Convert point matches to direction vectors
+    Eigen::Vector3d dv = K_inv_ * Eigen::Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0);
+    Eigen::Vector3d dv_k = K_inv_ * Eigen::Vector3d(pts_match_k_[n](0), pts_match_k_[n](1), 1.0);
+    dv_.push_back(dv / dv.norm());
+    dv_k_.push_back(dv_k / dv_k.norm());
+  }
+
+  // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
+  if (mean_disparity > pixel_disparity_threshold_)
+  {
+    common::Quaternion zt, zq;
+    optimizePose(zq, zt, dv_k_, dv_, 10);
+  }
 }
 
 void EKF::f(dxVector &xdot, const State &x, const uVector &u)
@@ -129,6 +195,100 @@ void EKF::imageH(Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x)
   H.block<2,3>(0,DPX) = dexpat_dat * dat_dt * dt_dpt * dpt_dp;
   H.block<2,3>(0,DQX) = dexpat_dat * dat_dt * dt_dpt * dpt_dq;
   H.block<3,3>(2,DQX) = -q_bc_.R() * qk_.R() * x.q.R().transpose();
+}
+
+
+// Relative camera pose optimizer
+void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
+                       const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
+                       const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
+                       const unsigned iters)
+{
+  // Ensure number of directions vectors from each camera match
+  if (e1.size() != e2.size())
+  {
+    std::cout << "\nError in optimizePose. Direction vector arrays must be the same size.\n\n";
+    return;
+  }
+
+  // Constants
+  const int N = e1.size();
+  static Eigen::Matrix3d e1x = common::skew(common::e1);
+  static Eigen::Matrix3d e2x = common::skew(common::e2);
+  static Eigen::Matrix3d e3x = common::skew(common::e3);
+
+  // Declare things that change each loop
+  static Eigen::Matrix3d R, Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
+  static Eigen::Vector3d t, e1tx_t, e2tx_t;
+  static Eigen::Matrix<double,5,1> delta;
+  static Eigen::VectorXd r(N);
+  static Eigen::MatrixXd J(N,5);
+
+  // Main optimization loop
+  for (int i = 0; i < iters; ++i)
+  {
+    // Pre-compute a few things
+    R = q.R();
+    t = qt.uvec();
+    Rtx = R*common::skew(t);
+    e1x_Rtx = e1x * Rtx;
+    e2x_Rtx = e2x * Rtx;
+    e3x_Rtx = e3x * Rtx;
+    e1tx = common::skew(qt.rot(common::e1));
+    e2tx = common::skew(qt.rot(common::e2));
+    e1tx_t = e1tx * t;
+    e2tx_t = e2tx * t;
+    R_e1tx_tx = R * common::skew(e1tx_t);
+    R_e2tx_tx = R * common::skew(e2tx_t);
+
+    // Vector of residual errors
+    for (int j = 0; j < N; ++j)
+      se(r(j), e1[j], e2[j], Rtx);
+
+    // Jacobian of residual errors
+    for (int j = 0; j < N; ++j)
+    {
+      dse(J(j,0), e1[j], e2[j], Rtx, -e1x_Rtx);
+      dse(J(j,1), e1[j], e2[j], Rtx, -e2x_Rtx);
+      dse(J(j,2), e1[j], e2[j], Rtx, -e3x_Rtx);
+      dse(J(j,3), e1[j], e2[j], Rtx, -R_e1tx_tx);
+      dse(J(j,4), e1[j], e2[j], Rtx, -R_e2tx_tx);
+    }
+
+    // Innovation
+    delta = -(J.transpose() * J).inverse() * J.transpose() * r;
+
+    // Update camera rotation and translation
+    q = q * common::Quaternion::exp(delta.segment<3>(0));
+    qt = qt * common::Quaternion::exp(qt.proj() * delta.segment<2>(3));
+  }
+}
+
+
+// Sampson's error
+void EKF::se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E)
+{
+  static Eigen::Vector3d e1T_E, E_e2;
+  double e1T_E_e2 = e1.transpose() * E * e2;
+  e1T_E = (e1.transpose() * E).transpose();
+  E_e2 = E * e2;
+  err = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+}
+
+
+// Derivative of Sampson's error
+void EKF::dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE)
+{
+  static Eigen::Vector3d e1T_E, E_e2, e1T_dE, dE_e2;
+  e1T_E = (e1.transpose() * E).transpose();
+  E_e2 = E * e2;
+  e1T_dE = (e1.transpose() * dE).transpose();
+  dE_e2 = dE * e2;
+  double val1 = sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+  double val2 = e1T_E(0) * e1T_dE(0) + e1T_E(1) * e1T_dE(1) + E_e2(0) * dE_e2(0) + E_e2(1) * dE_e2(1);
+  double e1T_dE_e2 = e1.transpose() * dE * e2;
+  double e1T_E_e2 = e1.transpose() * E * e2;
+  derr = (e1T_dE_e2 * val1 - e1T_E_e2 * val2) / (val1 * val1);
 }
 
 
