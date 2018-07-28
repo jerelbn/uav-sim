@@ -103,7 +103,7 @@ private:
   void f(dxVector &xdot, const State &x, const uVector &u);
   void getF(dxMatrix &F, const State &x, const uVector &u);
   void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
-  void imageH(Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x);
+  void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x);
   void optimizePose(common::Quaternion& q, common::Quaternion& qt,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
@@ -121,6 +121,9 @@ private:
   Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> G_;
   Eigen::Matrix<double, NUM_INPUTS, NUM_INPUTS> Qu_;
   Eigen::Matrix<double, 5, NUM_DOF> H_vo_;
+  dxVector lambda_;
+  dxMatrix Lambda_;
+  dxMatrix I_num_dof_;
 
   Eigen::Vector3d pk_; // Keyframe inertial position
   common::Quaternion qk_; // Keyframe body attitude

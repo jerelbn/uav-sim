@@ -55,6 +55,11 @@ EKF::EKF(std::string filename)
   pts_match_k_.reserve(10000);
   dv_.reserve(10000);
   dv_k_.reserve(10000);
+  lambda_.setOnes();
+  Eigen::Matrix<double, NUM_DOF, 1> ones_vec;
+  ones_vec.setOnes();
+  Lambda_ = ones_vec * lambda_.transpose() + lambda_ * ones_vec.transpose() - lambda_ * lambda_.transpose();
+  I_num_dof_.setIdentity();
 }
 
 
@@ -108,6 +113,8 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
   // Create new keyframe if necessary
   if (pts_match_.size() < 30)
   {
+    pk_ = x.p;
+    qk_ = x.q;
     pts_k_ = pts;
     return;
   }
@@ -136,8 +143,28 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
   // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
   if (mean_disparity > pixel_disparity_threshold_)
   {
+    // Optimize for VO measurement
     common::Quaternion zt, zq;
     optimizePose(zq, zt, dv_k_, dv_, 10);
+
+    // Measurement model and jacobian
+    common::Quaternion ht, hq;
+    Eigen::Matrix<double, 5, NUM_DOF> H;
+    imageH(ht, hq, H, x);
+
+    // Error in translation direction and rotation
+    Eigen::Vector2d err_t = common::Quaternion::log_uvec(zt,ht);
+    Eigen::Vector3d err_q = zq - hq;
+
+    // Innovation error
+    Eigen::Matrix<double, 5, 1> err_i;
+    err_i << err_t, err_q;
+
+    // Change in state and covariance
+    Eigen::Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
+    dxVector delta_x = lambda_.cwiseProduct(K * err_i);
+    dxMatrix delta_P = Lambda_.cwiseProduct((I_num_dof_ - K * H) * P_ * (I_num_dof_ - K * H).transpose() +
+                       K * R * K.transpose() - P_);
   }
 }
 
@@ -172,7 +199,7 @@ void EKF::getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x)
 }
 
 
-void EKF::imageH(Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x)
+void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x)
 {
   Eigen::Vector3d pt = q_bc_.rot(x.q.rot(pk_ + qk_.inv().rot(p_bc_) - x.p) - p_bc_);
   Eigen::Vector3d t = pt / pt.norm();
@@ -180,10 +207,12 @@ void EKF::imageH(Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x)
   double tT_k = t.transpose() * common::e3;
   Eigen::Vector3d at = acos(tT_k) * t_x_k / t_x_k.norm();
 
+  ht = common::Quaternion::exp(at);
+  hq = q_bc_.inv() * x.q.inv() * qk_ * q_bc_;
+
   Eigen::Matrix3d Gamma_at = common::Quaternion::dexp(at);
   double txk_mag = t_x_k.norm();
-  common::Quaternion expat = common::Quaternion::exp(at);
-  Eigen::Matrix<double, 2, 3> dexpat_dat = common::I_2x3 * expat.R().transpose() * Gamma_at;
+  Eigen::Matrix<double, 2, 3> dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
   Eigen::Matrix3d dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
                            (txk_mag * txk_mag) - common::I_3x3) * common::skew(common::e3) -
                            (t_x_k * common::e3.transpose()) / (txk_mag * sqrt(1.0 - tT_k * tT_k));
@@ -192,6 +221,7 @@ void EKF::imageH(Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x)
   Eigen::Matrix3d dpt_dp = -q_bc_.R() * x.q.R();
   Eigen::Matrix3d dpt_dq = q_bc_.R() * common::skew(q_bc_.rot(pk_ + qk_.R().transpose() * p_bc_ - x.p));
 
+  H.setZero();
   H.block<2,3>(0,DPX) = dexpat_dat * dat_dt * dt_dpt * dpt_dp;
   H.block<2,3>(0,DQX) = dexpat_dat * dat_dt * dt_dpt * dpt_dq;
   H.block<3,3>(2,DQX) = -q_bc_.R() * qk_.R() * x.q.R().transpose();
