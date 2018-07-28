@@ -96,14 +96,14 @@ public:
   void load(const std::string filename);
   void propagate(const double t, const uVector&u);
   void imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
-                   const State &x, const Eigen::Matrix<double, 5, 5> &R);
-
-private:
-
+                   const Eigen::Matrix<double, 5, 5> &R);
   void f(dxVector &xdot, const State &x, const uVector &u);
   void getF(dxMatrix &F, const State &x, const uVector &u);
   void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
   void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x);
+
+private:
+
   void optimizePose(common::Quaternion& q, common::Quaternion& qt,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,

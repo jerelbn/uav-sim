@@ -93,7 +93,7 @@ void EKF::propagate(const double t, const uVector&u)
 
 
 void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
-                      const State &x, const Eigen::Matrix<double, 5, 5> &R)
+                      const Eigen::Matrix<double, 5, 5> &R)
 {
   // Match current image points to keyframe image points
   pts_match_.clear();
@@ -113,8 +113,8 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
   // Create new keyframe if necessary
   if (pts_match_.size() < 30)
   {
-    pk_ = x.p;
-    qk_ = x.q;
+    pk_ = x_.p;
+    qk_ = x_.q;
     pts_k_ = pts;
     return;
   }
@@ -123,7 +123,7 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
   dv_.clear();
   dv_k_.clear();
   double mean_disparity = 0;
-  common::Quaternion q_c2ck = q_bc_.inv() * x.q.inv() * qk_ * q_bc_;
+  common::Quaternion q_c2ck = q_bc_.inv() * x_.q.inv() * qk_ * q_bc_;
   for (int n = 0; n < pts_match_.size(); ++n)
   {
     // Image points without rotation
@@ -150,7 +150,7 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
     // Measurement model and jacobian
     common::Quaternion ht, hq;
     Eigen::Matrix<double, 5, NUM_DOF> H;
-    imageH(ht, hq, H, x);
+    imageH(ht, hq, H, x_);
 
     // Error in translation direction and rotation
     Eigen::Vector2d err_t = common::Quaternion::log_uvec(zt,ht);
@@ -165,6 +165,10 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
     dxVector delta_x = lambda_.cwiseProduct(K * err_i);
     dxMatrix delta_P = Lambda_.cwiseProduct((I_num_dof_ - K * H) * P_ * (I_num_dof_ - K * H).transpose() +
                        K * R * K.transpose() - P_);
+
+    // Apply update
+    x_ += delta_x;
+    P_ += delta_P;
   }
 }
 
@@ -181,6 +185,7 @@ void EKF::f(dxVector &xdot, const State &x, const uVector &u)
 
 void EKF::getF(dxMatrix &F, const State &x, const uVector &u)
 {
+  F.setZero();
   F.block<3,3>(DPX,DQX) = -x.q.R().transpose() * common::skew(x.v);
   F.block<3,3>(DPX,DVX) = x.q.R().transpose();
   F.block<3,3>(DQX,DGX) = -common::I_3x3;
@@ -193,6 +198,7 @@ void EKF::getF(dxMatrix &F, const State &x, const uVector &u)
 
 void EKF::getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x)
 {
+  G.setZero();
   G.block<3,3>(DQX,UAX) = -common::I_3x3;
   G.block<3,3>(DVX,UAX) = -common::skew(x.v);
   G.block<3,3>(DVX,UWX) = -common::I_3x3;
