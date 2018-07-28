@@ -39,7 +39,7 @@ private:
   Eigen::Vector3d body_gravity_;
 
   // IMU
-  bool use_accel_truth_, use_gyro_truth_;
+  bool use_accel_truth_, use_gyro_truth_, new_imu_meas_;
   double last_imu_update_;
   double imu_update_rate_;
   Eigen::Vector3d accel_, accel_bias_, accel_noise_, accel_walk_;
@@ -49,7 +49,7 @@ private:
   std::ofstream accel_log_, gyro_log_;
 
   // Camera
-  bool use_camera_truth_;
+  bool use_camera_truth_, new_camera_meas_;
   double last_camera_update_;
   double camera_update_rate_;
   double fov_x_, fov_y_;

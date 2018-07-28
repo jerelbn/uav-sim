@@ -59,6 +59,8 @@ void Sensors::load(const std::string filename)
   if (use_gyro_truth_)
     gyro_bias_.setZero();
 
+  new_imu_meas_ = false;
+
   // Camera
   double pixel_noise_stdev;
   Eigen::Vector2d focal_lengths, image_center;
@@ -80,6 +82,7 @@ void Sensors::load(const std::string filename)
   pixel_noise_.setZero();
   fov_x_ = 2.0 * atan(image_size_(0) / (2.0 * focal_lengths(0)));
   fov_y_ = 2.0 * atan(image_size_(1) / (2.0 * focal_lengths(1)));
+  new_camera_meas_ = false;
 
   // Initialize loggers
   common::get_yaml_node("log_directory", filename, directory_);
@@ -102,6 +105,7 @@ void Sensors::imu(const double t, const vehicle::xVector& x)
   double dt = t - last_imu_update_;
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
   {
+    new_imu_meas_ = true;
     last_imu_update_ = t;
     if (!use_accel_truth_)
     {
@@ -129,6 +133,10 @@ void Sensors::imu(const double t, const vehicle::xVector& x)
     gyro_log_.write((char*)gyro_bias_.data(), gyro_bias_.rows() * sizeof(double));
     gyro_log_.write((char*)gyro_noise_.data(), gyro_noise_.rows() * sizeof(double));
   }
+  else
+  {
+    new_imu_meas_ = false;
+  }
 }
 
 
@@ -137,6 +145,7 @@ void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::Mat
   double dt = t - last_camera_update_;
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
+    new_camera_meas_ = true;
     last_camera_update_ = t;
     if (!use_camera_truth_)
       common::randomNormalMatrix(pixel_noise_,pixel_noise_dist_,rng_);
@@ -175,6 +184,10 @@ void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::Mat
         cam_save.segment<3>(3*i) = cam_[i];
       cam_log_.write((char*)cam_save.data(), cam_save.rows() * sizeof(double));
     }
+  }
+  else
+  {
+    new_camera_meas_ = false;
   }
 }
 
