@@ -115,6 +115,12 @@ void Controller::computeControl(const vehicle::xVector &x, const double t, quadr
   // get yaw rate direction and allow it to saturate
   xc_.r = xc_.psi - xhat_.psi;
 
+  // angle wrapping
+  if (xc_.r > M_PI)
+    xc_.r -= 2.0 * M_PI;
+  if (xc_.r < -M_PI)
+    xc_.r += 2.0 * M_PI;
+
   // get velocity command and enforce max velocity
   double vmag = vc.norm();
   if (vmag > max_.vel)
