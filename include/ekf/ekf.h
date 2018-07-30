@@ -97,10 +97,12 @@ public:
   void propagate(const double t, const uVector&u);
   void imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
                    const Eigen::Matrix<double, 5, 5> &R);
-  void f(dxVector &xdot, const State &x, const uVector &u);
-  void getF(dxMatrix &F, const State &x, const uVector &u);
-  void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
-  void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x);
+  static void f(dxVector &xdot, const State &x, const uVector &u);
+  static void getF(dxMatrix &F, const State &x, const uVector &u);
+  static void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
+  static void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
+                     const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
+                     const Eigen::Vector3d &p_ik);
 
 private:
 

@@ -150,7 +150,7 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
     // Measurement model and jacobian
     common::Quaternion ht, hq;
     Eigen::Matrix<double, 5, NUM_DOF> H;
-    imageH(ht, hq, H, x_);
+    imageH(ht, hq, H, x_, q_bc_, p_bc_, qk_, pk_);
 
     // Error in translation direction and rotation
     Eigen::Vector2d err_t = common::Quaternion::log_uvec(zt,ht);
@@ -205,16 +205,18 @@ void EKF::getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x)
 }
 
 
-void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x)
+void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
+                 const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
+                 const Eigen::Vector3d &p_ik)
 {
-  Eigen::Vector3d pt = q_bc_.rot(x.q.rot(pk_ + qk_.inv().rot(p_bc_) - x.p) - p_bc_);
+  Eigen::Vector3d pt = q_bc.rot(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p) - p_bc);
   Eigen::Vector3d t = pt / pt.norm();
   Eigen::Vector3d t_x_k = t.cross(common::e3);
   double tT_k = t.transpose() * common::e3;
   Eigen::Vector3d at = acos(tT_k) * t_x_k / t_x_k.norm();
 
   ht = common::Quaternion::exp(at);
-  hq = q_bc_.inv() * x.q.inv() * qk_ * q_bc_;
+  hq = q_bc.inv() * x.q.inv() * q_ik * q_bc;
 
   Eigen::Matrix3d Gamma_at = common::Quaternion::dexp(at);
   double txk_mag = t_x_k.norm();
@@ -224,13 +226,13 @@ void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<d
                            (t_x_k * common::e3.transpose()) / (txk_mag * sqrt(1.0 - tT_k * tT_k));
   double ptmag = pt.norm();
   Eigen::Matrix3d dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
-  Eigen::Matrix3d dpt_dp = -q_bc_.R() * x.q.R();
-  Eigen::Matrix3d dpt_dq = q_bc_.R() * common::skew(q_bc_.rot(pk_ + qk_.R().transpose() * p_bc_ - x.p));
+  Eigen::Matrix3d dpt_dp = -q_bc.R() * x.q.R();
+  Eigen::Matrix3d dpt_dq = q_bc.R() * common::skew(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p));
 
   H.setZero();
   H.block<2,3>(0,DPX) = dexpat_dat * dat_dt * dt_dpt * dpt_dp;
   H.block<2,3>(0,DQX) = dexpat_dat * dat_dt * dt_dpt * dpt_dq;
-  H.block<3,3>(2,DQX) = -q_bc_.R() * qk_.R() * x.q.R().transpose();
+  H.block<3,3>(2,DQX) = -q_bc.R() * q_ik.R() * x.q.R().transpose();
 }
 
 

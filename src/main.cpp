@@ -1,22 +1,3 @@
-// Code structure:
-//   main
-//     manages time
-//   class for each type of controller
-//   class for each type of estimator
-//   class for all sensors
-//     each expects environment and true vehicle state
-//     inherits environment
-//   class for each type of vehicle
-//     inherits vehicle base class and overrides dynamics
-//     inherits controller
-//     inherits estimator
-//     inherits sensors
-//     logs all self data
-//   class for environment
-//     contains landmarks
-//     contains wind
-//     container for all vehicle positions at current time
-//     logs all self data
 #include "common_cpp/common.h"
 #include "quadrotor.h"
 #include "environment.h"
