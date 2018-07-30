@@ -84,6 +84,20 @@ struct State
 };
 
 
+// Constants
+static const dxMatrix I_num_dof_ = [] {
+dxMatrix tmp;
+tmp.setIdentity();
+return tmp;
+}();
+
+static const dxVector ones_vec_ = [] {
+dxVector tmp;
+tmp.setOnes();
+return tmp;
+}();
+
+
 class EKF
 {
 
@@ -125,7 +139,6 @@ private:
   Eigen::Matrix<double, 5, NUM_DOF> H_vo_;
   dxVector lambda_;
   dxMatrix Lambda_;
-  dxMatrix I_num_dof_;
 
   Eigen::Vector3d pk_; // Keyframe inertial position
   common::Quaternion qk_; // Keyframe body attitude

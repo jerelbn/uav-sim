@@ -50,16 +50,13 @@ EKF::EKF() {}
 EKF::EKF(std::string filename)
 {
   load(filename);
+
+  // Pre-allocate memory for vector arrays
   pts_k_.reserve(10000);
   pts_match_.reserve(10000);
   pts_match_k_.reserve(10000);
   dv_.reserve(10000);
   dv_k_.reserve(10000);
-  lambda_.setOnes();
-  Eigen::Matrix<double, NUM_DOF, 1> ones_vec;
-  ones_vec.setOnes();
-  Lambda_ = ones_vec * lambda_.transpose() + lambda_ * ones_vec.transpose() - lambda_ * lambda_.transpose();
-  I_num_dof_.setIdentity();
 }
 
 
@@ -71,7 +68,27 @@ EKF::~EKF()
 
 void EKF::load(const std::string filename)
 {
-  pixel_disparity_threshold_ = 30;
+  xVector x0;
+  dxVector P0_diag, Qx_diag;
+  Eigen::Vector4d q_bc;
+  Eigen::Matrix<double, NUM_INPUTS, 1> Qu_diag;
+  common::get_yaml_eigen("x0", filename, x0);
+  x_ = State(x0);
+  common::get_yaml_eigen("P0_diag", filename, P0_diag);
+  P_ = P0_diag.asDiagonal();
+  common::get_yaml_eigen("Qx_diag", filename, Qx_diag);
+  Qx_ = Qx_diag.asDiagonal();
+  common::get_yaml_eigen("Qu_diag", filename, Qu_diag);
+  Qu_ = Qu_diag.asDiagonal();
+  common::get_yaml_eigen("lambda", filename, lambda_);
+  Lambda_ = ones_vec_ * lambda_.transpose() + lambda_ * ones_vec_.transpose() - lambda_ * lambda_.transpose();
+  common::get_yaml_eigen("camera_matrix", filename, K_);
+  K_inv_ = K_.inverse();
+  common::get_yaml_eigen("q_bc", filename, q_bc);
+  q_bc_ = common::Quaternion(q_bc);
+  q_bc_.normalize();
+  common::get_yaml_eigen("p_bc", filename, p_bc_);
+  common::get_yaml_node("pixel_disparity_threshold", filename, pixel_disparity_threshold_);
 }
 
 
