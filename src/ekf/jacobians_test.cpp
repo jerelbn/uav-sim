@@ -13,16 +13,16 @@ int main()
   std::default_random_engine rng(seed);
   std::normal_distribution<double> dist(0.0, 0.5);
 
-  // Nominal state, input, keyframe pose, and body-to-camera pose
+  // Nominal state, gyro, accel, keyframe pose, and body-to-camera pose
   ekf::State x;
-  Eigen::Vector3d p_bc, p_ik;
-  Eigen::Matrix<double, ekf::NUM_INPUTS, 1> u;
+  Eigen::Vector3d p_bc, p_ik, gyro, acc;
   common::randomNormalMatrix(x.p, dist, rng);
   x.q = common::Quaternion(dist, rng);
   common::randomNormalMatrix(x.v, dist, rng);
   common::randomNormalMatrix(x.bg, dist, rng);
   common::randomNormalMatrix(x.ba, dist, rng);
-  common::randomNormalMatrix(u, dist, rng);
+  common::randomNormalMatrix(gyro, dist, rng);
+  common::randomNormalMatrix(acc, dist, rng);
   common::Quaternion q_bc(dist, rng);
   common::Quaternion q_ik(dist, rng);
   common::randomNormalMatrix(p_bc, dist, rng);
@@ -41,11 +41,11 @@ int main()
       delta(i) = eps;
       ekf::State xp = x + delta;
       ekf::State xm = x + -delta;
-      ekf::EKF::f(dxp, xp, u);
-      ekf::EKF::f(dxm, xm, u);
+      ekf::EKF::f(dxp, xp, gyro, acc);
+      ekf::EKF::f(dxm, xm, gyro, acc);
       F_numerical.col(i) = (dxp - dxm) / (2.0 * eps);
     }
-    ekf::EKF::getF(F_analytical, x, u);
+    ekf::EKF::getF(F_analytical, x, gyro);
     common::TEST("Propagation Jacobian", tol, F_numerical, F_analytical);
   }
 

@@ -107,12 +107,11 @@ public:
   EKF(std::string filename);
   ~EKF();
 
-  void load(const std::string filename);
-  void propagate(const double t, const uVector&u);
-  void imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
-                   const Eigen::Matrix<double, 5, 5> &R);
-  static void f(dxVector &xdot, const State &x, const uVector &u);
-  static void getF(dxMatrix &F, const State &x, const uVector &u);
+  void load(const std::string &filename);
+  void propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
+  void imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts);
+  static void f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
+  static void getF(dxMatrix &F, const State &x, const Eigen::Vector3d &gyro);
   static void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
   static void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
                      const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
@@ -123,7 +122,7 @@ private:
   void optimizePose(common::Quaternion& q, common::Quaternion& qt,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
-                    const unsigned iters);
+                    const unsigned &iters);
   void se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E);
   void dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE);
 
@@ -137,6 +136,7 @@ private:
   Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> G_;
   Eigen::Matrix<double, NUM_INPUTS, NUM_INPUTS> Qu_;
   Eigen::Matrix<double, 5, NUM_DOF> H_vo_;
+  Eigen::Matrix<double, 5, 5> R_vo_;
   dxVector lambda_;
   dxMatrix Lambda_;
 

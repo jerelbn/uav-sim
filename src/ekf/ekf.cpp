@@ -44,14 +44,19 @@ State State::operator+=(const dxVector &delta)
 }
 
 
-EKF::EKF() {}
+EKF::EKF()
+{
+  pts_k_.reserve(10000);
+  pts_match_.reserve(10000);
+  pts_match_k_.reserve(10000);
+  dv_.reserve(10000);
+  dv_k_.reserve(10000);
+}
 
 
 EKF::EKF(std::string filename)
 {
   load(filename);
-
-  // Pre-allocate memory for vector arrays
   pts_k_.reserve(10000);
   pts_match_.reserve(10000);
   pts_match_k_.reserve(10000);
@@ -66,13 +71,14 @@ EKF::~EKF()
 }
 
 
-void EKF::load(const std::string filename)
+void EKF::load(const std::string &filename)
 {
   xVector x0;
   dxVector P0_diag, Qx_diag;
   Eigen::Vector4d q_bc;
   Eigen::Matrix<double, NUM_INPUTS, 1> Qu_diag;
-  common::get_yaml_eigen("x0", filename, x0);
+  Eigen::Matrix<double, 5, 1> R_vo_diag;
+  common::get_yaml_eigen("xhat0", filename, x0);
   x_ = State(x0);
   common::get_yaml_eigen("P0_diag", filename, P0_diag);
   P_ = P0_diag.asDiagonal();
@@ -80,6 +86,8 @@ void EKF::load(const std::string filename)
   Qx_ = Qx_diag.asDiagonal();
   common::get_yaml_eigen("Qu_diag", filename, Qu_diag);
   Qu_ = Qu_diag.asDiagonal();
+  common::get_yaml_eigen("R_vo_diag", filename, R_vo_diag);
+  R_vo_ = R_vo_diag.asDiagonal();
   common::get_yaml_eigen("lambda", filename, lambda_);
   Lambda_ = ones_vec_ * lambda_.transpose() + lambda_ * ones_vec_.transpose() - lambda_ * lambda_.transpose();
   common::get_yaml_eigen("camera_matrix", filename, K_);
@@ -92,25 +100,24 @@ void EKF::load(const std::string filename)
 }
 
 
-void EKF::propagate(const double t, const uVector&u)
+void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc)
 {
   // Time step
   double dt = t - t_prev_;
   t_prev_ = t;
 
   // Propagate the state
-  f(xdot_, x_, u);
+  f(xdot_, x_, gyro, acc);
   x_ += xdot_ * dt;
 
   // Propagate the covariance
-  getF(F_, x_, u);
+  getF(F_, x_, gyro);
   getG(G_, x_);
   P_ += (F_ * P_ + P_ * F_.transpose() + G_ * Qu_ * G_.transpose() + Qx_) * dt;
 }
 
 
-void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts,
-                      const Eigen::Matrix<double, 5, 5> &R)
+void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts)
 {
   // Match current image points to keyframe image points
   pts_match_.clear();
@@ -178,10 +185,10 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
     err_i << err_t, err_q;
 
     // Change in state and covariance
-    Eigen::Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
+    Eigen::Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * (R_vo_ + H * P_ * H.transpose()).inverse();
     dxVector delta_x = lambda_.cwiseProduct(K * err_i);
     dxMatrix delta_P = Lambda_.cwiseProduct((I_num_dof_ - K * H) * P_ * (I_num_dof_ - K * H).transpose() +
-                       K * R * K.transpose() - P_);
+                       K * R_vo_ * K.transpose() - P_);
 
     // Apply update
     x_ += delta_x;
@@ -189,25 +196,24 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
   }
 }
 
-void EKF::f(dxVector &xdot, const State &x, const uVector &u)
+void EKF::f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc)
 {
   xdot.segment<3>(DPX) = x.q.inv().rot(x.v);
-  xdot.segment<3>(DQX) = u.segment<3>(UWX) - x.bg;
-  xdot.segment<3>(DVX) = u.segment<3>(UAX) - x.ba + common::gravity * x.q.rot(common::e3) -
-                       Eigen::Vector3d(u.segment<3>(UWX)-x.bg).cross(x.v);
+  xdot.segment<3>(DQX) = gyro - x.bg;
+  xdot.segment<3>(DVX) = acc - x.ba + common::gravity * x.q.rot(common::e3) - (gyro - x.bg).cross(x.v);
   xdot.segment<3>(DGX).setZero();
   xdot.segment<3>(DAX).setZero();
 }
 
 
-void EKF::getF(dxMatrix &F, const State &x, const uVector &u)
+void EKF::getF(dxMatrix &F, const State &x, const Eigen::Vector3d &gyro)
 {
   F.setZero();
   F.block<3,3>(DPX,DQX) = -x.q.R().transpose() * common::skew(x.v);
   F.block<3,3>(DPX,DVX) = x.q.R().transpose();
   F.block<3,3>(DQX,DGX) = -common::I_3x3;
   F.block<3,3>(DVX,DQX) = common::gravity * common::skew(x.q.rot(common::e3));
-  F.block<3,3>(DVX,DVX) = -common::skew(Eigen::Vector3d(u.segment<3>(UWX)-x.bg));
+  F.block<3,3>(DVX,DVX) = -common::skew(Eigen::Vector3d(gyro - x.bg));
   F.block<3,3>(DVX,DGX) = -common::skew(x.v);
   F.block<3,3>(DVX,DAX) = -common::I_3x3;
 }
@@ -257,7 +263,7 @@ void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<d
 void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
-                       const unsigned iters)
+                       const unsigned &iters)
 {
   // Ensure number of directions vectors from each camera match
   if (e1.size() != e2.size())

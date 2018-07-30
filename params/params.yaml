@@ -89,14 +89,49 @@ gyro_walk_stdev: 0.001
 ## Camera
 camera_update_rate: 50
 pixel_noise_stdev: 0.5
-focal_len: [480.0, 480.0]
-image_center: [320, 240]
 image_size: [640, 480]
-q_b2c: [0.5, 0.5, 0.5, 0.5]
-p_b2c: [0, 0, 0]
+camera_matrix: [480,   0, 320,
+                  0, 480, 240,
+                  0,   0,   1]
+q_bc: [0.5, 0.5, 0.5, 0.5]
+p_bc: [0, 0, 0]
 
 ## Depth
 ## Altimeter
 ## Barometer
 ## Magnetometer
 ## GPS
+
+
+# Estimator Configuration
+xhat0: [0, 0, -1,   # POS
+        1, 0, 0, 0, # ATT
+        0, 0, 0,    # VEL 
+        0, 0, 0,    # OMEGA 
+        0, 0, 0]    # ACC
+
+P0_diag: [0.000001, 0.000001, 0.000001, # POS
+          0.000001, 0.000001, 0.000001, # ATT
+          0.000001, 0.000001, 0.000001, # VEL 
+          0.000001, 0.000001, 0.000001, # OMEGA 
+          0.000001, 0.000001, 0.000001] # ACC
+
+Qx_diag: [0.000001, 0.000001, 0.000001, # POS
+          0.000001, 0.000001, 0.000001, # ATT
+          0.000001, 0.000001, 0.000001, # VEL 
+          0.000001, 0.000001, 0.000001, # OMEGA 
+          0.000001, 0.000001, 0.000001] # ACC
+
+Qu_diag: [0.01, 0.01, 0.01, # OMEGA 
+          0.25, 0.25, 0.25] # ACC
+
+R_vo_diag: [0.001, 0.001, # Translation Direction
+            0.0001, 0.0001, 0.0001] # Rotation
+
+lambda: [1, 1, 1, # POS
+         1, 1, 1, # ATT
+         1, 1, 1, # VEL 
+         1, 1, 1, # OMEGA 
+         1, 1, 1] # ACC
+
+pixel_disparity_threshold: 30

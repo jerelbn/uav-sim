@@ -63,25 +63,20 @@ void Sensors::load(const std::string filename)
 
   // Camera
   double pixel_noise_stdev;
-  Eigen::Vector2d focal_lengths, image_center;
-  Eigen::Vector4d q_b2c;
+  Eigen::Vector4d q_bc;
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
   common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
   common::get_yaml_node("pixel_noise_stdev", filename, pixel_noise_stdev);
-  common::get_yaml_eigen("focal_len", filename, focal_lengths);
-  common::get_yaml_eigen("image_center", filename, image_center);
   common::get_yaml_eigen("image_size", filename, image_size_);
-  common::get_yaml_eigen("q_b2c", filename, q_b2c);
-  common::get_yaml_eigen("p_b2c", filename, p_b2c_);
+  common::get_yaml_eigen("camera_matrix", filename, K_);
+  common::get_yaml_eigen("q_bc", filename, q_bc);
+  common::get_yaml_eigen("p_bc", filename, p_bc_);
   last_camera_update_ = 0.0;
   pixel_noise_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
-  K_ << focal_lengths(0), 0, image_center(0), 0, focal_lengths(1), image_center(1), 0, 0, 1;
   K_inv_ = K_.inverse();
-  q_b2c_ = common::Quaternion(q_b2c);
-  q_b2c_.normalize();
+  q_bc_ = common::Quaternion(q_bc);
+  q_bc_.normalize();
   pixel_noise_.setZero();
-  fov_x_ = 2.0 * atan(image_size_(0) / (2.0 * focal_lengths(0)));
-  fov_y_ = 2.0 * atan(image_size_(1) / (2.0 * focal_lengths(1)));
   new_camera_meas_ = false;
 
   // Initialize loggers
@@ -152,8 +147,8 @@ void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::Mat
 
     // Compute camera pose
     common::Quaternion q_i2b = common::Quaternion(x.segment<4>(vehicle::QW));
-    common::Quaternion q_i2c = q_i2b * q_b2c_;
-    Eigen::Vector3d p_i2c = x.segment<3>(vehicle::PX) + q_i2b.inv().rot(p_b2c_);
+    common::Quaternion q_i2c = q_i2b * q_bc_;
+    Eigen::Vector3d p_i2c = x.segment<3>(vehicle::PX) + q_i2b.inv().rot(p_bc_);
 
     // Project landmarks into image
     cam_.clear();

@@ -7,7 +7,7 @@ namespace quadrotor
 Quadrotor::Quadrotor() {}
 
 
-Quadrotor::Quadrotor(const std::string filename)
+Quadrotor::Quadrotor(const std::string &filename)
 {
   load(filename);
 }
@@ -20,11 +20,12 @@ Quadrotor::~Quadrotor()
 }
 
 
-void Quadrotor::load(std::string filename)
+void Quadrotor::load(const std::string &filename)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   controller_.load(filename);
   sensors_.load(filename);
+  ekf_.load(filename);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -70,7 +71,7 @@ void Quadrotor::f(const vehicle::xVector& x, const commandVector& u, vehicle::dx
 }
 
 
-void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::Vector3d& vw)
+void Quadrotor::propagate(const double &dt, const commandVector& u, const Eigen::Vector3d& vw)
 {
   if (accurate_integration_)
   {
@@ -111,10 +112,11 @@ void Quadrotor::propagate(const double dt, const commandVector& u, const Eigen::
 }
 
 
-void Quadrotor::run(const double t, const double dt, const Eigen::Vector3d& vw, const Eigen::MatrixXd& lm)
+void Quadrotor::run(const double &t, const double &dt, const Eigen::Vector3d& vw, const Eigen::MatrixXd& lm)
 {
   sensors_.updateMeasurements(t, x_, lm); // Update sensor measurements
   log(t); // Log current data
+  ekf_.propagate(t, sensors_.gyro_, sensors_.accel_);
   propagate(dt, u_, vw); // Propagate truth to next time step
   controller_.computeControl(get_true_state(), t, u_); // Update control input
   updateAccel(u_, vw); // Update true acceleration
@@ -129,7 +131,7 @@ void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
 }
 
 
-void Quadrotor::log(const double t)
+void Quadrotor::log(const double &t)
 {
   // Write data to binary files and plot in another program
   true_state_log_.write((char*)&t, sizeof(double));
