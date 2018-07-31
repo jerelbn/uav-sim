@@ -21,7 +21,7 @@ public:
   ~Sensors();
 
   void load(const std::string filename);
-  void updateMeasurements(const double t, const vehicle::xVector& x, const Eigen::MatrixXd &lm);
+  void updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
@@ -30,13 +30,13 @@ public:
 
 private:
 
-  void imu(const double t, const vehicle::xVector& x);
-  void camera(const double t, const vehicle::xVector& x, const Eigen::MatrixXd& lm);
-  void depth(const double t, const vehicle::xVector& x);
-  void gps(const double t, const vehicle::xVector& x);
-  void baro(const double t, const vehicle::xVector& x);
-  void alt(const double t, const vehicle::xVector& x);
-  void mag(const double t, const vehicle::xVector& x);
+  void imu(const double t, const vehicle::State &x);
+  void camera(const double t, const vehicle::State& x, const Eigen::MatrixXd& lm);
+  void depth(const double t, const vehicle::State& x);
+  void gps(const double t, const vehicle::State& x);
+  void baro(const double t, const vehicle::State& x);
+  void alt(const double t, const vehicle::State& x);
+  void mag(const double t, const vehicle::State& x);
 
   std::string directory_;
   bool use_random_seed_;

@@ -25,7 +25,7 @@ State::State(const xVector &x)
 }
 
 
-State State::operator+(const dxVector &delta)
+State State::operator+(const dxVector &delta) const
 {
   State x;
   x.p = p + delta.segment<3>(DPX);
@@ -37,14 +37,13 @@ State State::operator+(const dxVector &delta)
 }
 
 
-State State::operator+=(const dxVector &delta)
+void State::operator+=(const dxVector &delta)
 {
-  State x;
-  return x + delta;
+  *this = *this + delta;
 }
 
 
-Eigen::Matrix<double, NUM_STATES, 1> State::toEigen()
+Eigen::Matrix<double, NUM_STATES, 1> State::toEigen() const
 {
   Eigen::Matrix<double, NUM_STATES, 1> x;
   x << p, q.toEigen(), v, bg, ba;

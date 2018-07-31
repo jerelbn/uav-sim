@@ -67,22 +67,22 @@ void Controller::load(const std::string filename)
 }
 
 
-void Controller::computeControl(const vehicle::xVector &x, const double t, quadrotor::commandVector& u)
+void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u)
 {
   // Copy the current state
-  Eigen::Vector3d euler = common::Quaternion(x.segment<4>(vehicle::QW)).euler();
-  xhat_.pn = x(vehicle::PX);
-  xhat_.pe = x(vehicle::PY);
-  xhat_.pd = x(vehicle::PZ);
-  xhat_.u = x(vehicle::VX);
-  xhat_.v = x(vehicle::VY);
-  xhat_.w = x(vehicle::VZ);
+  Eigen::Vector3d euler = x.q.euler();
+  xhat_.pn = x.p(0);
+  xhat_.pe = x.p(1);
+  xhat_.pd = x.p(2);
+  xhat_.u = x.v(0);
+  xhat_.v = x.v(1);
+  xhat_.w = x.v(2);
   xhat_.phi = euler(0);
   xhat_.theta = euler(1);
   xhat_.psi = euler(2);
-  xhat_.p = x(vehicle::WX);
-  xhat_.q = x(vehicle::WY);
-  xhat_.r = x(vehicle::WZ);
+  xhat_.p = x.omega(0);
+  xhat_.q = x.omega(1);
+  xhat_.r = x.omega(2);
 
   xc_.t = t;
 

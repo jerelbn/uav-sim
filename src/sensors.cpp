@@ -87,7 +87,7 @@ void Sensors::load(const std::string filename)
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::xVector &x, const Eigen::MatrixXd& lm)
+void Sensors::updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd& lm)
 {
   // Update all sensor measurements
   imu(t, x);
@@ -95,7 +95,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::xVector &x, cons
 }
 
 
-void Sensors::imu(const double t, const vehicle::xVector& x)
+void Sensors::imu(const double t, const vehicle::State& x)
 {
   double dt = t - last_imu_update_;
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
@@ -114,9 +114,9 @@ void Sensors::imu(const double t, const vehicle::xVector& x)
       common::randomNormalMatrix(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
-    body_gravity_ = common::gravity * common::Quaternion(x.segment<4>(vehicle::QW)).rot(common::e3);
-    accel_ = x.segment<3>(vehicle::AX) - body_gravity_ + accel_bias_ + accel_noise_;
-    gyro_ = x.segment<3>(vehicle::WX) + gyro_bias_ + gyro_noise_;
+    body_gravity_ = common::gravity * x.q.rot(common::e3);
+    accel_ = x.accel - body_gravity_ + accel_bias_ + accel_noise_;
+    gyro_ = x.omega + gyro_bias_ + gyro_noise_;
 
     // Log IMU data
     accel_log_.write((char*)&t, sizeof(double));
@@ -135,7 +135,7 @@ void Sensors::imu(const double t, const vehicle::xVector& x)
 }
 
 
-void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::MatrixXd &lm)
+void Sensors::camera(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm)
 {
   double dt = t - last_camera_update_;
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
@@ -146,9 +146,8 @@ void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::Mat
       common::randomNormalMatrix(pixel_noise_,pixel_noise_dist_,rng_);
 
     // Compute camera pose
-    common::Quaternion q_i2b = common::Quaternion(x.segment<4>(vehicle::QW));
-    common::Quaternion q_i2c = q_i2b * q_bc_;
-    Eigen::Vector3d p_i2c = x.segment<3>(vehicle::PX) + q_i2b.inv().rot(p_bc_);
+    common::Quaternion q_i2c = x.q * q_bc_;
+    Eigen::Vector3d p_i2c = x.p + x.q.inv().rot(p_bc_);
 
     // Project landmarks into image
     cam_.clear();
@@ -187,11 +186,11 @@ void Sensors::camera(const double t, const vehicle::xVector& x, const Eigen::Mat
 }
 
 
-void Sensors::depth(const double t, const vehicle::xVector& x) {}
-void Sensors::gps(const double t, const vehicle::xVector& x) {}
-void Sensors::baro(const double t, const vehicle::xVector& x) {}
-void Sensors::alt(const double t, const vehicle::xVector& x) {}
-void Sensors::mag(const double t, const vehicle::xVector& x) {}
+void Sensors::depth(const double t, const vehicle::State& x) {}
+void Sensors::gps(const double t, const vehicle::State& x) {}
+void Sensors::baro(const double t, const vehicle::State& x) {}
+void Sensors::alt(const double t, const vehicle::State& x) {}
+void Sensors::mag(const double t, const vehicle::State& x) {}
 
 
 }

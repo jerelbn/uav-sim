@@ -80,9 +80,9 @@ struct State
   Eigen::Vector3d bg;
   Eigen::Vector3d ba;
 
-  State operator+(const dxVector &delta);
-  State operator+=(const dxVector &delta);
-  Eigen::Matrix<double, NUM_STATES, 1> toEigen();
+  State operator+(const dxVector &delta) const;
+  void operator+=(const dxVector &delta);
+  Eigen::Matrix<double, NUM_STATES, 1> toEigen() const;
 
 };
 
