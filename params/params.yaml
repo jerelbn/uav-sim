@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 60.0
+tf: 60
 dt: 0.004
 use_random_seed: true
 accurate_integration: false
@@ -135,3 +135,5 @@ lambda: [1, 1, 1, # POS
          1, 1, 1] # ACC
 
 pixel_disparity_threshold: 30
+max_tracked_features: 100
+min_kf_feature_matches: 30

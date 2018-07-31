@@ -73,6 +73,10 @@ EKF::~EKF()
 
 void EKF::load(const std::string &filename)
 {
+  bool use_random_seed;
+  common::get_yaml_node("use_random_seed", filename, use_random_seed);
+  if (use_random_seed)
+    srand(std::chrono::system_clock::now().time_since_epoch().count());
   xVector x0;
   dxVector P0_diag, Qx_diag;
   Eigen::Vector4d q_bc;
@@ -97,6 +101,26 @@ void EKF::load(const std::string &filename)
   q_bc_.normalize();
   common::get_yaml_eigen("p_bc", filename, p_bc_);
   common::get_yaml_node("pixel_disparity_threshold", filename, pixel_disparity_threshold_);
+  common::get_yaml_node("max_tracked_features", filename, max_tracked_features_);
+  tracked_pts_.reserve(max_tracked_features_);
+  new_tracked_pts_.reserve(max_tracked_features_);
+  common::get_yaml_node("min_kf_feature_matches", filename, min_kf_feature_matches_);
+}
+
+
+void EKF::run(const double &t, const sensors::Sensors &sensors)
+{
+  // Apply updates then predict
+  if (t > 0 && sensors.new_camera_meas_)
+  {
+    // Track features by mimicing KLT Optical Flow then apply update
+    if (trackFeatures(sensors.cam_))
+      imageUpdate();
+  }
+
+  // Propagate the state and covariance to the next time step
+  if (sensors.new_imu_meas_)
+    propagate(t, sensors.gyro_, sensors.accel_);
 }
 
 
@@ -117,32 +141,8 @@ void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::V
 }
 
 
-void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts)
+void EKF::imageUpdate()
 {
-  // Match current image points to keyframe image points
-  pts_match_.clear();
-  pts_match_k_.clear();
-  for (int i = 0; i < pts_k_.size(); ++i)
-  {
-    for (int j = 0; j < pts.size(); ++j)
-    {
-      if (pts_k_[i](2) == pts[j](2))
-      {
-        pts_match_.push_back(pts[j].topRows(2));
-        pts_match_k_.push_back(pts_k_[i].topRows(2));
-      }
-    }
-  }
-
-  // Create new keyframe if necessary
-  if (pts_match_.size() < 30)
-  {
-    pk_ = x_.p;
-    qk_ = x_.q;
-    pts_k_ = pts;
-    return;
-  }
-
   // Remove camera rotation and compute mean image point disparity
   dv_.clear();
   dv_k_.clear();
@@ -195,6 +195,68 @@ void EKF::imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocato
     P_ += delta_P;
   }
 }
+
+
+bool EKF::trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts)
+{
+  // Match current image points to image points tracked in the previous image
+  new_tracked_pts_.clear();
+  for (int i = 0; i < tracked_pts_.size(); ++i)
+  {
+    for (int j = 0; j < pts.size(); ++j)
+    {
+      if (tracked_pts_[i](2) == pts[j](2))
+        new_tracked_pts_.push_back(pts[j]);
+    }
+  }
+  tracked_pts_ = new_tracked_pts_;
+
+  // Match current image points to keyframe image points
+  pts_match_.clear();
+  pts_match_k_.clear();
+  for (int i = 0; i < pts_k_.size(); ++i)
+  {
+    for (int j = 0; j < tracked_pts_.size(); ++j)
+    {
+      if (pts_k_[i](2) == tracked_pts_[j](2))
+      {
+        pts_match_.push_back(tracked_pts_[j].topRows(2));
+        pts_match_k_.push_back(pts_k_[i].topRows(2));
+      }
+    }
+  }
+
+  // Create new keyframe and add new feature points to tracked points when
+  // number of keyframe point matches drops below threshold
+  if (pts_match_.size() < min_kf_feature_matches_)
+  {
+    // Randomly select and add new points to the tracked points container
+    static bool pt_used;
+    while (tracked_pts_.size() < max_tracked_features_)
+    {
+      // Get random index and make sure point isn't already tracked
+      pt_used = false;
+      int idx = rand() % pts.size();
+      for (auto const &tracked_pt : tracked_pts_)
+      {
+        if (tracked_pt(2) == pts[idx](2))
+          pt_used = true;
+      }
+
+      if (!pt_used)
+        tracked_pts_.push_back(pts[idx]);
+    }
+
+    // Establish new keyframe
+    pk_ = x_.p;
+    qk_ = x_.q;
+    pts_k_ = tracked_pts_;
+    return false;
+  }
+  else
+    return true;
+}
+
 
 void EKF::f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc)
 {

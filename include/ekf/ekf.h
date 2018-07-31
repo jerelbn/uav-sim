@@ -1,5 +1,7 @@
 #include <eigen3/Eigen/Eigen>
+#include <chrono>
 #include "common_cpp/common.h"
+#include "sensors.h"
 
 
 namespace ekf
@@ -108,8 +110,7 @@ public:
   ~EKF();
 
   void load(const std::string &filename);
-  void propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
-  void imageUpdate(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts);
+  void run(const double &t, const sensors::Sensors &sensors);
   static void f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
   static void getF(dxMatrix &F, const State &x, const Eigen::Vector3d &gyro);
   static void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
@@ -119,6 +120,9 @@ public:
 
 private:
 
+  void propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
+  void imageUpdate();
+  bool trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts);
   void optimizePose(common::Quaternion& q, common::Quaternion& qt,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
@@ -126,8 +130,7 @@ private:
   void se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E);
   void dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE);
 
-  double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
-
+  // Primary EKF variables
   double t_prev_;
   State x_;
   dxVector xdot_;
@@ -140,6 +143,8 @@ private:
   dxVector lambda_;
   dxMatrix Lambda_;
 
+  // Keyframe and image update data
+  double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
   Eigen::Vector3d pk_; // Keyframe inertial position
   common::Quaternion qk_; // Keyframe body attitude
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > pts_k_; // Keyframe image points
@@ -147,9 +152,14 @@ private:
   std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > pts_match_k_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > dv_, dv_k_; // Landmark direction vectors
 
+  // Camera parameters
   common::Quaternion q_bc_;
   Eigen::Vector3d p_bc_;
   Eigen::Matrix3d K_, K_inv_;
+
+  // Feature tracking parameters
+  int max_tracked_features_, min_kf_feature_matches_;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > tracked_pts_, new_tracked_pts_;
 
 };
 

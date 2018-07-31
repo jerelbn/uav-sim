@@ -26,6 +26,8 @@ public:
   Eigen::Vector3d gyro_, accel_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
 
+  bool new_imu_meas_, new_camera_meas_;
+
 private:
 
   void imu(const double t, const vehicle::xVector& x);
@@ -42,7 +44,7 @@ private:
   Eigen::Vector3d body_gravity_;
 
   // IMU
-  bool use_accel_truth_, use_gyro_truth_, new_imu_meas_;
+  bool use_accel_truth_, use_gyro_truth_;
   double last_imu_update_;
   double imu_update_rate_;
   Eigen::Vector3d accel_bias_, accel_noise_, accel_walk_;
@@ -52,7 +54,7 @@ private:
   std::ofstream accel_log_, gyro_log_;
 
   // Camera
-  bool use_camera_truth_, new_camera_meas_;
+  bool use_camera_truth_;
   double last_camera_update_;
   double camera_update_rate_;
   std::normal_distribution<double> pixel_noise_dist_;
