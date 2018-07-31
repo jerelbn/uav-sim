@@ -23,10 +23,10 @@ end
 %% plot the attitude states
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Attitude', 'NumberTitle', 'off');
-titles = ["qw","qx","qy","qz"];
+titles = ["x","y","z"];
 idx = 4;
-for i=1:4
-    subplot(4, 1, i); hold on;
+for i=1:3
+    subplot(3, 1, i); hold on;
     title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
 %     plot(est(1,:), est(i+idx,:));
@@ -42,7 +42,7 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Velocity', 'NumberTitle', 'off');
 titles = ['u','v','w'];
-idx = 8;
+idx = 7;
 for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
@@ -60,7 +60,7 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Omega', 'NumberTitle', 'off');
 titles = ["wx", "wy","wz"];
-idx = 11;
+idx = 10;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));
@@ -74,7 +74,7 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Accel', 'NumberTitle', 'off');
 titles = ["ax", "ay","az"];
-idx = 14;
+idx = 13;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));

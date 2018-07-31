@@ -157,7 +157,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors)
 
 void EKF::log(const double &t)
 {
-  Eigen::Matrix<double, NUM_STATES, 1> x = x_.toEigen();
+  Eigen::Matrix<double, NUM_DOF, 1> x = x_.minimal();
   Eigen::Matrix<double, NUM_DOF, 1> P_diag = P_.diagonal();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));

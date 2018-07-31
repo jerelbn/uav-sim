@@ -138,7 +138,7 @@ void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
 void Quadrotor::log(const double &t)
 {
   // Write data to binary files and plot in another program
-  Eigen::Matrix<double, vehicle::NUM_STATES, 1> x = x_.toEigen();
+  Eigen::Matrix<double, vehicle::NUM_DOF, 1> x = x_.minimal();
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   controller::Controller::state_t commanded_state = controller_.getCommandedState();
