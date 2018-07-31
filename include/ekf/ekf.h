@@ -82,6 +82,7 @@ struct State
 
   State operator+(const dxVector &delta);
   State operator+=(const dxVector &delta);
+  Eigen::Matrix<double, NUM_STATES, 1> toEigen();
 
 };
 
@@ -120,6 +121,7 @@ public:
 
 private:
 
+  void log(const double &t);
   void propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
   void imageUpdate();
   bool trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts);
@@ -160,6 +162,11 @@ private:
   // Feature tracking parameters
   int max_tracked_features_, min_kf_feature_matches_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > tracked_pts_, new_tracked_pts_;
+
+  // Logging
+  std::string directory_;
+  std::ofstream state_log_;
+  std::ofstream cov_log_;
 
 };
 

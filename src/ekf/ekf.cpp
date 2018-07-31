@@ -44,6 +44,14 @@ State State::operator+=(const dxVector &delta)
 }
 
 
+Eigen::Matrix<double, NUM_STATES, 1> State::toEigen()
+{
+  Eigen::Matrix<double, NUM_STATES, 1> x;
+  x << p, q.toEigen(), v, bg, ba;
+  return x;
+}
+
+
 EKF::EKF()
 {
   pts_k_.reserve(10000);
@@ -67,16 +75,20 @@ EKF::EKF(std::string filename)
 
 EKF::~EKF()
 {
-  // close log files
+  state_log_.close();
+  cov_log_.close();
 }
 
 
 void EKF::load(const std::string &filename)
 {
+  // Random seeding
   bool use_random_seed;
   common::get_yaml_node("use_random_seed", filename, use_random_seed);
   if (use_random_seed)
     srand(std::chrono::system_clock::now().time_since_epoch().count());
+
+  // EKF initializations
   xVector x0;
   dxVector P0_diag, Qx_diag;
   Eigen::Vector4d q_bc;
@@ -94,22 +106,34 @@ void EKF::load(const std::string &filename)
   R_vo_ = R_vo_diag.asDiagonal();
   common::get_yaml_eigen("lambda", filename, lambda_);
   Lambda_ = ones_vec_ * lambda_.transpose() + lambda_ * ones_vec_.transpose() - lambda_ * lambda_.transpose();
+
+  // Camera information
   common::get_yaml_eigen("camera_matrix", filename, K_);
   K_inv_ = K_.inverse();
   common::get_yaml_eigen("q_bc", filename, q_bc);
   q_bc_ = common::Quaternion(q_bc);
   q_bc_.normalize();
   common::get_yaml_eigen("p_bc", filename, p_bc_);
+
+  // Keyframe and update
   common::get_yaml_node("pixel_disparity_threshold", filename, pixel_disparity_threshold_);
   common::get_yaml_node("max_tracked_features", filename, max_tracked_features_);
   tracked_pts_.reserve(max_tracked_features_);
   new_tracked_pts_.reserve(max_tracked_features_);
   common::get_yaml_node("min_kf_feature_matches", filename, min_kf_feature_matches_);
+
+  // Logging
+  common::get_yaml_node("log_directory", filename, directory_);
+  state_log_.open(directory_ + "/ekf_state.bin");
+  cov_log_.open(directory_ + "/ekf_cov.bin");
 }
 
 
 void EKF::run(const double &t, const sensors::Sensors &sensors)
 {
+  // Log data
+  log(t);
+
   // Apply updates then predict
   if (t > 0 && sensors.new_camera_meas_)
   {
@@ -121,6 +145,17 @@ void EKF::run(const double &t, const sensors::Sensors &sensors)
   // Propagate the state and covariance to the next time step
   if (sensors.new_imu_meas_)
     propagate(t, sensors.gyro_, sensors.accel_);
+}
+
+
+void EKF::log(const double &t)
+{
+  Eigen::Matrix<double, NUM_STATES, 1> x = x_.toEigen();
+  Eigen::Matrix<double, NUM_DOF, 1> P_diag = P_.diagonal();
+  state_log_.write((char*)&t, sizeof(double));
+  state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+  cov_log_.write((char*)&t, sizeof(double));
+  cov_log_.write((char*)P_diag.data(), P_diag.rows() * sizeof(double));
 }
 
 
