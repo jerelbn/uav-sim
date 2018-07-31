@@ -19,10 +19,10 @@ plot_environment;
 plot_states;
 
 %% Plot sensor measurements
-plot_measurements;
+% plot_measurements;
 
 %% Plot 3D animation
-% animate_3d(50,env, true_state);
+% animate_3d(50,env, true_state, ekf_state);
 
 %% Plot image animation
 % animate_img(1,pix);

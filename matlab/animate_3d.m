@@ -1,6 +1,6 @@
-function animate(speed, env, truth)
+function animate_3d(speed, env, truth, est)
 
-    persistent body_handle true_path_handle
+    persistent body_handle true_path_handle est_path_handle
 
     % body vertices
     points = [0.7, 0, 0;
@@ -27,11 +27,11 @@ function animate(speed, env, truth)
             
             body_handle = draw_body(i, points, truth, []);
             true_path_handle = plot3(truth(2,1:i), truth(3,1:i), truth(4,1:i), 'b', 'linewidth', 1.3);
-%             est_path_handle = plot3(est(2,1:i), est(3,1:i), est(4,1:i), 'k');
+            est_path_handle = plot3(est(2,1:i), est(3,1:i), est(4,1:i), 'r');
         else
             draw_body(i, points, truth, body_handle);
             set(true_path_handle, 'XData', truth(2,1:i), 'YData', truth(3,1:i),'ZData', truth(4,1:i));
-%             set(est_path_handle, 'XData', est(2,1:i), 'YData', est(3,1:i),'ZData', est(4,1:i));
+            set(est_path_handle, 'XData', est(2,1:i), 'YData', est(3,1:i),'ZData', est(4,1:i));
             drawnow
         end
     end

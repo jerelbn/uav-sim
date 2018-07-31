@@ -9,7 +9,7 @@ plot3([0, 0], [0, 1], [0, 0], 'b')
 plot3([0, 0], [0, 0], [0, 1], 'g')
 plot3(env(1,:), env(2,:), env(3,:), 'k.', 'MarkerSize', 0.1)
 plot3(true_state(2,:), true_state(3,:), true_state(4,:), 'b', 'linewidth', 1.3)
-% plot3(est(2,:), -est(3,:), -est(4,:), '-k')
+plot3(ekf_state(2,:), ekf_state(3,:), ekf_state(4,:), 'r')
 view(15, 35)
 axis equal
 xlabel('X')

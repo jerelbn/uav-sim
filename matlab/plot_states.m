@@ -10,14 +10,13 @@ for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-    plot(true_state(1,:), command(i + idx, :), 'r--');
-%     plot(est(1,:), est(i+idx,:));
-    
-%     if (plot_covariance)
-%         plot(cov(1,:), est(i+idx,:) + sigma * sqrt(cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-%         plot(cov(1,:), est(i+idx,:) - sigma * sqrt(cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-%     end
-%     legend('truth', 'estimate', 'control')
+    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    plot(true_state(1,:), command(i + idx, :), 'g--');
+    if (plot_covariance)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+    end
+    legend('truth', 'estimate', 'control')
 end
 
 %% plot the attitude states
@@ -29,13 +28,12 @@ for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-%     plot(est(1,:), est(i+idx,:));
-%     title(titles(i))
-%     if (plot_covariance && i < 4)
-%         plot(cov(1,:), est(i+idx,:) + sigma * sqrt(cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-%         plot(cov(1,:), est(i+idx,:) - sigma * sqrt(cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-%     end
-%     legend('truth', 'estimate')
+    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    if (plot_covariance)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+    end
+    legend('truth', 'estimate')
 end
 
 %% Plot the velocity states
@@ -47,53 +45,82 @@ for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-%     plot(est(1,:), est(i+idx,:));
-%     title(titles(i))
-%     if (plot_covariance)
-%         plot(cov(1,:), est(i+idx,:) + sigma * sqrt(cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-%         plot(cov(1,:), est(i+idx,:) - sigma * sqrt(cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-%     end
-%     legend('truth', 'estimate')
+    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    if (plot_covariance)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+    end
+    legend('truth', 'estimate')
+end
+
+%% Plot the gyro bias
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'Gyro Bias', 'NumberTitle', 'off');
+titles = ["x","y","z"];
+idx = 10;
+for i=1:3
+    subplot(3, 1, i); hold on;
+    title(titles(i));
+    plot(gyro(1,:), gyro_bias(i,:), 'linewidth', 1.3);
+    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    if (plot_covariance)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+    end
+    legend('truth', 'estimate')
+end
+
+%% Plot the accel bias
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'Accelerometer Bias', 'NumberTitle', 'off');
+titles = ["x","y","z"];
+idx = 13;
+for i=1:3
+    subplot(3, 1, i); hold on;
+    title(titles(i));
+    plot(accel(1,:), accel_bias(i,:), 'linewidth', 1.3);
+    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    if (plot_covariance)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+    end
+    legend('truth', 'estimate')
 end
 
 %% Plot the angular rates
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Omega', 'NumberTitle', 'off');
-titles = ["wx", "wy","wz"];
+titles = ["x","y","z"];
 idx = 10;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-%     plot(u(1,:), u(i+4,:));
-%     title(titles(i))
-%     legend('truth', 'measured')
+    plot(gyro(1,:), gyro(i + 1, :), 'r');
+    legend('truth', 'measured')
 end
 
 %% Plot the linear acceleration
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Accel', 'NumberTitle', 'off');
-titles = ["ax", "ay","az"];
+titles = ["x","y","z"];
 idx = 13;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-%     plot(u(1,:), u(i+4,:));
-%     title(titles(i))
-%     legend('truth', 'measured')
+    plot(accel(1,:), accel(i + 1, :), 'r');
+    legend('truth', 'measured')
 end
 
 %% Plot the wind velocity
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Wind', 'NumberTitle', 'off');
-titles = ["vw_x", "vw_y","vw_z"];
+titles = ["north", "east","down"];
 idx = 1;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));
     plot(vw(1,:), vw(i + idx, :), 'linewidth', 1.3);
-%     plot(u(1,:), u(i+4,:));
-%     title(titles(i))
 %     legend('truth', 'measured')
 end
