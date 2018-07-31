@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 60
+tf: 30
 dt: 0.004
 use_random_seed: true
 accurate_integration: false
@@ -106,33 +106,33 @@ p_bc: [0, 0, 0]
 # Estimator Configuration
 xhat0: [0, 0, -1,   # POS
         1, 0, 0, 0, # ATT
-        0, 0, 0,    # VEL 
-        0, 0, 0,    # OMEGA 
+        0, 0, 0,    # VEL
+        0, 0, 0,    # OMEGA
         0, 0, 0]    # ACC
 
-P0_diag: [0.000001, 0.000001, 0.000001, # POS
-          0.000001, 0.000001, 0.000001, # ATT
-          0.000001, 0.000001, 0.000001, # VEL 
-          0.000001, 0.000001, 0.000001, # OMEGA 
-          0.000001, 0.000001, 0.000001] # ACC
+P0_diag: [0.001, 0.001, 0.001, # POS
+          0.001, 0.001, 0.001, # ATT
+          0.001, 0.001, 0.001, # VEL
+          0.1, 0.1, 0.1, # OMEGA
+          0.1, 0.1, 0.1] # ACC
 
 Qx_diag: [0.000001, 0.000001, 0.000001, # POS
           0.000001, 0.000001, 0.000001, # ATT
-          0.000001, 0.000001, 0.000001, # VEL 
-          0.000001, 0.000001, 0.000001, # OMEGA 
+          0.000001, 0.000001, 0.000001, # VEL
+          0.000001, 0.000001, 0.000001, # OMEGA
           0.000001, 0.000001, 0.000001] # ACC
 
-Qu_diag: [0.01, 0.01, 0.01, # OMEGA 
+Qu_diag: [0.01, 0.01, 0.01, # OMEGA
           0.25, 0.25, 0.25] # ACC
 
-R_vo_diag: [0.001, 0.001, # Translation Direction
-            0.0001, 0.0001, 0.0001] # Rotation
+R_vo_diag: [0.01, 0.01, # Translation Direction
+            0.001, 0.001, 0.001] # Rotation
 
 lambda: [1, 1, 1, # POS
          1, 1, 1, # ATT
-         1, 1, 1, # VEL 
-         1, 1, 1, # OMEGA 
-         1, 1, 1] # ACC
+         1, 1, 1, # VEL
+         0.3, 0.3, 0.3, # OMEGA
+         0.1, 0.1, 0.1] # ACC
 
 pixel_disparity_threshold: 30
 max_tracked_features: 100
