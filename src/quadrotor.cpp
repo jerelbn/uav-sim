@@ -129,7 +129,7 @@ void Quadrotor::run(const double &t, const double &dt, const Eigen::Vector3d& vw
 
 void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
 {
-  vehicle::dxVector dx;
+  static vehicle::dxVector dx;
   f(x_, u, dx, vw);
   x_.accel = dx.segment<3>(vehicle::DVX);
 }

@@ -51,6 +51,14 @@ Eigen::Matrix<double, NUM_STATES, 1> State::toEigen() const
 }
 
 
+Eigen::Matrix<double, NUM_DOF, 1> State::minimal() const
+{
+  Eigen::Matrix<double, NUM_DOF, 1> x;
+  x << p, common::Quaternion::log(q), v, bg, ba;
+  return x;
+}
+
+
 EKF::EKF()
 {
   pts_k_.reserve(10000);
@@ -328,25 +336,30 @@ void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<d
                  const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
                  const Eigen::Vector3d &p_ik)
 {
-  Eigen::Vector3d pt = q_bc.rot(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p) - p_bc);
-  Eigen::Vector3d t = pt / pt.norm();
-  Eigen::Vector3d t_x_k = t.cross(common::e3);
+  // Declarations
+  static Eigen::Vector3d pt, t, t_x_k, at;
+  static Eigen::Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq;
+  static Eigen::Matrix<double, 2, 3> dexpat_dat;
+
+  pt = q_bc.rot(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p) - p_bc);
+  t = pt / pt.norm();
+  t_x_k = t.cross(common::e3);
   double tT_k = t.transpose() * common::e3;
-  Eigen::Vector3d at = acos(tT_k) * t_x_k / t_x_k.norm();
+  at = acos(tT_k) * t_x_k / t_x_k.norm();
 
   ht = common::Quaternion::exp(at);
   hq = q_bc.inv() * x.q.inv() * q_ik * q_bc;
 
-  Eigen::Matrix3d Gamma_at = common::Quaternion::dexp(at);
+  Gamma_at = common::Quaternion::dexp(at);
   double txk_mag = t_x_k.norm();
-  Eigen::Matrix<double, 2, 3> dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
-  Eigen::Matrix3d dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
+  dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
+  dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
                            (txk_mag * txk_mag) - common::I_3x3) * common::skew(common::e3) -
                            (t_x_k * common::e3.transpose()) / (txk_mag * sqrt(1.0 - tT_k * tT_k));
   double ptmag = pt.norm();
-  Eigen::Matrix3d dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
-  Eigen::Matrix3d dpt_dp = -q_bc.R() * x.q.R();
-  Eigen::Matrix3d dpt_dq = q_bc.R() * common::skew(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p));
+  dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
+  dpt_dp = -q_bc.R() * x.q.R();
+  dpt_dq = q_bc.R() * common::skew(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p));
 
   H.setZero();
   H.block<2,3>(0,DPX) = dexpat_dat * dat_dt * dt_dpt * dpt_dp;
@@ -370,16 +383,16 @@ void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
 
   // Constants
   const int N = e1.size();
-  static Eigen::Matrix3d e1x = common::skew(common::e1);
-  static Eigen::Matrix3d e2x = common::skew(common::e2);
-  static Eigen::Matrix3d e3x = common::skew(common::e3);
+  static const Eigen::Matrix3d e1x = common::skew(common::e1);
+  static const Eigen::Matrix3d e2x = common::skew(common::e2);
+  static const Eigen::Matrix3d e3x = common::skew(common::e3);
 
   // Declare things that change each loop
   static Eigen::Matrix3d R, Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
   static Eigen::Vector3d t, e1tx_t, e2tx_t;
   static Eigen::Matrix<double,5,1> delta;
-  static Eigen::VectorXd r(N);
-  static Eigen::MatrixXd J(N,5);
+  static Eigen::Matrix<double, 1000, 1> r;
+  static Eigen::Matrix<double, 1000, 5> J;
 
   // Main optimization loop
   for (int i = 0; i < iters; ++i)
@@ -413,11 +426,11 @@ void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
     }
 
     // Innovation
-    delta = -(J.transpose() * J).inverse() * J.transpose() * r;
+    delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
 
     // Update camera rotation and translation
-    q = q * common::Quaternion::exp(delta.segment<3>(0));
-    qt = qt * common::Quaternion::exp(qt.proj() * delta.segment<2>(3));
+    q *= common::Quaternion::exp(delta.segment<3>(0));
+    qt *= common::Quaternion::exp(qt.proj() * delta.segment<2>(3));
   }
 }
 

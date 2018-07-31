@@ -83,6 +83,7 @@ struct State
   State operator+(const dxVector &delta) const;
   void operator+=(const dxVector &delta);
   Eigen::Matrix<double, NUM_STATES, 1> toEigen() const;
+  Eigen::Matrix<double, NUM_DOF, 1> minimal() const;
 
 };
 
