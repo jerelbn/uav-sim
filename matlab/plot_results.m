@@ -25,4 +25,4 @@ plot_measurements;
 % animate_3d(50,env, true_state);
 
 %% Plot image animation
-animate_img(1,pix);
+% animate_img(1,pix);
