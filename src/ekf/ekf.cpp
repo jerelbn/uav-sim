@@ -209,8 +209,11 @@ void EKF::imageUpdate()
   // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
   if (mean_disparity > pixel_disparity_threshold_)
   {
-    // Optimize for VO measurement
-    common::Quaternion zt, zq;
+    // Compute relative camera pose initial guess from state then optimize it
+    Eigen::Vector3d pt = q_bc_.rot(x_.q.rot(pk_ + qk_.inv().rot(p_bc_) - x_.p) - p_bc_);
+    Eigen::Vector3d t = pt / pt.norm();
+    common::Quaternion zt(t);
+    common::Quaternion zq = q_c2ck;
     optimizePose(zq, zt, dv_k_, dv_, 10);
 
     // Measurement model and jacobian
