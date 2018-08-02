@@ -27,8 +27,13 @@ void Sensors::load(const std::string filename)
 {
   // Initialize random number generator
   common::get_yaml_node("use_random_seed", filename, use_random_seed_);
+  int seed;
   if (use_random_seed_)
-    rng_ = std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count());
+    seed = std::chrono::system_clock::now().time_since_epoch().count();
+  else
+    seed = 0;
+  rng_ = std::default_random_engine(seed);
+  srand(seed);
 
   // IMU
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
