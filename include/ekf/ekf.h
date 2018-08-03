@@ -27,6 +27,9 @@ enum
   AX,
   AY,
   AZ,
+  MUX,
+  MUY,
+  MUZ,
   NUM_STATES
 };
 
@@ -48,6 +51,9 @@ enum
   DAX,
   DAY,
   DAZ,
+  DMUX,
+  DMUY,
+  DMUZ,
   NUM_DOF
 };
 
@@ -79,6 +85,7 @@ struct State
   Eigen::Vector3d v;
   Eigen::Vector3d bg;
   Eigen::Vector3d ba;
+  Eigen::Vector3d mu;
 
   State operator+(const dxVector &delta) const;
   void operator+=(const dxVector &delta);
@@ -98,6 +105,12 @@ return tmp;
 static const dxVector ones_vec_ = [] {
 dxVector tmp;
 tmp.setOnes();
+return tmp;
+}();
+
+static const Eigen::Matrix3d kkT = [] {
+Eigen::Matrix3d tmp;
+tmp << 0, 0, 0, 0, 0, 0, 0, 0, 1;
 return tmp;
 }();
 

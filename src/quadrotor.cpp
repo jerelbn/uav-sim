@@ -146,6 +146,7 @@ void Quadrotor::log(const double &t)
   Eigen::Matrix<double, vehicle::NUM_STATES, 1> x = x_.toEigen();
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+  true_state_log_.write((char*)linear_drag_.data(), linear_drag_.rows() * sizeof(double));
   controller::Controller::state_t commanded_state = controller_.getCommandedState();
   command_log_.write((char*)&commanded_state, sizeof(controller::Controller::state_t));
 }

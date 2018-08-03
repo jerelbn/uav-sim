@@ -21,6 +21,11 @@ int main()
   common::randomNormalMatrix(x.v, dist, rng);
   common::randomNormalMatrix(x.bg, dist, rng);
   common::randomNormalMatrix(x.ba, dist, rng);
+  Eigen::Array3d mu;
+  mu.setRandom();
+  mu += 1.0;
+  mu *= 0.1;
+  x.mu = mu.matrix();
   common::randomNormalMatrix(gyro, dist, rng);
   common::randomNormalMatrix(acc, dist, rng);
   common::Quaternion q_bc(dist, rng);

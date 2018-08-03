@@ -12,6 +12,7 @@ State::State()
   v.setZero();
   bg.setZero();
   ba.setZero();
+  mu.setZero();
 }
 
 
@@ -22,6 +23,7 @@ State::State(const xVector &x)
   v = x.segment<3>(VX);
   bg = x.segment<3>(GX);
   ba = x.segment<3>(AX);
+  mu = x.segment<3>(MUX);
 }
 
 
@@ -33,6 +35,7 @@ State State::operator+(const dxVector &delta) const
   x.v = v + delta.segment<3>(DVX);
   x.bg = bg + delta.segment<3>(DGX);
   x.ba = ba + delta.segment<3>(DAX);
+  x.mu = mu + delta.segment<3>(DMUX);
   return x;
 }
 
@@ -46,7 +49,7 @@ void State::operator+=(const dxVector &delta)
 Eigen::Matrix<double, NUM_STATES, 1> State::toEigen() const
 {
   Eigen::Matrix<double, NUM_STATES, 1> x;
-  x << p, q.toEigen(), v, bg, ba;
+  x << p, q.toEigen(), v, bg, ba, mu;
   return x;
 }
 
@@ -54,7 +57,7 @@ Eigen::Matrix<double, NUM_STATES, 1> State::toEigen() const
 Eigen::Matrix<double, NUM_DOF, 1> State::minimal() const
 {
   Eigen::Matrix<double, NUM_DOF, 1> x;
-  x << p, common::Quaternion::log(q), v, bg, ba;
+  x << p, common::Quaternion::log(q), v, bg, ba, mu;
   return x;
 }
 
@@ -238,6 +241,16 @@ void EKF::imageUpdate()
     // Apply update
     x_ += delta_x;
     P_ += delta_P;
+
+    // Keep drag coefficients positive
+    for (int i = 0; i < 3; ++i)
+      if (x_.mu(i) < 0)
+      {
+        x_.mu(i) = 0.05;
+        P_.row(DMUX+i).setZero();
+        P_.col(DMUX+i).setZero();
+        P_(DMUX+i,DMUX+i) = 0.05;
+      }
   }
 }
 
@@ -307,22 +320,26 @@ void EKF::f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const E
 {
   xdot.segment<3>(DPX) = x.q.inv().rot(x.v);
   xdot.segment<3>(DQX) = gyro - x.bg;
-  xdot.segment<3>(DVX) = acc - x.ba + common::gravity * x.q.rot(common::e3) - (gyro - x.bg).cross(x.v);
+  xdot.segment<3>(DVX) = kkT * (acc - x.ba) + common::gravity * x.q.rot(common::e3) - (gyro - x.bg).cross(x.v)
+                         - Eigen::Matrix3d(x.mu.asDiagonal()) * Eigen::Matrix3d(x.v.asDiagonal()) * x.v;
   xdot.segment<3>(DGX).setZero();
   xdot.segment<3>(DAX).setZero();
+  xdot.segment<3>(DMUX).setZero();
 }
 
 
 void EKF::getF(dxMatrix &F, const State &x, const Eigen::Vector3d &gyro)
 {
+  Eigen::Matrix3d v_diag = x.v.asDiagonal();
   F.setZero();
   F.block<3,3>(DPX,DQX) = -x.q.R().transpose() * common::skew(x.v);
   F.block<3,3>(DPX,DVX) = x.q.R().transpose();
   F.block<3,3>(DQX,DGX) = -common::I_3x3;
   F.block<3,3>(DVX,DQX) = common::gravity * common::skew(x.q.rot(common::e3));
-  F.block<3,3>(DVX,DVX) = -common::skew(Eigen::Vector3d(gyro - x.bg));
+  F.block<3,3>(DVX,DVX) = -common::skew(Eigen::Vector3d(gyro - x.bg)) - 2.0 * Eigen::Matrix3d(x.mu.asDiagonal()) * v_diag;
   F.block<3,3>(DVX,DGX) = -common::skew(x.v);
-  F.block<3,3>(DVX,DAX) = -common::I_3x3;
+  F.block<3,3>(DVX,DAX) = -kkT;
+  F.block<3,3>(DVX,DMUX) = -v_diag * v_diag;
 }
 
 
@@ -331,7 +348,7 @@ void EKF::getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x)
   G.setZero();
   G.block<3,3>(DQX,UAX) = -common::I_3x3;
   G.block<3,3>(DVX,UAX) = -common::skew(x.v);
-  G.block<3,3>(DVX,UWX) = -common::I_3x3;
+  G.block<3,3>(DVX,UWX) = -kkT;
 }
 
 
