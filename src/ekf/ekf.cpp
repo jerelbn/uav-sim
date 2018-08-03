@@ -144,7 +144,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors)
   // Apply updates then predict
   if (t > 0 && sensors.new_camera_meas_)
   {
-    // Track features by mimicing KLT Optical Flow then apply update
+    // Track features by mimicking KLT Optical Flow then apply update
     if (trackFeatures(sensors.cam_))
       imageUpdate();
   }
