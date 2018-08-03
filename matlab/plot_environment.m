@@ -3,7 +3,6 @@ set(gcf, 'name', 'Environment', 'NumberTitle', 'off')
 set(gca, 'YDir', 'reverse')
 set(gca, 'ZDir', 'reverse')
 title('Environment')
-% Data is in NED, so I'm flipping the Y and Z axes to look right
 plot3([0, 1], [0, 0], [0, 0], 'r')
 plot3([0, 0], [0, 1], [0, 0], 'b')
 plot3([0, 0], [0, 0], [0, 1], 'g')
