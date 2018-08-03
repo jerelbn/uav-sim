@@ -24,13 +24,9 @@ Controller::Controller(const std::string filename) :
 
 void Controller::load(const std::string filename)
 {
-  std::vector<double> loaded_wps;
-  if (common::get_yaml_node("waypoints", filename, loaded_wps))
-  {
-    int num_waypoints = std::floor(loaded_wps.size()/4.0);
-    waypoints_ = Eigen::Map<Eigen::MatrixXd>(loaded_wps.data(), 4, num_waypoints);
-    current_waypoint_id_ = 0;
-  }
+  common::get_yaml_node("throttle_eq", filename, throttle_eq_);
+  common::get_yaml_node("mass", filename, mass_);
+  common::get_yaml_node("max_thrust", filename, max_thrust_);
 
   Eigen::Vector3d Kp_diag, Kd_diag, Kv_diag;
   if (common::get_yaml_eigen("Kp", filename, Kp_diag))
@@ -39,12 +35,6 @@ void Controller::load(const std::string filename)
     K_d_ = Kd_diag.asDiagonal();
   if (common::get_yaml_eigen("Kv", filename, Kv_diag))
     K_v_ = Kv_diag.asDiagonal();
-
-  common::get_yaml_node("throttle_eq", filename, throttle_eq_);
-  common::get_yaml_node("mass", filename, mass_);
-  common::get_yaml_node("max_thrust", filename, max_thrust_);
-  common::get_yaml_node("waypoint_threshold", filename, waypoint_threshold_);
-  common::get_yaml_node("waypoint_velocity_threshold", filename, waypoint_velocity_threshold_);
 
   common::get_yaml_node("roll_kp", filename, roll_.kp_);
   common::get_yaml_node("roll_ki", filename, roll_.ki_);
@@ -64,6 +54,35 @@ void Controller::load(const std::string filename)
   common::get_yaml_node("max_throttle", filename, max_.throttle);
   common::get_yaml_node("max_vel", filename, max_.vel);
 
+  common::get_yaml_node("path_type", filename, path_type_);
+
+  std::vector<double> loaded_wps;
+  if (common::get_yaml_node("waypoints", filename, loaded_wps))
+  {
+    int num_waypoints = std::floor(loaded_wps.size()/4.0);
+    waypoints_ = Eigen::Map<Eigen::MatrixXd>(loaded_wps.data(), 4, num_waypoints);
+    current_waypoint_id_ = 0;
+  }
+  common::get_yaml_node("waypoint_threshold", filename, waypoint_threshold_);
+  common::get_yaml_node("waypoint_velocity_threshold", filename, waypoint_velocity_threshold_);
+
+  double traj_north_period, traj_east_period, traj_alt_period, traj_yaw_period;
+  common::get_yaml_node("traj_delta_north", filename, traj_delta_north_);
+  common::get_yaml_node("traj_delta_east", filename, traj_delta_east_);
+  common::get_yaml_node("traj_delta_alt", filename, traj_delta_alt_);
+  common::get_yaml_node("traj_delta_yaw", filename, traj_delta_yaw_);
+  common::get_yaml_node("traj_nom_north", filename, traj_nom_north_);
+  common::get_yaml_node("traj_nom_east", filename, traj_nom_east_);
+  common::get_yaml_node("traj_nom_alt", filename, traj_nom_alt_);
+  common::get_yaml_node("traj_nom_yaw", filename, traj_nom_yaw_);
+  common::get_yaml_node("traj_north_period", filename, traj_north_period);
+  common::get_yaml_node("traj_east_period", filename, traj_east_period);
+  common::get_yaml_node("traj_alt_period", filename, traj_alt_period);
+  common::get_yaml_node("traj_yaw_period", filename, traj_yaw_period);
+  traj_north_freq_ = 2.0 * M_PI / traj_north_period;
+  traj_east_freq_ = 2.0 * M_PI / traj_east_period;
+  traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
+  traj_yaw_freq_ = 2.0 * M_PI / traj_yaw_period;
 }
 
 
@@ -86,8 +105,13 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
 
   xc_.t = t;
 
-  // Refresh the waypoint
-  updateWaypointManager();
+  // Refresh the waypoint or trajectory
+  if (path_type_ == 0)
+    updateWaypointManager();
+  else if (path_type_ == 1)
+    updateTrajectoryManager();
+  else
+    throw std::runtime_error("Undefined path type in controller.");
 
   double dt = t - prev_time_;
   prev_time_ = t;
@@ -279,6 +303,15 @@ void Controller::updateWaypointManager()
     xc_.pd = new_waypoint(PZ);
     xc_.psi = new_waypoint(PSI);
   }
+}
+
+
+void Controller::updateTrajectoryManager()
+{
+  xc_.pn = traj_nom_north_ + traj_delta_north_ / 2.0 * cos(traj_north_freq_ * xc_.t);
+  xc_.pe = traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * xc_.t);
+  xc_.pd = -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * xc_.t));
+  xc_.psi = traj_nom_yaw_ + traj_delta_yaw_ / 2.0 * sin(traj_yaw_freq_ * xc_.t);
 }
 
 }

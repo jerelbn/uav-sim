@@ -87,15 +87,33 @@ private:
   double throttle_eq_;
   double mass_;
   double max_thrust_;
+  int path_type_;
+
+  // Waypoint Parameters
+  Eigen::MatrixXd waypoints_;
+  int current_waypoint_id_;
   double waypoint_threshold_;
   double waypoint_velocity_threshold_;
+
+  // Trajectory Parameters
+  double traj_delta_north_;
+  double traj_delta_east_;
+  double traj_delta_alt_;
+  double traj_delta_yaw_;
+  double traj_nom_north_;
+  double traj_nom_east_;
+  double traj_nom_alt_;
+  double traj_nom_yaw_;
+  double traj_north_freq_;
+  double traj_east_freq_;
+  double traj_alt_freq_;
+  double traj_yaw_freq_;
 
   // Controller Gains
   Eigen::Matrix3d K_p_; // position
   Eigen::Matrix3d K_v_; // velocity
   Eigen::Matrix3d K_d_; // disturbance acceleration
-  Eigen::MatrixXd waypoints_;
-  int current_waypoint_id_;
+
 
   // Memory for sharing information between functions
   bool initialized_;
@@ -108,6 +126,7 @@ private:
 
   // Functions
   void updateWaypointManager();
+  void updateTrajectoryManager();
 };
 
 }
