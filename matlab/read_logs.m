@@ -46,3 +46,11 @@ gyro_noise = gyro(8:10,:);
 file = fopen(strcat(directory,'camera.bin'), 'r');
 pix = fread(file, 'double');
 pix = reshape(pix, 15001, []);
+
+% Compute heading truth and estimates
+true_heading = zeros(1,size(true_state,2));
+ekf_heading = zeros(1,size(ekf_state,2));
+for i = 1:size(true_heading,2)
+    true_heading(i) = yaw_from_q(true_state(5:8,i));
+    ekf_heading(i) = yaw_from_q(ekf_state(5:8,i));
+end
