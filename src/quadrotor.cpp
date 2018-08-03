@@ -33,7 +33,7 @@ void Quadrotor::load(const std::string &filename)
   common::get_yaml_node("max_thrust", filename, max_thrust_);
 
   vehicle::xVector x0;
-  Eigen::Vector3d inertia_diag, linear_drag_diag, angular_drag_diag;
+  Eigen::Vector3d inertia_diag, angular_drag_diag;
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
   x_ = vehicle::State(x0);
   if (common::get_yaml_eigen<Eigen::Vector3d>("inertia", filename, inertia_diag))
@@ -41,8 +41,8 @@ void Quadrotor::load(const std::string &filename)
     inertia_matrix_ = inertia_diag.asDiagonal();
     inertia_inv_ = inertia_matrix_.inverse();
   }
-  if (common::get_yaml_eigen<Eigen::Vector3d>("linear_drag", filename, linear_drag_diag))
-    linear_drag_matrix_ = linear_drag_diag.asDiagonal();
+  if (common::get_yaml_eigen<Eigen::Vector3d>("linear_drag", filename, linear_drag_))
+    linear_drag_matrix_ = linear_drag_.asDiagonal();
   if (common::get_yaml_eigen<Eigen::Vector3d>("angular_drag", filename, angular_drag_diag))
     angular_drag_matrix_ = angular_drag_diag.asDiagonal();
 
@@ -141,6 +141,7 @@ void Quadrotor::log(const double &t)
   Eigen::Matrix<double, vehicle::NUM_STATES, 1> x = x_.toEigen();
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+  true_state_log_.write((char*)linear_drag_.data(), linear_drag_.rows() * sizeof(double));
   controller::Controller::state_t commanded_state = controller_.getCommandedState();
   command_log_.write((char*)&commanded_state, sizeof(controller::Controller::state_t));
 }

@@ -93,6 +93,23 @@ for i=1:3
     legend('truth', 'estimate')
 end
 
+%% Plot the drag coefficients
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'Drag Coefficients', 'NumberTitle', 'off');
+titles = ["x","y","z"];
+idx = 17;
+for i=1:3
+    subplot(3, 1, i); hold on;
+    title(titles(i));
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
+    plot(ekf_state(1,:), ekf_state(i + idx,:), 'r');
+    if (plot_covariance)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+    end
+    legend('truth', 'estimate')
+end
+
 %% Plot the angular rates
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Omega', 'NumberTitle', 'off');
