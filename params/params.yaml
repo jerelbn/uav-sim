@@ -2,7 +2,7 @@
 tf: 60.0
 dt: 0.004
 use_random_seed: false
-accurate_integration: false
+accurate_integration: true
 log_directory: "../logs"
 
 # Truth Configuration

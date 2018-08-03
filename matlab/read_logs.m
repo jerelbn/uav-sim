@@ -1,17 +1,17 @@
 % Load truth
 file = fopen(strcat(directory,'true_state.bin'), 'r');
 true_state = fread(file, 'double');
-true_state = reshape(true_state, 16, []);
+true_state = reshape(true_state, 1 + 16, []);
 
 % Load EKF state
 file = fopen(strcat(directory,'ekf_state.bin'), 'r');
 ekf_state = fread(file, 'double');
-ekf_state = reshape(ekf_state, 16, []);
+ekf_state = reshape(ekf_state, 1 + 16, []);
 
 % Load EKF covariance diagonals
 file = fopen(strcat(directory,'ekf_cov.bin'), 'r');
 ekf_cov = fread(file, 'double');
-ekf_cov = reshape(ekf_cov, 16, []);
+ekf_cov = reshape(ekf_cov, 1 + 15, []);
 
 % Load commands
 file = fopen(strcat(directory,'command.bin'), 'r');
