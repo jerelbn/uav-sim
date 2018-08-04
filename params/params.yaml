@@ -152,7 +152,7 @@ lambda: [1, 1, 1, # POS
          1, 1, 1, # VEL
          1, 1, 1, # OMEGA
          0.3, 0.3, 0.3, # ACC
-         0.1, 0.1, 0.1] # DRAG
+         0.1, 0.1, 0.01] # DRAG
 
 pixel_disparity_threshold: 20
 max_tracked_features: 100
