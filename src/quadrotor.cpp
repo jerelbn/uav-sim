@@ -4,10 +4,10 @@ namespace quadrotor
 {
 
 
-Quadrotor::Quadrotor() {}
+Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename)
+Quadrotor::Quadrotor(const std::string &filename)  : t_prev_(0.0)
 {
   load(filename);
 }
@@ -33,7 +33,7 @@ void Quadrotor::load(const std::string &filename)
   common::get_yaml_node("max_thrust", filename, max_thrust_);
 
   vehicle::xVector x0;
-  Eigen::Vector3d inertia_diag, linear_drag_diag, angular_drag_diag;
+  Eigen::Vector3d inertia_diag, angular_drag_diag;
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
   x_ = vehicle::State(x0);
   if (common::get_yaml_eigen<Eigen::Vector3d>("inertia", filename, inertia_diag))
@@ -41,8 +41,8 @@ void Quadrotor::load(const std::string &filename)
     inertia_matrix_ = inertia_diag.asDiagonal();
     inertia_inv_ = inertia_matrix_.inverse();
   }
-  if (common::get_yaml_eigen<Eigen::Vector3d>("linear_drag", filename, linear_drag_diag))
-    linear_drag_matrix_ = linear_drag_diag.asDiagonal();
+  if (common::get_yaml_eigen<Eigen::Vector3d>("linear_drag", filename, linear_drag_))
+    linear_drag_matrix_ = linear_drag_.asDiagonal();
   if (common::get_yaml_eigen<Eigen::Vector3d>("angular_drag", filename, angular_drag_diag))
     angular_drag_matrix_ = angular_drag_diag.asDiagonal();
 
@@ -62,17 +62,22 @@ void Quadrotor::load(const std::string &filename)
 void Quadrotor::f(const vehicle::State& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw)
 {
   v_rel_ = x.v - x.q.rot(vw);
-  dx.segment<3>(vehicle::PX) = x.q.inv().rot(x.v);
-  dx.segment<3>(vehicle::QW) = x.omega;
-  dx.segment<3>(vehicle::DVX) = -common::e3 * u(THRUST) * max_thrust_ / mass_ - linear_drag_matrix_ * v_rel_.cwiseProduct(v_rel_) +
-                                 common::gravity * x.q.rot(common::e3) + x.v.cross(x.omega);
+  dx.segment<3>(vehicle::DPX) = x.q.inv().rot(x.v);
+  dx.segment<3>(vehicle::DQX) = x.omega;
+  dx.segment<3>(vehicle::DVX) = -common::e3 * u(THRUST) * max_thrust_ / mass_ - linear_drag_.cwiseProduct(v_rel_).cwiseProduct(v_rel_) +
+                                 common::gravity * x.q.rot(common::e3) - x.omega.cross(x.v);
   dx.segment<3>(vehicle::DWX) = inertia_inv_ * (u.segment<3>(TAUX) - x.omega.cross(inertia_matrix_ * x.omega) -
                                 angular_drag_matrix_ * x.omega.cwiseProduct(x.omega));
 }
 
 
-void Quadrotor::propagate(const double &dt, const commandVector& u, const Eigen::Vector3d& vw)
+void Quadrotor::propagate(const double &t, const commandVector& u, const Eigen::Vector3d& vw)
 {
+  // Time step
+  double dt = t - t_prev_;
+  t_prev_ = t;
+
+  // Differential Equations
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta integration
@@ -116,12 +121,12 @@ void Quadrotor::propagate(const double &dt, const commandVector& u, const Eigen:
 }
 
 
-void Quadrotor::run(const double &t, const double &dt, const Eigen::Vector3d& vw, const Eigen::MatrixXd& lm)
+void Quadrotor::run(const double &t, const Eigen::Vector3d& vw, const Eigen::MatrixXd& lm)
 {
   sensors_.updateMeasurements(t, x_, lm); // Update sensor measurements
   log(t); // Log current data
   ekf_.run(t, sensors_);
-  propagate(dt, u_, vw); // Propagate truth to next time step
+  propagate(t, u_, vw); // Propagate truth to next time step
   controller_.computeControl(get_true_state(), t, u_); // Update control input
   updateAccel(u_, vw); // Update true acceleration
 }

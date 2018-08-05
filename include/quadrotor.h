@@ -22,7 +22,7 @@ public:
   ~Quadrotor();
 
   void load(const std::string &filename);
-  void run(const double &t, const double &dt, const Eigen::Vector3d& vw, const Eigen::MatrixXd &lm);
+  void run(const double &t, const Eigen::Vector3d& vw, const Eigen::MatrixXd &lm);
 
   const vehicle::State& get_true_state() const { return x_; }
 
@@ -42,9 +42,10 @@ private:
   commandVector u_;
 
   bool accurate_integration_;
-  double mass_, max_thrust_;
+  double mass_, max_thrust_, t_prev_;
   Eigen::Matrix3d inertia_matrix_, inertia_inv_;
   Eigen::Matrix3d linear_drag_matrix_;
+  Eigen::Vector3d linear_drag_;
   Eigen::Matrix3d angular_drag_matrix_;
   Eigen::Vector3d v_rel_;
 

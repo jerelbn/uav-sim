@@ -41,7 +41,6 @@ private:
   std::string directory_;
   bool use_random_seed_;
   std::default_random_engine rng_;
-  Eigen::Vector3d body_gravity_;
 
   // IMU
   bool use_accel_truth_, use_gyro_truth_;

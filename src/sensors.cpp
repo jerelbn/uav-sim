@@ -102,7 +102,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::State &x, const 
 
 void Sensors::imu(const double t, const vehicle::State& x)
 {
-  double dt = t - last_imu_update_;
+  double dt = common::decRound(t - last_imu_update_, 1e4);
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
   {
     new_imu_meas_ = true;
@@ -119,8 +119,7 @@ void Sensors::imu(const double t, const vehicle::State& x)
       common::randomNormalMatrix(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
-    body_gravity_ = common::gravity * x.q.rot(common::e3);
-    accel_ = x.accel - body_gravity_ + accel_bias_ + accel_noise_;
+    accel_ = x.accel - common::gravity * x.q.rot(common::e3) + x.omega.cross(x.v) + accel_bias_ + accel_noise_;
     gyro_ = x.omega + gyro_bias_ + gyro_noise_;
 
     // Log IMU data
@@ -142,7 +141,7 @@ void Sensors::imu(const double t, const vehicle::State& x)
 
 void Sensors::camera(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm)
 {
-  double dt = t - last_camera_update_;
+  double dt = common::decRound(t - last_camera_update_, 1e4);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
     new_camera_meas_ = true;

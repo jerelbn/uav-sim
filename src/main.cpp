@@ -50,7 +50,7 @@ int main()
   while (t <= tf)
   {
     // Run each vehicle
-    quad1.run(t, dt, env.get_vw(), env.get_points().matrix());
+    quad1.run(t, env.get_vw(), env.get_points().matrix());
 
     // Update wind and stored vehicle states in environment
     env.updateWind(t);
