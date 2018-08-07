@@ -59,6 +59,20 @@ Eigen::Matrix<double, NUM_DOF, 1> State::minimal() const
 }
 
 
+vehicle::State EKF::getVehicleState() const
+{
+  // Copy state but then substitute angular rate and linear acceleration
+  // for the gyro bias and accel bias positions
+  vehicle::State x;
+  x.p = x_.p;
+  x.q = x_.q;
+  x.v = x_.v;
+  x.omega = imu_.segment<3>(UWX);
+  x.accel = imu_.segment<3>(UAX);
+  return x;
+}
+
+
 EKF::EKF()
 {
   pts_k_.reserve(10000);
@@ -133,6 +147,9 @@ void EKF::load(const std::string &filename)
   common::get_yaml_node("log_directory", filename, directory_);
   state_log_.open(directory_ + "/ekf_state.bin");
   cov_log_.open(directory_ + "/ekf_cov.bin");
+
+  // Initial IMU
+  imu_.setZero();
 }
 
 
@@ -171,6 +188,10 @@ void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::V
   // Time step
   double dt = t - t_prev_;
   t_prev_ = t;
+
+  // Store unbiased IMU for control
+  imu_.segment<3>(UAX) = acc - x_.ba;
+  imu_.segment<3>(UWX) = gyro - x_.bg;
 
   // Propagate the state
   f(xdot_, x_, gyro, acc);

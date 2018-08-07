@@ -2,6 +2,7 @@
 #include <chrono>
 #include "common_cpp/common.h"
 #include "sensors.h"
+#include "vehicle_common.h"
 
 
 namespace ekf
@@ -119,6 +120,8 @@ public:
   static void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
                      const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
                      const Eigen::Vector3d &p_ik);
+  const xVector getState() const { return x_.toEigen(); }
+  vehicle::State getVehicleState() const;
 
 private:
 
@@ -145,6 +148,9 @@ private:
   Eigen::Matrix<double, 5, 5> R_vo_;
   dxVector lambda_;
   dxMatrix Lambda_;
+
+  // Storage for current IMU measurement
+  uVector imu_;
 
   // Keyframe and image update data
   double pixel_disparity_threshold_; // Threshold to allow relative pose optimization

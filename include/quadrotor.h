@@ -24,7 +24,7 @@ public:
   void load(const std::string &filename);
   void run(const double &t, const Eigen::Vector3d& vw, const Eigen::MatrixXd &lm);
 
-  const vehicle::State& get_true_state() const { return x_; }
+  const vehicle::State& getTrueState() const { return x_; }
 
 private:
 

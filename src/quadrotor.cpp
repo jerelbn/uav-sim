@@ -48,7 +48,8 @@ void Quadrotor::load(const std::string &filename)
 
   // Compute initial control and corresponding acceleration
   Eigen::Vector3d vw;
-  controller_.computeControl(get_true_state(), 0, u_);
+  controller_.computeControl(getTrueState(), 0, u_);
+//  controller_.computeControl(ekf_.getVehicleState(), 0, u_);
   vw.setZero(); // get vw from environment
   updateAccel(u_,vw);
 
@@ -127,7 +128,8 @@ void Quadrotor::run(const double &t, const Eigen::Vector3d& vw, const Eigen::Mat
   log(t); // Log current data
   ekf_.run(t, sensors_);
   propagate(t, u_, vw); // Propagate truth to next time step
-  controller_.computeControl(get_true_state(), t, u_); // Update control input
+  controller_.computeControl(getTrueState(), t, u_); // Update control input
+//  controller_.computeControl(ekf_.getVehicleState(), t, u_); // Update control input
   updateAccel(u_, vw); // Update true acceleration
 }
 
