@@ -18,11 +18,14 @@ plot_environment;
 %% Plot states and wind
 plot_states;
 
+%% Plot commands
+plot_commands;
+
 %% Plot sensor measurements
 % plot_measurements;
 
 %% Plot 3D animation
-% animate_3d(50,env, true_state, ekf_state);
+animate_3d(5,env, true_state, ekf_state, command);
 
 %% Plot image animation
 % animate_img(1,pix);
