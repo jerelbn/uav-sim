@@ -109,6 +109,14 @@ private:
   double traj_alt_freq_;
   double traj_yaw_freq_;
 
+  // Circumnavigation parameters
+  double circ_rd_;
+  double circ_hd_;
+  double circ_kr_;
+  double circ_kp_;
+  double circ_kh_;
+  Eigen::Vector3d et_; // Inertial target direction
+
   // Controller Gains
   Eigen::Matrix3d K_p_; // position
   Eigen::Matrix3d K_v_; // velocity
@@ -127,6 +135,7 @@ private:
   // Functions
   void updateWaypointManager();
   void updateTrajectoryManager();
+  void updateVelocityCommand(const vehicle::State &x);
 };
 
 }

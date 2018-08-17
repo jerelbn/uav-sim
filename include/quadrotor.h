@@ -41,7 +41,7 @@ private:
   vehicle::dxVector dx_, k1_, k2_, k3_, k4_;
   commandVector u_;
 
-  bool accurate_integration_;
+  bool accurate_integration_, control_using_estimates_;
   double mass_, max_thrust_, t_prev_;
   Eigen::Matrix3d inertia_matrix_, inertia_inv_;
   Eigen::Matrix3d linear_drag_matrix_;

@@ -31,6 +31,7 @@ void Quadrotor::load(const std::string &filename)
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("max_thrust", filename, max_thrust_);
+  common::get_yaml_node("control_using_estimates", filename, control_using_estimates_);
 
   vehicle::xVector x0;
   Eigen::Vector3d inertia_diag, angular_drag_diag;
@@ -128,8 +129,10 @@ void Quadrotor::run(const double &t, const Eigen::Vector3d& vw, const Eigen::Mat
   log(t); // Log current data
   ekf_.run(t, sensors_);
   propagate(t, u_, vw); // Propagate truth to next time step
-  controller_.computeControl(getTrueState(), t, u_); // Update control input
-//  controller_.computeControl(ekf_.getVehicleState(), t, u_); // Update control input
+  if (control_using_estimates_)
+    controller_.computeControl(ekf_.getVehicleState(), t, u_); // Update control input with estimates
+  else
+    controller_.computeControl(getTrueState(), t, u_); // Update control input with truth
   updateAccel(u_, vw); // Update true acceleration
 }
 

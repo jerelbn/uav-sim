@@ -83,6 +83,12 @@ void Controller::load(const std::string filename)
   traj_east_freq_ = 2.0 * M_PI / traj_east_period;
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
   traj_yaw_freq_ = 2.0 * M_PI / traj_yaw_period;
+
+  common::get_yaml_node("circ_rd", filename, circ_rd_);
+  common::get_yaml_node("circ_hd", filename, circ_hd_);
+  common::get_yaml_node("circ_kr", filename, circ_kr_);
+  common::get_yaml_node("circ_kp", filename, circ_kp_);
+  common::get_yaml_node("circ_kh", filename, circ_kh_);
 }
 
 
@@ -105,14 +111,6 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
 
   xc_.t = t;
 
-  // Refresh the waypoint or trajectory
-  if (path_type_ == 0)
-    updateWaypointManager();
-  else if (path_type_ == 1)
-    updateTrajectoryManager();
-  else
-    throw std::runtime_error("Undefined path type in controller.");
-
   double dt = t - prev_time_;
   prev_time_ = t;
 
@@ -122,54 +120,100 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     return;
   }
 
-  // get data that applies to both position and velocity control
-  Eigen::Matrix3d R_v_to_v1 = common::R_v_to_v1(euler(2)); // rotation from vehicle to vehicle-1 frame
-  Eigen::Matrix3d R_v1_to_b = common::R_v_to_b(euler(0), euler(1), 0.0); // rotation from vehicle-1 to body frame
-  static Eigen::Vector3d k = common::e3;
-
-  Eigen::Vector3d phat(xhat_.pn, xhat_.pe, xhat_.pd); // position estimate
-  Eigen::Vector3d pc(xc_.pn, xc_.pe, xc_.pd); // position command
-  Eigen::Vector3d vc = R_v_to_v1 * K_p_ * (pc-phat); // velocity command
-
-  // store velocity command
-  xc_.u = vc(0);
-  xc_.v = vc(1);
-  xc_.w = vc(2);
-
-  // get yaw rate direction and allow it to saturate
-  xc_.r = xc_.psi - xhat_.psi;
-
-  // angle wrapping
-  common::wrapAngle(xc_.r, M_PI);
-
-  // get velocity command and enforce max velocity
-  double vmag = vc.norm();
-  if (vmag > max_.vel)
-    vc = vc*max_.vel/vmag;
-
-  Eigen::Vector3d vhat_b(xhat_.u,xhat_.v,xhat_.w); // body velocity estimate
-  Eigen::Vector3d vhat = R_v1_to_b.transpose()*vhat_b; // vehicle-1 velocity estimate
-  dhat_ = dhat_ - K_d_*(vc-vhat)*dt; // update disturbance estimate
-  Eigen::Vector3d k_tilde = throttle_eq_ * (k - (1.0 / common::gravity) * (K_v_ * (vc - vhat) - dhat_));
-
-  // pack up throttle command
-  xc_.throttle = k.transpose() * R_v1_to_b * k_tilde;
-
-  Eigen::Vector3d kd = (1.0 / xc_.throttle) * k_tilde; // desired body z direction
-  kd = kd / kd.norm(); // need direction only
-  double tilt_angle = acos(k.transpose() * kd); // desired tilt
-
-  // get shortest rotation to desired tilt
-  common::Quaternion q_c;
-  if (tilt_angle > 1e-6)
+  if (path_type_ == 0 || path_type_ == 1)
   {
-    Eigen::Vector3d k_cross_kd = k.cross(kd);
-    q_c = common::Quaternion::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
-  }
+    // Refresh the waypoint or trajectory
+    if (path_type_ == 0)
+      updateWaypointManager();
+    else
+      updateTrajectoryManager();
 
-  // pack up attitude commands
-  xc_.phi = q_c.roll();
-  xc_.theta = q_c.pitch();
+    // get data that applies to both position and velocity control
+    Eigen::Matrix3d R_v_to_v1 = common::R_v_to_v1(euler(2)); // rotation from vehicle to vehicle-1 frame
+    Eigen::Matrix3d R_v1_to_b = common::R_v_to_b(euler(0), euler(1), 0.0); // rotation from vehicle-1 to body frame
+    static Eigen::Vector3d k = common::e3;
+
+    Eigen::Vector3d phat(xhat_.pn, xhat_.pe, xhat_.pd); // position estimate
+    Eigen::Vector3d pc(xc_.pn, xc_.pe, xc_.pd); // position command
+    Eigen::Vector3d vc = R_v_to_v1 * K_p_ * (pc-phat); // velocity command
+
+    // store velocity command
+    xc_.u = vc(0);
+    xc_.v = vc(1);
+    xc_.w = vc(2);
+
+    // get yaw rate direction and allow it to saturate
+    xc_.r = xc_.psi - xhat_.psi;
+    common::wrapAngle(xc_.r, M_PI); // wrap angle
+
+    // get velocity command and enforce max velocity
+    double vmag = vc.norm();
+    if (vmag > max_.vel)
+      vc = vc*max_.vel/vmag;
+
+    Eigen::Vector3d vhat_b(xhat_.u,xhat_.v,xhat_.w); // body velocity estimate
+    Eigen::Vector3d vhat = R_v1_to_b.transpose()*vhat_b; // vehicle-1 velocity estimate
+    dhat_ = dhat_ - K_d_*(vc-vhat)*dt; // update disturbance estimate
+    Eigen::Vector3d k_tilde = throttle_eq_ * (k - (1.0 / common::gravity) * (K_v_ * (vc - vhat) - dhat_));
+
+    // pack up throttle command
+    xc_.throttle = k.transpose() * R_v1_to_b * k_tilde;
+
+    Eigen::Vector3d kd = (1.0 / xc_.throttle) * k_tilde; // desired body z direction
+    kd = kd / kd.norm(); // need direction only
+    double tilt_angle = acos(k.transpose() * kd); // desired tilt
+
+    // get shortest rotation to desired tilt
+    common::Quaternion q_c;
+    if (tilt_angle > 1e-6)
+    {
+      Eigen::Vector3d k_cross_kd = k.cross(kd);
+      q_c = common::Quaternion::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
+    }
+
+    // pack up attitude commands
+    xc_.phi = q_c.roll();
+    xc_.theta = q_c.pitch();
+  }
+  else if (path_type_ == 2)
+  {
+    // Refresh velocity command
+    updateVelocityCommand(x);
+
+    // Unpack inertial velocity command, saturate it, and compute error
+    Eigen::Vector3d vc(xc_.u, xc_.v, xc_.w);
+    double vmag = vc.norm();
+    if (vmag > max_.vel)
+      vc *= max_.vel / vmag;
+    Eigen::Vector3d vtilde = vc - x.q.inv().rot(x.v);
+
+    // Commanded throttle
+    xc_.throttle = throttle_eq_ * common::e3.transpose() * x.q.rot(common::e3 - 1.0 / common::gravity * K_v_ * vtilde);
+
+    // Commanded body axes in the inertial frame
+    Eigen::Vector3d kbc = throttle_eq_ / xc_.throttle * (common::e3 - 1.0 / common::gravity * K_v_ * vtilde);
+    kbc /= kbc.norm();
+    Eigen::Vector3d jbc = kbc.cross(x.q.inv().rot(et_));
+    jbc /= jbc.norm();
+    Eigen::Vector3d ibc = jbc.cross(kbc);
+    ibc /= ibc.norm();
+
+    // Build commanded attitude
+    Eigen::Matrix3d Rc; // Should be inertial to body rotation
+    Rc << ibc, jbc, kbc;
+    Eigen::Matrix3d RcT = Rc.transpose();
+
+    // Extract Euler angles
+    xc_.theta = asin(-RcT(0,2));
+    xc_.phi = atan2(RcT(1,2), RcT(2,2));
+    double psic = atan2(RcT(0,1), RcT(0,0));
+
+    // Commanded yaw rate
+    xc_.r = psic - xhat_.psi;
+    common::wrapAngle(xc_.r, M_PI); // wrap angle
+  }
+  else
+    throw std::runtime_error("Undefined path type in controller.");
 
   // Create Roll and Pitch Command
   xc_.throttle = common::saturate(xc_.throttle, max_.throttle, 0.0);
@@ -312,6 +356,31 @@ void Controller::updateTrajectoryManager()
   xc_.pe = traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * xc_.t);
   xc_.pd = -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * xc_.t));
   xc_.psi = traj_nom_yaw_ + traj_delta_yaw_ / 2.0 * sin(traj_yaw_freq_ * xc_.t);
+}
+
+
+void Controller::updateVelocityCommand(const vehicle::State &x)
+{
+  // For now, let the targt position be at a constant point
+  static Eigen::Vector3d pt(5,5,0);
+
+  // Target direction vector in the inertial frame
+  et_ = x.q.rot(pt - x.p);
+  et_ /= et_.norm();
+
+  // Commanded inertial velocity
+  static const Eigen::Matrix3d IPk = common::I_3x3 - common::e3 * common::e3.transpose();
+  static const Eigen::Matrix3d Pk = common::e3 * common::e3.transpose();
+  Eigen::Vector3d perr = pt - x.p;
+  Eigen::Vector3d er = IPk * x.q.inv().rot(et_);
+  er /= er.norm();
+  Eigen::Vector3d ep = common::e3.cross(x.q.inv().rot(et_));
+  ep /= ep.norm();
+  Eigen::Vector3d vc = -circ_kr_ * (circ_rd_ - (IPk * perr).norm()) * er +
+                       circ_kp_ * ep + circ_kh_ * ((Pk * perr).norm() - circ_hd_) * common::e3;
+  xc_.u = vc(0);
+  xc_.v = vc(1);
+  xc_.w = vc(2);
 }
 
 }
