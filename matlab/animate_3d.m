@@ -21,7 +21,7 @@ function animate_3d(speed, env, truth, est, cmd)
             xlabel('North axis');
             ylabel('East axis');
             zlabel('Down axis');
-            view(15,25) % (azimuth, elevation)
+            view(-50, 20) % (azimuth, elevation)
             set(gca,'YDir','Reverse')
             set(gca,'ZDir','Reverse')
             
