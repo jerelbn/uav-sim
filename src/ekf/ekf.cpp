@@ -197,10 +197,11 @@ void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::V
   f(xdot_, x_, gyro, acc);
   x_ += xdot_ * dt;
 
-  // Propagate the covariance
+  // Propagate the covariance - guarantee positive-definite P with discrete propagation
   getF(F_, x_, gyro);
   getG(G_, x_);
-  P_ += (F_ * P_ + P_ * F_.transpose() + G_ * Qu_ * G_.transpose() + Qx_) * dt;
+  F_ = I_num_dof_ + F_ * dt; // Approximate state transition matrix
+  P_ = F_ * P_ * F_.transpose() + G_ * Qu_ * G_.transpose() + Qx_;
 }
 
 
