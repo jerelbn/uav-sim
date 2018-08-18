@@ -148,6 +148,7 @@ private:
   Eigen::Matrix<double, 5, 5> R_vo_;
   dxVector lambda_;
   dxMatrix Lambda_;
+  double vo_meas_gate_upper_, vo_meas_gate_lower_;
 
   // Storage for current IMU measurement
   uVector imu_;

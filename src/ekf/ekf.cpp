@@ -127,6 +127,8 @@ void EKF::load(const std::string &filename)
   R_vo_ = R_vo_diag.asDiagonal();
   common::get_yaml_eigen("lambda", filename, lambda_);
   Lambda_ = ones_vec_ * lambda_.transpose() + lambda_ * ones_vec_.transpose() - lambda_ * lambda_.transpose();
+  common::get_yaml_node("vo_meas_gate_upper", filename, vo_meas_gate_upper_);
+  common::get_yaml_node("vo_meas_gate_lower", filename, vo_meas_gate_lower_);
 
   // Camera information
   common::get_yaml_eigen("camera_matrix", filename, K_);
@@ -251,8 +253,15 @@ void EKF::imageUpdate()
     Eigen::Matrix<double, 5, 1> err_i;
     err_i << err_t, err_q;
 
+    // Measurement gating
+    Eigen::Matrix<double, 5, 5> S_inv = (R_vo_ + H * P_ * H.transpose()).inverse();
+    double NEES = err_i.transpose() * S_inv * err_i;
+//    std::cout << NEES << std::endl;
+//    if (NEES < vo_meas_gate_lower_ || NEES > vo_meas_gate_upper_)
+//      return;
+
     // Change in state and covariance
-    Eigen::Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * (R_vo_ + H * P_ * H.transpose()).inverse();
+    Eigen::Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * S_inv;
     dxVector delta_x = lambda_.cwiseProduct(K * err_i);
     dxMatrix delta_P = Lambda_.cwiseProduct((I_num_dof_ - K * H) * P_ * (I_num_dof_ - K * H).transpose() +
                        K * R_vo_ * K.transpose() - P_);
