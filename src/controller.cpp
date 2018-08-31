@@ -376,7 +376,7 @@ void Controller::updateVelocityCommand(const vehicle::State &x)
   er /= er.norm();
   Eigen::Vector3d ep = common::e3.cross(x.q.inv().rot(et_));
   ep /= ep.norm();
-  Eigen::Vector3d vc = -circ_kr_ * (circ_rd_ - (IPk * perr).norm()) * er +
+  Eigen::Vector3d vc = circ_kr_ * ((IPk * perr).norm() - circ_rd_) * er +
                        circ_kp_ * ep + circ_kh_ * ((Pk * perr).norm() - circ_hd_) * common::e3;
   xc_.u = vc(0);
   xc_.v = vc(1);
