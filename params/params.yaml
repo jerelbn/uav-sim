@@ -84,7 +84,7 @@ circ_rd: 5.0
 circ_hd: 5.0
 circ_kr: 1.0
 circ_kp: 1.0
-circ_kh: 0.5
+circ_kh: 1.0
 
 # Environment Setup
 enable_wind: false # Turn wind on and off

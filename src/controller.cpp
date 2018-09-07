@@ -185,15 +185,23 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     double vmag = vc.norm();
     if (vmag > max_.vel)
       vc *= max_.vel / vmag;
-    Eigen::Vector3d vtilde = vc - x.q.inv().rot(x.v);
+
+    double phi = x.q.roll();
+    double theta = x.q.pitch();
+    common::Quaternion q_l2b(phi, theta, 0.0);
+    Eigen::Vector3d vtilde = vc - q_l2b.inv().rot(x.v);
+
+    Eigen::Vector3d omega_l = common::e3 * common::e3.transpose() * q_l2b.inv().rot(x.omega);
+    Eigen::Vector3d vl = q_l2b.inv().rot(x.v);
 
     // Commanded throttle
-    xc_.throttle = throttle_eq_ * common::e3.transpose() * x.q.rot(common::e3 - 1.0 / common::gravity * K_v_ * vtilde);
+    xc_.throttle = throttle_eq_ * common::e3.transpose() * q_l2b.rot(common::e3
+                   - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde));
 
     // Commanded body axes in the inertial frame
-    Eigen::Vector3d kbc = throttle_eq_ / xc_.throttle * (common::e3 - 1.0 / common::gravity * K_v_ * vtilde);
+    Eigen::Vector3d kbc = throttle_eq_ / xc_.throttle * (common::e3 - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde));
     kbc /= kbc.norm();
-    Eigen::Vector3d jbc = kbc.cross(x.q.inv().rot(et_));
+    Eigen::Vector3d jbc = kbc.cross(q_l2b.inv().rot(ez_));
     jbc /= jbc.norm();
     Eigen::Vector3d ibc = jbc.cross(kbc);
     ibc /= ibc.norm();
@@ -203,14 +211,9 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     Rc << ibc, jbc, kbc;
     Eigen::Matrix3d RcT = Rc.transpose();
 
-    // Extract Euler angles
+    // Extract roll and pitch angles
     xc_.theta = asin(-RcT(0,2));
     xc_.phi = atan2(RcT(1,2), RcT(2,2));
-    double psic = atan2(RcT(0,1), RcT(0,0));
-
-    // Commanded yaw rate
-    xc_.r = psic - xhat_.psi;
-    common::wrapAngle(xc_.r, M_PI); // wrap angle
   }
   else
     throw std::runtime_error("Undefined path type in controller.");
@@ -364,23 +367,34 @@ void Controller::updateVelocityCommand(const vehicle::State &x)
   // For now, let the targt position be at a constant point
   static Eigen::Vector3d pt(5,5,0);
 
-  // Target direction vector in the inertial frame
-  et_ = x.q.rot(pt - x.p);
-  et_ /= et_.norm();
+  // Target direction vector in the local level frame
+  double phi = x.q.roll();
+  double theta = x.q.pitch();
+  common::Quaternion q_l2b(phi, theta, 0.0);
+  Eigen::Vector3d z = x.q.rot(pt - x.p);
+  ez_ = z / z.norm();
 
-  // Commanded inertial velocity
-  static const Eigen::Matrix3d IPk = common::I_3x3 - common::e3 * common::e3.transpose();
-  static const Eigen::Matrix3d Pk = common::e3 * common::e3.transpose();
-  Eigen::Vector3d perr = pt - x.p;
-  Eigen::Vector3d er = IPk * x.q.inv().rot(et_);
+  // Commanded velocity in the local level reference frame
+  static const Eigen::Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();
+  static const Eigen::Matrix3d Pe3 = common::e3 * common::e3.transpose();
+  double r = (IPe3 * q_l2b.inv().rot(z)).norm();
+  double h = (Pe3 * q_l2b.inv().rot(z)).norm();
+
+  Eigen::Vector3d er = IPe3 * q_l2b.inv().rot(ez_);
   er /= er.norm();
-  Eigen::Vector3d ep = common::e3.cross(x.q.inv().rot(et_));
+  Eigen::Vector3d ep = common::e3.cross(er);
   ep /= ep.norm();
-  Eigen::Vector3d vc = circ_kr_ * ((IPk * perr).norm() - circ_rd_) * er +
-                       circ_kp_ * ep + circ_kh_ * ((Pk * perr).norm() - circ_hd_) * common::e3;
+
+  double r_tilde = r - circ_rd_;
+  double h_tilde = h - circ_hd_;
+  Eigen::Vector3d vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
   xc_.u = vc(0);
   xc_.v = vc(1);
   xc_.w = vc(2);
+
+  // Commanded yaw rate
+  Eigen::Vector3d e1l = IPe3 * q_l2b.inv().rot(common::e1);
+  xc_.r = 1.0 * common::e3.transpose() * e1l.cross(er);
 }
 
 }
