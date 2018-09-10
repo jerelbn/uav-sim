@@ -308,7 +308,8 @@ bool EKF::trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_alloca
   {
     // Randomly select and add new points to the tracked points container
     static bool pt_used;
-    while (tracked_pts_.size() < max_tracked_features_)
+    int count = 0;
+    while (tracked_pts_.size() < max_tracked_features_ && pts.size() > 0)
     {
       // Get random index and make sure point isn't already tracked
       pt_used = false;
@@ -321,6 +322,9 @@ bool EKF::trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_alloca
 
       if (!pt_used)
         tracked_pts_.push_back(pts[idx]);
+
+      if (count > 2000) break;
+      ++count;
     }
 
     // Establish new keyframe

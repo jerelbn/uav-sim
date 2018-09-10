@@ -115,7 +115,6 @@ private:
   double circ_kr_;
   double circ_kp_;
   double circ_kh_;
-  Eigen::Vector3d ez_; // Inertial target direction
 
   // Controller Gains
   Eigen::Matrix3d K_p_; // position
@@ -135,7 +134,6 @@ private:
   // Functions
   void updateWaypointManager();
   void updateTrajectoryManager();
-  void updateVelocityCommand(const vehicle::State &x);
 };
 
 }
