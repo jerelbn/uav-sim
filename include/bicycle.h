@@ -58,7 +58,7 @@ private:
   xVector dx_, k1_, k2_, k3_, k4_;
   uVector u_;
 
-  bool accurate_integration_, initialized_;
+  bool accurate_integration_, initialized_, flat_ground_;
   double mass_, inertia_, max_force_, max_torque_, max_steering_angle_, L_, t_prev_;
   double ku_, ktheta_, kpsi_;
   double vel_cmd_;

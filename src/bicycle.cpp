@@ -34,6 +34,7 @@ void Bicycle::load(const std::string &filename)
   common::get_yaml_node("bicycle_k_theta", filename, ktheta_);
   common::get_yaml_node("bicycle_k_psi", filename, kpsi_);
   common::get_yaml_node("bicycle_velocity_command", filename, vel_cmd_);
+  common::get_yaml_node("bicycle_flat_ground", filename, flat_ground_);
   common::get_yaml_eigen<xVector>("bicycle_x0", filename, x_);
 
   // Load waypoints
@@ -157,9 +158,16 @@ void Bicycle::updateWaypoint()
 
 double Bicycle::groundFunction(const xVector &state)
 {
-  double x = state(PX);
-  double y = state(PY);
-  return 1.0 * sin(0.25 * x) + 1.0 * sin(0.25 * y);
+  if (!flat_ground_)
+  {
+    double x = state(PX);
+    double y = state(PY);
+    return 1.0 * sin(0.25 * x) + 1.0 * sin(0.25 * y);
+  }
+  else
+  {
+    return x_(PZ);
+  }
 }
 
 
