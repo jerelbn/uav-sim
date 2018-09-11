@@ -49,7 +49,7 @@ void Quadrotor::load(const std::string &filename)
 
   // Compute initial control and corresponding acceleration
   Eigen::Vector3d vw;
-  controller_.computeControl(getTrueState(), 0, u_);
+  controller_.computeControl(getTrueState(), 0, u_, Eigen::Vector3d(1,0,0));
 //  controller_.computeControl(ekf_.getVehicleState(), 0, u_);
   vw.setZero(); // get vw from environment
   updateAccel(u_,vw);
@@ -125,14 +125,15 @@ void Quadrotor::propagate(const double &t, const commandVector& u, const Eigen::
 
 void Quadrotor::run(const double &t, const environment::Environment& env)
 {
+  getOtherVehicles(env.getVehiclePositions());
   sensors_.updateMeasurements(t, x_, env.get_points().matrix()); // Update sensor measurements
   log(t); // Log current data
   ekf_.run(t, sensors_);
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
   if (control_using_estimates_)
-    controller_.computeControl(ekf_.getVehicleState(), t, u_); // Update control input with estimates
+    controller_.computeControl(ekf_.getVehicleState(), t, u_, other_vehicle_positions[0]); // Update control input with estimates
   else
-    controller_.computeControl(getTrueState(), t, u_); // Update control input with truth
+    controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions[0]); // Update control input with truth
   updateAccel(u_, env.get_vw()); // Update true acceleration
 }
 
@@ -153,6 +154,26 @@ void Quadrotor::log(const double &t)
   true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   controller::Controller::state_t commanded_state = controller_.getCommandedState();
   command_log_.write((char*)&commanded_state, sizeof(controller::Controller::state_t));
+}
+
+
+void Quadrotor::getOtherVehicles(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &all_vehicle_positions)
+{
+  // Reserve memory for the other vehicle positions
+  if (other_vehicle_positions.size() < all_vehicle_positions.size()-1)
+    other_vehicle_positions.reserve(all_vehicle_positions.size()-1);
+
+  // Store other vehicle positions
+  int count = 0;
+  for (int i = 0; i < all_vehicle_positions.size(); ++i)
+  {
+    Eigen::Vector3d error = all_vehicle_positions[i] - x_.p;
+    if (error.norm() > 1e-6)
+    {
+      other_vehicle_positions[count] = all_vehicle_positions[i];
+      ++count;
+    }
+  }
 }
 
 

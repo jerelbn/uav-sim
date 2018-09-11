@@ -28,6 +28,7 @@ public:
   void log(const double t);
   const Eigen::ArrayXXd& get_points() const { return points_; }
   const Eigen::Vector3d& get_vw() const { return vw_; }
+  const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& getVehiclePositions() const { return vehicle_positions; }
 
 private:
 

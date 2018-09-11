@@ -89,10 +89,13 @@ void Controller::load(const std::string filename)
   common::get_yaml_node("circ_kr", filename, circ_kr_);
   common::get_yaml_node("circ_kp", filename, circ_kp_);
   common::get_yaml_node("circ_kh", filename, circ_kh_);
+
+  common::get_yaml_node("target_gain", filename, kz_);
+  common::get_yaml_eigen<Eigen::Vector3d>("target_z0", filename, z_);
 }
 
 
-void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u)
+void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d& pt)
 {
   // Copy the current state
   Eigen::Vector3d euler = x.q.euler();
@@ -176,21 +179,24 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
   }
   else if (path_type_ == 2)
   {
-    // For now, let the targt position be at a constant point
-    static Eigen::Vector3d pt(5,-5,0);
+    // Create bearing measurement of target
+    Eigen::Vector3d z_true = x.q.rot(pt - x.p);
+    Eigen::Vector3d ez = z_true / z_true.norm();
 
-    // Target direction vector in the local level frame
+    // Target estimator
+    Eigen::Vector3d zdot = -x.v - x.omega.cross(z_) - kz_ * (common::I_3x3 - ez * ez.transpose()) * z_;
+    z_ += zdot * dt;
+
+    // Extract local level frame rotation
     double phi = x.q.roll();
     double theta = x.q.pitch();
     common::Quaternion q_l2b(phi, theta, 0.0);
-    Eigen::Vector3d z = x.q.rot(pt - x.p);
-    Eigen::Vector3d ez = z / z.norm();
 
     // Commanded velocity in the local level reference frame
     static const Eigen::Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();
     static const Eigen::Matrix3d Pe3 = common::e3 * common::e3.transpose();
-    double r = (IPe3 * q_l2b.inv().rot(z)).norm();
-    double h = (Pe3 * q_l2b.inv().rot(z)).norm();
+    double r = (IPe3 * q_l2b.inv().rot(z_)).norm();
+    double h = (Pe3 * q_l2b.inv().rot(z_)).norm();
 
     Eigen::Vector3d er = IPe3 * q_l2b.inv().rot(ez);
     er /= er.norm();

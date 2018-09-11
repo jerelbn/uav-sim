@@ -31,6 +31,7 @@ private:
   void f(const vehicle::State& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw);
   void propagate(const double &dt, const commandVector& u, const Eigen::Vector3d& vw);
   void updateAccel(const commandVector& u, const Eigen::Vector3d& vw);
+  void getOtherVehicles(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
 
   controller::Controller controller_;
@@ -48,6 +49,7 @@ private:
   Eigen::Vector3d linear_drag_;
   Eigen::Matrix3d angular_drag_matrix_;
   Eigen::Vector3d v_rel_;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions;
 
   std::string directory_;
   std::ofstream true_state_log_;

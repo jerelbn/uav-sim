@@ -38,7 +38,7 @@ public:
   Controller(const std::string filename);
 
   void load(const std::string filename);
-  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u);
+  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d &pt);
   inline state_t getCommandedState() const { return xc_; }
 
 private:
@@ -130,6 +130,10 @@ private:
   double prev_time_;
   uint8_t control_mode_;
   Eigen::Vector3d dhat_; // disturbance acceleration
+
+  // Target estimation parameters
+  Eigen::Vector3d z_;
+  double kz_;
 
   // Functions
   void updateWaypointManager();
