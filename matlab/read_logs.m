@@ -54,3 +54,13 @@ for i = 1:size(true_heading,2)
     true_heading(i) = yaw_from_q(true_state(5:8,i));
     ekf_heading(i) = yaw_from_q(ekf_state(5:8,i));
 end
+
+% Load bicycle truth
+file = fopen(strcat(directory,'bicycle_true_state.bin'), 'r');
+bicycle_state = fread(file, 'double');
+bicycle_state = reshape(bicycle_state, 7, []);
+
+% Load bicycle commands
+file = fopen(strcat(directory,'bicycle_command.bin'), 'r');
+bicycle_command = fread(file, 'double');
+bicycle_command = reshape(bicycle_command, 5, []);

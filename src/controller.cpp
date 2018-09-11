@@ -143,8 +143,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     xc_.w = vc(2);
 
     // get yaw rate direction and allow it to saturate
-    xc_.r = xc_.psi - xhat_.psi;
-    common::wrapAngle(xc_.r, M_PI); // wrap angle
+    xc_.r = common::wrapAngle(xc_.psi - xhat_.psi, M_PI); // wrap angle
 
     // get velocity command and enforce max velocity
     double vmag = vc.norm();

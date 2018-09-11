@@ -1,5 +1,7 @@
+#include <experimental/filesystem>
 #include "common_cpp/common.h"
 #include "quadrotor.h"
+#include "bicycle.h"
 #include "environment.h"
 
 
@@ -43,6 +45,7 @@ int main()
 
   // Create vehicles
   quadrotor::Quadrotor quad1(param_file);
+  bicycle::Bicycle bike1(param_file);
 
   // Store initial vehicle states in environment
 
@@ -51,6 +54,7 @@ int main()
   {
     // Run each vehicle
     quad1.run(t, env.get_vw(), env.get_points().matrix());
+    bike1.run(t);
 
     // Update wind and stored vehicle states in environment
     env.updateWind(t);

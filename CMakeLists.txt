@@ -24,6 +24,7 @@ add_executable(uav_sim
   src/main.cpp
   src/environment.cpp
   src/quadrotor.cpp
+  src/bicycle.cpp
   src/sensors.cpp
   src/controller.cpp
   src/ekf/ekf.cpp
