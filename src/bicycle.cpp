@@ -34,28 +34,25 @@ void Bicycle::load(const std::string &filename)
   common::get_yaml_node("bicycle_k_theta", filename, ktheta_);
   common::get_yaml_node("bicycle_k_psi", filename, kpsi_);
   common::get_yaml_node("bicycle_velocity_command", filename, vel_cmd_);
-
-  xVector x0;
-  common::get_yaml_eigen<xVector>("bicycle_x0", filename, x0);
+  common::get_yaml_eigen<xVector>("bicycle_x0", filename, x_);
 
   // Load waypoints
   std::vector<double> loaded_wps;
+  common::get_yaml_node("bicycle_waypoint_threshold", filename, waypoint_threshold_);
   if (common::get_yaml_node("bicycle_waypoints", filename, loaded_wps))
   {
     int num_waypoints = std::floor(loaded_wps.size()/2.0);
     waypoints_ = Eigen::Map<Eigen::MatrixXd>(loaded_wps.data(), 2, num_waypoints);
     current_waypoint_id_ = 0;
   }
-  common::get_yaml_node("bicycle_waypoint_threshold", filename, waypoint_threshold_);
-  std::cout << waypoints_ << std::endl;
-
-  // Compute initial control
-  computeControl();
 
   // Initialize loggers
   common::get_yaml_node("log_directory", filename, directory_);
   true_state_log_.open(directory_ + "/bicycle_true_state.bin");
   command_log_.open(directory_ + "/bicycle_command.bin");
+
+  // Compute initial control
+  computeControl();
 }
 
 
@@ -81,17 +78,13 @@ void Bicycle::propagate(const double &t)
   {
     // 4th order Runge-Kutta integration
     f(x_, u_, k1_);
-
     x2_ = x_ + k1_ * dt / 2.0;
     f(x2_, u_, k2_);
-
     x3_ = x_ + k2_ * dt / 2.0;
     f(x3_, u_, k3_);
-
     x4_ = x_ + k3_ * dt / 2.0;
     f(x4_, u_, k4_);
-
-    dx_ = (k1_ + 2 * k2_ + 2 * k3_ + k4_) * dt / 6.0;
+    dx_= (k1_ + 2 * k2_ + 2 * k3_ + k4_) * dt / 6.0;
   }
   else
   {
@@ -111,7 +104,6 @@ void Bicycle::propagate(const double &t)
 
 void Bicycle::run(const double &t)
 {
-  std::cout << t << ", ";
   log(t); // Log current data
   propagate(t); // Propagate truth to next time step
   computeControl(); // Update control input with truth
@@ -138,7 +130,6 @@ void Bicycle::computeControl()
   updateWaypoint();
   double psi_d = atan2(wp_(PY) - x_(PY), wp_(PX) - x_(PX));
   double psi_err = common::wrapAngle(x_(PSI) - psi_d, M_PI);
-  std::cout << psi_err << ", " << wp_(PX) << ", " << wp_(PY) << std::endl;
   double theta_d = common::saturate(atan(-kpsi_ * L_ / x_(VEL) * psi_err), max_steering_angle_, -max_steering_angle_);
   u_(TORQUE) = common::saturate(-ktheta_ * inertia_ * (x_(THETA) - theta_d), max_torque_, -max_torque_);
 }
@@ -152,15 +143,11 @@ void Bicycle::updateWaypoint()
     wp_ = waypoints_.block<2,1>(0, 0);
   }
 
-  // Find the distance to the desired waypoint
+  // If waypoint error is small, increment waypoint id and update commanded waypoint
   Eigen::Vector2d error = x_.segment<2>(PX) - wp_;
-
   if (error.norm() < waypoint_threshold_)
   {
-    // Increment waypoint id
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();
-
-    // Update commanded waypoint
     wp_ = waypoints_.block<2,1>(0, current_waypoint_id_);
   }
 }

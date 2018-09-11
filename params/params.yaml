@@ -167,16 +167,16 @@ max_tracked_features: 100
 min_kf_feature_matches: 50
 
 # Bicyle setup
-bicycle_accurate_integration: false
+bicycle_accurate_integration: true
 bicycle_mass: 1.0
 bicycle_inertia: 0.1
 bicycle_length: 1.5
 bicycle_max_force: 10.0
 bicycle_max_torque: 1.0
 bicycle_max_steering_angle: 0.78
-bicycle_k_u: 1.0
-bicycle_k_theta: 10.0
-bicycle_k_psi: 10.0
+bicycle_k_u: 2.0
+bicycle_k_theta: 2.0
+bicycle_k_psi: 2.0
 bicycle_velocity_command: 1.0
 bicycle_x0: [0, # NORTH
              0, # EAST
