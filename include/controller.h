@@ -88,6 +88,8 @@ private:
   double mass_;
   double max_thrust_;
   int path_type_;
+  bool use_random_seed_;
+  std::default_random_engine rng_;
 
   // Waypoint Parameters
   Eigen::MatrixXd waypoints_;
@@ -132,8 +134,11 @@ private:
   Eigen::Vector3d dhat_; // disturbance acceleration
 
   // Target estimation parameters
-  Eigen::Vector3d z_;
-  double kz_;
+  bool use_target_truth_, bearing_only_;
+  Eigen::Vector3d z_, vz_;
+  double kz_, kvz_;
+  Eigen::Vector3d target_noise_;
+  std::normal_distribution<double> target_noise_dist_;
 
   // Functions
   void updateWaypointManager();
