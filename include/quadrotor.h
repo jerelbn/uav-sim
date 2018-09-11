@@ -6,6 +6,7 @@
 #include "controller.h"
 #include "sensors.h"
 #include "ekf/ekf.h"
+#include "environment.h"
 
 namespace quadrotor
 {
@@ -21,7 +22,7 @@ public:
   ~Quadrotor();
 
   void load(const std::string &filename);
-  void run(const double &t, const Eigen::Vector3d& vw, const Eigen::MatrixXd &lm);
+  void run(const double &t, const environment::Environment& env);
 
   const vehicle::State& getTrueState() const { return x_; }
 

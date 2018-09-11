@@ -123,17 +123,17 @@ void Quadrotor::propagate(const double &t, const commandVector& u, const Eigen::
 }
 
 
-void Quadrotor::run(const double &t, const Eigen::Vector3d& vw, const Eigen::MatrixXd& lm)
+void Quadrotor::run(const double &t, const environment::Environment& env)
 {
-  sensors_.updateMeasurements(t, x_, lm); // Update sensor measurements
+  sensors_.updateMeasurements(t, x_, env.get_points().matrix()); // Update sensor measurements
   log(t); // Log current data
   ekf_.run(t, sensors_);
-  propagate(t, u_, vw); // Propagate truth to next time step
+  propagate(t, u_, env.get_vw()); // Propagate truth to next time step
   if (control_using_estimates_)
     controller_.computeControl(ekf_.getVehicleState(), t, u_); // Update control input with estimates
   else
     controller_.computeControl(getTrueState(), t, u_); // Update control input with truth
-  updateAccel(u_, vw); // Update true acceleration
+  updateAccel(u_, env.get_vw()); // Update true acceleration
 }
 
 

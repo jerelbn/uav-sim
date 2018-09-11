@@ -43,6 +43,7 @@ public:
 
   void load(const std::string &filename);
   void run(const double &t);
+  const xVector& getState() const { return x_; }
 
 private:
 

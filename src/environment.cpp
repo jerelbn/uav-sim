@@ -151,4 +151,16 @@ void Environment::updateWind(const double t)
 }
 
 
+void Environment::initVehicle(const Eigen::Vector3d &p)
+{
+  vehicle_positions.push_back(p);
+}
+
+
+void Environment::updateVehicle(const Eigen::Vector3d &p, const int& idx)
+{
+  vehicle_positions[idx] = p;
+}
+
+
 }

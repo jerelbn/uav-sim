@@ -178,7 +178,7 @@ bicycle_k_u: 5.0
 bicycle_k_theta: 5.0
 bicycle_k_psi: 5.0
 bicycle_velocity_command: 1.0
-bicycle_x0: [0, # NORTH
+bicycle_x0: [5, # NORTH
              0, # EAST
              0, # DOWN
              0, # HEADING
