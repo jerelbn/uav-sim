@@ -2,6 +2,7 @@
 
 #include "common_cpp/common.h"
 #include "vehicle_common.h"
+#include <fstream>
 
 
 namespace controller
@@ -39,6 +40,7 @@ public:
 
   void load(const std::string filename);
   void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d &pt);
+  void log(const double& t);
   inline state_t getCommandedState() const { return xc_; }
 
 private:
@@ -139,6 +141,10 @@ private:
   double kz_, kvz_;
   Eigen::Vector3d target_noise_;
   std::normal_distribution<double> target_noise_dist_;
+
+  // Logging
+  std::string directory_;
+  std::ofstream target_log_;
 
   // Functions
   void updateWaypointManager();

@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 60.0
+tf: 300.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -82,9 +82,9 @@ traj_yaw_period: 20
 
 circ_rd: 5.0
 circ_hd: 5.0
-circ_kr: 2.0
-circ_kp: 2.0
-circ_kh: 2.0
+circ_kr: 1.0
+circ_kp: 1.0
+circ_kh: 1.0
 
 # Environment Setup
 enable_wind: false # Turn wind on and off
@@ -177,25 +177,25 @@ bicycle_max_steering_angle: 0.78
 bicycle_k_u: 5.0
 bicycle_k_theta: 5.0
 bicycle_k_psi: 5.0
-bicycle_velocity_command: 1.0
+bicycle_velocity_command: 0.1
 bicycle_x0: [5, # NORTH
              0, # EAST
              0, # DOWN
              0, # HEADING
              0.1, # VELOCITY
              0] # STEERING ANGLE
-bicycle_waypoints: [7, 7,
+bicycle_waypoints: [70, 0,
                     -7, 7,
                     -7, -7,
                     7, -7]
 bicycle_waypoint_threshold: 1.0
-bicycle_flat_ground: false
+bicycle_flat_ground: true
 
 # Target estimation parameters
 bearing_only: false
-use_target_truth: false
-target_z0: [6, 0, 0]
+use_target_truth: true
+target_z0: [5, 5, 5]
 target_vz0: [0, 0, 0]
-target_gain: 1.0
-target_velocity_gain: 1.0
+target_gain: 0.1
+target_velocity_gain: 0.1
 target_noise_stdev: 0.1
