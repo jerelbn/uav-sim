@@ -50,6 +50,8 @@ private:
   void propagate(const double &dt);
   void computeControl();
   void updateWaypoint();
+  double groundFunction(const xVector& state);
+  void updateElevation();
   void log(const double &t);
 
   xVector x_, x2_, x3_, x4_;

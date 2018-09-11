@@ -51,8 +51,9 @@ void Bicycle::load(const std::string &filename)
   true_state_log_.open(directory_ + "/bicycle_true_state.bin");
   command_log_.open(directory_ + "/bicycle_command.bin");
 
-  // Compute initial control
+  // Compute initial control and elevation
   computeControl();
+  updateElevation();
 }
 
 
@@ -107,6 +108,7 @@ void Bicycle::run(const double &t)
   log(t); // Log current data
   propagate(t); // Propagate truth to next time step
   computeControl(); // Update control input with truth
+  updateElevation(); // Update vehicle z component
 }
 
 
@@ -150,6 +152,20 @@ void Bicycle::updateWaypoint()
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();
     wp_ = waypoints_.block<2,1>(0, current_waypoint_id_);
   }
+}
+
+
+double Bicycle::groundFunction(const xVector &state)
+{
+  double x = state(PX);
+  double y = state(PY);
+  return 1.0 * sin(0.25 * x) + 1.0 * sin(0.25 * y);
+}
+
+
+void Bicycle::updateElevation()
+{
+  x_(PZ) = groundFunction(x_);
 }
 
 
