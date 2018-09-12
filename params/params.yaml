@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 300.0
+tf: 100.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -193,9 +193,10 @@ bicycle_flat_ground: true
 
 # Target estimation parameters
 bearing_only: false
-use_target_truth: true
-target_z0: [5, 5, 5]
-target_vz0: [0, 0, 0]
-target_gain: 0.1
-target_velocity_gain: 0.1
+use_target_truth: false
 target_noise_stdev: 0.1
+target_kz: 0.1
+target_x0: [5, 0, 0, 0, 0, 0]
+target_P0: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+target_Q: [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+target_R: [0.01, 0.01, 0.01]

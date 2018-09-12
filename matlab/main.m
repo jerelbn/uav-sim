@@ -16,16 +16,19 @@ read_logs;
 plot_environment;
 
 %% Plot states and wind
-plot_states;
+% plot_states;
+
+%% Plot estimated target states
+plot_target_states;
 
 %% Plot bicycle states
-plot_bicycle_states;
+% plot_bicycle_states;
 
 %% Plot commands
-plot_commands;
+% plot_commands;
 
 %% Plot bicycle commands
-plot_bicycle_commands;
+% plot_bicycle_commands;
 
 %% Plot sensor measurements
 % plot_measurements;

@@ -24,16 +24,6 @@ Controller::Controller(const std::string filename) :
 
 void Controller::load(const std::string filename)
 {
-  // Initialize random number generator
-  common::get_yaml_node("use_random_seed", filename, use_random_seed_);
-  int seed;
-  if (use_random_seed_)
-    seed = std::chrono::system_clock::now().time_since_epoch().count();
-  else
-    seed = 0;
-  rng_ = std::default_random_engine(seed);
-  srand(seed);
-
   common::get_yaml_node("throttle_eq", filename, throttle_eq_);
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("max_thrust", filename, max_thrust_);
@@ -99,25 +89,12 @@ void Controller::load(const std::string filename)
   common::get_yaml_node("circ_kr", filename, circ_kr_);
   common::get_yaml_node("circ_kp", filename, circ_kp_);
   common::get_yaml_node("circ_kh", filename, circ_kh_);
-
-  double target_noise_stdev;
-  common::get_yaml_node("target_gain", filename, kz_);
-  common::get_yaml_node("target_velocity_gain", filename, kvz_);
-  common::get_yaml_eigen<Eigen::Vector3d>("target_z0", filename, z_);
-  common::get_yaml_eigen<Eigen::Vector3d>("target_vz0", filename, vz_);
-  common::get_yaml_node("bearing_only", filename, bearing_only_);
-  common::get_yaml_node("use_target_truth", filename, use_target_truth_);
-  common::get_yaml_node("target_noise_stdev", filename, target_noise_stdev);
-  target_noise_dist_ = std::normal_distribution<double>(0.0, target_noise_stdev);
-  target_noise_.setZero();
-
-  // Initialize loggers
-  common::get_yaml_node("log_directory", filename, directory_);
-  target_log_.open(directory_ + "/target.bin");
 }
 
 
-void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d& pt)
+void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u,
+                                const Eigen::Vector3d& ez, const Eigen::Vector3d& zhat, const Eigen::Vector3d& vzhat,
+                                const bool& bearing_only)
 {
   // Copy the current state
   Eigen::Vector3d euler = x.q.euler();
@@ -201,29 +178,6 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
   }
   else if (path_type_ == 2)
   {
-    // Create noisy bearing measurement of target and full vector measurement
-    if (!use_target_truth_)
-      common::randomNormalMatrix(target_noise_, target_noise_dist_, rng_);
-    Eigen::Vector3d z_true = x.q.rot(pt - x.p);
-    Eigen::Vector3d z = z_true + target_noise_;
-    Eigen::Vector3d ez = z / z.norm();
-    Eigen::Vector3d z_tilde = z_ - z;
-
-    // Target estimator
-    Eigen::Vector3d zdot(0, 0, 0), vzdot(0, 0, 0);
-    if (bearing_only_)
-    {
-      zdot = -x.v - x.omega.cross(z_) - kz_ * (common::I_3x3 - ez * ez.transpose()) * z_;
-    }
-    else
-    {
-      zdot = vz_ - x.omega.cross(z_) - kz_ * z_tilde;
-      vzdot = -x.omega.cross(vz_) - x.accel - kvz_ * z_tilde;
-    }
-    z_ += zdot * dt;
-    vz_ += vzdot * dt;
-
-
     // Extract local level frame rotation
     double phi = x.q.roll();
     double theta = x.q.pitch();
@@ -232,8 +186,8 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Commanded velocity in the local level reference frame
     static const Eigen::Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();
     static const Eigen::Matrix3d Pe3 = common::e3 * common::e3.transpose();
-    double r = (IPe3 * q_l2b.inv().rot(z_)).norm();
-    double h = (Pe3 * q_l2b.inv().rot(z_)).norm();
+    double r = (IPe3 * q_l2b.inv().rot(zhat)).norm();
+    double h = (Pe3 * q_l2b.inv().rot(zhat)).norm();
 
     Eigen::Vector3d er = IPe3 * q_l2b.inv().rot(ez);
     er /= er.norm();
@@ -243,10 +197,10 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     double r_tilde = r - circ_rd_;
     double h_tilde = h - circ_hd_;
     Eigen::Vector3d vc;
-    if (bearing_only_)
+    if (bearing_only)
       vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
     else
-      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.inv().rot(vz_ + x.v);
+      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.inv().rot(vzhat + x.v);
     double vmag = vc.norm();
     if (vmag > max_.vel)
       vc *= max_.vel / vmag;
@@ -425,15 +379,6 @@ void Controller::updateTrajectoryManager()
   xc_.pe = traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * xc_.t);
   xc_.pd = -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * xc_.t));
   xc_.psi = traj_nom_yaw_ + traj_delta_yaw_ / 2.0 * sin(traj_yaw_freq_ * xc_.t);
-}
-
-
-void Controller::log(const double &t)
-{
-  // Write data to binary files and plot in another program
-  target_log_.write((char*)&t, sizeof(double));
-  target_log_.write((char*)z_.data(), z_.rows() * sizeof(double));
-  target_log_.write((char*)vz_.data(), vz_.rows() * sizeof(double));
 }
 
 }

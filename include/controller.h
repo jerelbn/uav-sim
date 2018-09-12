@@ -2,7 +2,6 @@
 
 #include "common_cpp/common.h"
 #include "vehicle_common.h"
-#include <fstream>
 
 
 namespace controller
@@ -39,8 +38,9 @@ public:
   Controller(const std::string filename);
 
   void load(const std::string filename);
-  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d &pt);
-  void log(const double& t);
+  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u,
+                      const Eigen::Vector3d &ez, const Eigen::Vector3d &zhat, const Eigen::Vector3d &vzhat,
+                      const bool &bearing_only);
   inline state_t getCommandedState() const { return xc_; }
 
 private:
@@ -90,8 +90,6 @@ private:
   double mass_;
   double max_thrust_;
   int path_type_;
-  bool use_random_seed_;
-  std::default_random_engine rng_;
 
   // Waypoint Parameters
   Eigen::MatrixXd waypoints_;
@@ -134,17 +132,6 @@ private:
   double prev_time_;
   uint8_t control_mode_;
   Eigen::Vector3d dhat_; // disturbance acceleration
-
-  // Target estimation parameters
-  bool use_target_truth_, bearing_only_;
-  Eigen::Vector3d z_, vz_;
-  double kz_, kvz_;
-  Eigen::Vector3d target_noise_;
-  std::normal_distribution<double> target_noise_dist_;
-
-  // Logging
-  std::string directory_;
-  std::ofstream target_log_;
 
   // Functions
   void updateWaypointManager();
