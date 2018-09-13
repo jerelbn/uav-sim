@@ -1,18 +1,15 @@
 %% Compute true relative states
 target_truth = target_est;
 for i = 1:size(target_truth,2)
-    target_truth(2:4,i) = Rq(true_state(5:8,i))*(bicycle_state(2:4,i) - true_state(2:4,i));
+    R_i2b = Rq(true_state(5:8,i));
+    target_truth(2:4,i) = R_i2b*(bicycle_state(2:4,i) - true_state(2:4,i));
     if i > 1 && i < size(target_truth,2)
         vt_i = (bicycle_state(2:4,i+1) - bicycle_state(2:4,i-1)) / (bicycle_state(1,i+1) - bicycle_state(1,i-1));
-        target_truth(5:7,i) = Rq(true_state(5:8,i))*vt_i - true_state(9:11,i);
-%         target_truth(5:7,i) = vt_i;
-    else
-        target_truth(5:7,i) = zeros(3,1);
+        target_truth(5:7,i) = R_i2b*vt_i - true_state(9:11,i);
     end
-%     target_truth(2:4,i) = bicycle_state(2:4,i);
-%     target_est(2:4,i) = Rq(true_state(5:8,i))'*target_est(2:4,i) + true_state(2:4,i);
-%     target_est(5:7,i) = Rq(true_state(5:8,i))'*(target_est(5:7,i) + true_state(9:11,i));
 end
+target_truth(5:7,1) = target_truth(5:7,2);
+target_truth(5:7,end) = target_truth(5:7,end-1);
 
 %% Plot relative target  position states
 figure(f); clf; f=f+1;
