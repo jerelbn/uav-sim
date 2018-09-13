@@ -205,8 +205,8 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     }
     else
     {
-      zdot = -x.v - x.omega.cross(z_) - kz_ * z_tilde;
-      vzdot = -kvz_ * z_tilde;
+      zdot = vz_ - x.omega.cross(z_) - kz_ * z_tilde;
+      vzdot = -x.omega.cross(vz_) - x.accel - x.omega.cross(x.v) - kvz_ * z_tilde;
     }
     z_ += zdot * dt;
     vz_ += vzdot * dt;

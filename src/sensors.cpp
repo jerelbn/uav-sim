@@ -70,6 +70,7 @@ void Sensors::load(const std::string filename)
   double pixel_noise_stdev;
   Eigen::Vector4d q_bc;
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
+  common::get_yaml_node("save_pixel_measurements", filename, save_pixel_measurements_);
   common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
   common::get_yaml_node("pixel_noise_stdev", filename, pixel_noise_stdev);
   common::get_yaml_eigen("image_size", filename, image_size_);
@@ -173,7 +174,7 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
     }
 
     // Log up to 5000 pixel measurements per measurement cycle, can't allocate much more on the stack...
-    if (cam_.size() > 0)
+    if (cam_.size() > 0 && save_pixel_measurements_)
     {
       cam_log_.write((char*)&t, sizeof(double));
       Eigen::Matrix<double,3*5000,1> cam_save = Eigen::Matrix<double,3*5000,1>::Constant(-1);
