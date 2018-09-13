@@ -53,7 +53,7 @@ private:
   std::ofstream accel_log_, gyro_log_;
 
   // Camera
-  bool use_camera_truth_;
+  bool use_camera_truth_, save_pixel_measurements_;
   double last_camera_update_;
   double camera_update_rate_;
   std::normal_distribution<double> pixel_noise_dist_;

@@ -5,6 +5,7 @@ use_random_seed: true
 accurate_integration: true
 log_directory: "../logs"
 control_using_estimates: false
+save_pixel_measurements: false
 
 # Truth Configuration
 use_accel_truth: false
@@ -82,9 +83,9 @@ traj_yaw_period: 20
 
 circ_rd: 5.0
 circ_hd: 5.0
-circ_kr: 1.0
-circ_kp: 1.0
-circ_kh: 1.0
+circ_kr: 2.0
+circ_kp: 2.0
+circ_kh: 2.0
 
 # Environment Setup
 enable_wind: false # Turn wind on and off
@@ -177,19 +178,19 @@ bicycle_max_steering_angle: 0.78
 bicycle_k_u: 5.0
 bicycle_k_theta: 5.0
 bicycle_k_psi: 5.0
-bicycle_velocity_command: 0.1
-bicycle_x0: [5, # NORTH
+bicycle_velocity_command: 0.4
+bicycle_x0: [1, # NORTH
              0, # EAST
              0, # DOWN
              0, # HEADING
              0.1, # VELOCITY
              0] # STEERING ANGLE
-bicycle_waypoints: [70, 0,
-                    -7, 7,
-                    -7, -7,
-                    7, -7]
+bicycle_waypoints: [8, 8,
+                    -8, 8,
+                    -8, -8,
+                    8, -8]
 bicycle_waypoint_threshold: 1.0
-bicycle_flat_ground: true
+bicycle_flat_ground: false
 
 # Target estimation parameters
 bearing_only: false
@@ -198,4 +199,4 @@ target_z0: [5, 0, 0]
 target_vz0: [0, 0, 0]
 target_gain: 1.0
 target_velocity_gain: 1.0
-target_noise_stdev: 0.1
+target_noise_stdev: 0.5

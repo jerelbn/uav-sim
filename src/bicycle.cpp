@@ -126,7 +126,7 @@ void Bicycle::log(const double &t)
 
 void Bicycle::computeControl()
 {
-  // Cosntant velocity doesn't care about waypoints=
+  // Cosntant velocity doesn't care about waypoints
   u_(FORCE) = common::saturate(-ku_ * mass_ * (x_(VEL) - vel_cmd_), max_force_, -max_force_);
 
   // Turn the vehicle toward the current waypoint
