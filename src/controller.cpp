@@ -89,6 +89,16 @@ void Controller::load(const std::string filename)
   common::get_yaml_node("circ_kr", filename, circ_kr_);
   common::get_yaml_node("circ_kp", filename, circ_kp_);
   common::get_yaml_node("circ_kh", filename, circ_kh_);
+
+  double target_noise_stdev;
+  common::get_yaml_node("target_gain", filename, kz_);
+  common::get_yaml_node("target_velocity_gain", filename, kvz_);
+  common::get_yaml_eigen<Eigen::Vector3d>("target_z0", filename, z_);
+  common::get_yaml_eigen<Eigen::Vector3d>("target_vz0", filename, vz_);
+  common::get_yaml_node("use_target_truth", filename, use_target_truth_);
+  common::get_yaml_node("target_noise_stdev", filename, target_noise_stdev);
+  target_noise_dist_ = std::normal_distribution<double>(0.0, target_noise_stdev);
+  target_noise_.setZero();
 }
 
 
@@ -178,6 +188,29 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
   }
   else if (path_type_ == 2)
   {
+    // Create noisy bearing measurement of target and full vector measurement
+    if (!use_target_truth_)
+      common::randomNormalMatrix(target_noise_, target_noise_dist_, rng_);
+    Eigen::Vector3d z_true = x.q.rot(pt - x.p);
+    Eigen::Vector3d z = z_true + target_noise_;
+    Eigen::Vector3d ez = z / z.norm();
+    Eigen::Vector3d z_tilde = z_ - z;
+
+    // Target estimator
+    Eigen::Vector3d zdot, vzdot;
+    if (bearing_only_)
+    {
+      zdot = -x.v - x.omega.cross(z_) - kz_ * (common::I_3x3 - ez * ez.transpose()) * z_;
+      vzdot.setZero();
+    }
+    else
+    {
+      zdot = -x.v - x.omega.cross(z_) - kz_ * z_tilde;
+      vzdot = -kvz_ * z_tilde;
+    }
+    z_ += zdot * dt;
+    vz_ += vzdot * dt;
+
     // Extract local level frame rotation
     double phi = x.q.roll();
     double theta = x.q.pitch();
@@ -196,11 +229,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
 
     double r_tilde = r - circ_rd_;
     double h_tilde = h - circ_hd_;
-    Eigen::Vector3d vc;
-    if (bearing_only)
-      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
-    else
-      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.inv().rot(vzhat + x.v);
+    Eigen::Vector3d vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.inv().rot(vz_ + x.v);
     double vmag = vc.norm();
     if (vmag > max_.vel)
       vc *= max_.vel / vmag;

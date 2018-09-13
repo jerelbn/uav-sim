@@ -38,9 +38,7 @@ public:
   Controller(const std::string filename);
 
   void load(const std::string filename);
-  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u,
-                      const Eigen::Vector3d &ez, const Eigen::Vector3d &zhat, const Eigen::Vector3d &vzhat,
-                      const bool &bearing_only);
+  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d &pt);
   inline state_t getCommandedState() const { return xc_; }
 
 private:
@@ -132,6 +130,13 @@ private:
   double prev_time_;
   uint8_t control_mode_;
   Eigen::Vector3d dhat_; // disturbance acceleration
+
+  // Target estimation parameters
+  bool use_target_truth_, bearing_only_;
+  Eigen::Vector3d z_, vz_;
+  double kz_, kvz_;
+  Eigen::Vector3d target_noise_;
+  std::normal_distribution<double> target_noise_dist_;
 
   // Functions
   void updateWaypointManager();

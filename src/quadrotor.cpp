@@ -197,9 +197,6 @@ void Quadrotor::log(const double &t)
   true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   controller::Controller::state_t commanded_state = controller_.getCommandedState();
   command_log_.write((char*)&commanded_state, sizeof(controller::Controller::state_t));
-  target_log_.write((char*)&t, sizeof(double));
-  target_log_.write((char*)z_.data(), z_.rows() * sizeof(double));
-  target_log_.write((char*)vz_.data(), vz_.rows() * sizeof(double));
 }
 
 

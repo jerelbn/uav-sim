@@ -64,8 +64,3 @@ bicycle_state = reshape(bicycle_state, 7, []);
 file = fopen(strcat(directory,'bicycle_command.bin'), 'r');
 bicycle_command = fread(file, 'double');
 bicycle_command = reshape(bicycle_command, 5, []);
-
-% Load target estimates
-file = fopen(strcat(directory,'target.bin'), 'r');
-target_est = fread(file, 'double');
-target_est = reshape(target_est, 7, []);
