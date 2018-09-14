@@ -2,8 +2,8 @@
 clear
 close all
 
-r_tilde = -2:0.01:2;
-h_tilde = -2:0.01:2;
+r_tilde = -2:0.1:2;
+h_tilde = -2:0.1:2;
 kr = 1;
 kh = 1;
 vt = randn(3,1);
@@ -21,9 +21,10 @@ end
 figure(1), clf
 set(gcf,'color','w')
 surf(X,Y,V)
-shading interp
+% shading interp
+shading flat
 colorbar
-xlabel('$\tilde r$','Interpreter','latex')
-ylabel('$\tilde h$','Interpreter','latex')
-zlabel('$\dot V$','Interpreter','latex')
+xlabel('$\tilde r$','Interpreter','latex','fontsize',20)
+ylabel('$\tilde h$','Interpreter','latex','fontsize',20)
+zlabel('$\dot V$','Interpreter','latex','fontsize',20)
 title('Surface of the Lypunov Function Derivative')
