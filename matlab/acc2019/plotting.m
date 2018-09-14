@@ -51,7 +51,7 @@ end
 
 % Bearings-only relative radius and altitude
 figure(f); clf; f=f+1;
-set(gcf, 'name', 'rhbo', 'NumberTitle', 'off');
+set(gcf, 'name', 'borh', 'NumberTitle', 'off');
 set(gcf,'color','w');
 ylabels = ["r", "h"];
 for i=1:2
@@ -70,7 +70,7 @@ end
 
 % Range+Bearings relative radius and altitude
 figure(f); clf; f=f+1;
-set(gcf, 'name', 'rhrb', 'NumberTitle', 'off');
+set(gcf, 'name', 'rbrh', 'NumberTitle', 'off');
 set(gcf,'color','w');
 ylabels = ["r", "h"];
 for i=1:2

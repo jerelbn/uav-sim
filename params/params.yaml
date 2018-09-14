@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 120.0
+tf: 60.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -44,7 +44,7 @@ max_roll: 1.0
 max_pitch: 1.0
 max_yaw_rate: 1.5
 max_throttle: 1.0
-max_vel: 5.0
+max_vel: 6.0
 max_tau_x: 1.0
 max_tau_y: 1.0
 max_tau_z: 1.0
@@ -83,9 +83,9 @@ traj_yaw_period: 20
 
 circ_rd: 5.0
 circ_hd: 5.0
-circ_kr: 2.0
-circ_kp: 2.0
-circ_kh: 2.0
+circ_kr: 5.0
+circ_kp: 5.0
+circ_kh: 5.0
 
 # Environment Setup
 enable_wind: false # Turn wind on and off
@@ -178,12 +178,12 @@ bicycle_max_steering_angle: 0.78
 bicycle_k_u: 5.0
 bicycle_k_theta: 5.0
 bicycle_k_psi: 5.0
-bicycle_velocity_command: 0.1
-bicycle_x0: [1, # NORTH
+bicycle_velocity_command: 1.0
+bicycle_x0: [2, # NORTH
              0, # EAST
              0, # DOWN
              0, # HEADING
-             0.1, # VELOCITY
+             1.0, # VELOCITY
              0] # STEERING ANGLE
 bicycle_waypoints: [8, 8,
                     -8, 8,

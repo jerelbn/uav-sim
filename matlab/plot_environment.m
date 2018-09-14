@@ -2,6 +2,7 @@ figure(f); clf; hold on; grid on; f=f+1;
 set(gcf, 'name', 'Environment', 'NumberTitle', 'off')
 set(gca, 'YDir', 'reverse')
 set(gca, 'ZDir', 'reverse')
+set(gcf, 'color', 'w')
 title('Environment')
 plot3([0, 1], [0, 0], [0, 0], 'r')
 plot3([0, 0], [0, 1], [0, 0], 'b')
@@ -16,3 +17,4 @@ axis equal
 xlabel('North')
 ylabel('East')
 zlabel('Down')
+legend('Multi-rotor','Ground Vehicle')
