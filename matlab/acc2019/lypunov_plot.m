@@ -1,6 +1,7 @@
 % Plot Lypunov Function
 clear
 close all
+rng(1)
 
 r_tilde = -2:0.1:2;
 h_tilde = -2:0.1:2;
@@ -26,5 +27,6 @@ shading flat
 colorbar
 xlabel('$\tilde r$','Interpreter','latex','fontsize',20)
 ylabel('$\tilde h$','Interpreter','latex','fontsize',20)
-zlabel('$\dot V$','Interpreter','latex','fontsize',20)
-title('Surface of the Lypunov Function Derivative')
+zlabel('$\dot{\mathcal{L}}$','Interpreter','latex','fontsize',20)
+title('Surface of the Lypunov Function Candidate Derivative')
+view(20,30)

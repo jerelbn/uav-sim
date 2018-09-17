@@ -3,6 +3,7 @@ clear
 format compact
 set(0,'DefaultFigureWindowStyle','docked')
 f = 1; % Starts figure numbering
+skip = 10;
 
 % Read binary files
 directory = 'binaries/';
@@ -19,8 +20,8 @@ ylabels = ["p_x", "p_y", "p_z"];
 for i=1:3
     subplot(3, 1, i); hold on; grid on;
     ylabel(ylabels(i));
-    plot(target_truth_bo(1,:), target_truth_bo(i+1, :), 'b', 'linewidth', 1.5);
-    plot(target_est_bo(1,:), target_est_bo(i+1,:), 'r', 'linewidth', 1.25);
+    plot(target_truth_bo(1,1:skip:end), target_truth_bo(i+1,1:skip:end), 'b', 'linewidth', 1.5);
+    plot(target_est_bo(1,1:skip:end), target_est_bo(i+1,1:skip:end), 'r', 'linewidth', 1.25);
     if i == 1
         title('Bearings-only Relative Target Position')
         legend('truth', 'estimate')
@@ -38,8 +39,8 @@ ylabels = ["p_x", "p_y", "p_z", "v_x", "v_y", "v_z"];
 for i=1:6
     subplot(6, 1, i); hold on; grid on;
     ylabel(ylabels(i));
-    plot(target_truth_rb(1,:), target_truth_rb(i+1, :), 'b', 'linewidth', 1.5);
-    plot(target_est_rb(1,:), target_est_rb(i+1,:), 'r', 'linewidth', 1.25);
+    plot(target_truth_rb(1,1:skip:end), target_truth_rb(i+1,1:skip:end), 'b', 'linewidth', 1.5);
+    plot(target_est_rb(1,1:skip:end), target_est_rb(i+1,1:skip:end), 'r', 'linewidth', 1.25);
     if i == 1
         title('Range+Bearings Relative Target Position and Velocity')
         legend('truth', 'estimate')
@@ -57,8 +58,8 @@ ylabels = ["r", "h"];
 for i=1:2
     subplot(2, 1, i); hold on; grid on;
     ylabel(ylabels(i));
-    plot(target_truth_bo(1,:), rh_true_bo(i,:), 'b', 'linewidth', 1.5);
-    plot(target_est_bo(1,:), rh_est_bo(i,:), 'r', 'linewidth', 1.25);
+    plot(target_truth_bo(1,1:skip:end), rh_true_bo(i,1:skip:end), 'b', 'linewidth', 1.5);
+    plot(target_est_bo(1,1:skip:end), rh_est_bo(i,1:skip:end), 'r', 'linewidth', 1.25);
     if i == 1
         title('Bearings-only Relative Target Radius and Altitude')
         legend('truth', 'estimate')
@@ -76,8 +77,8 @@ ylabels = ["r", "h"];
 for i=1:2
     subplot(2, 1, i); hold on; grid on;
     ylabel(ylabels(i));
-    plot(target_truth_rb(1,:), rh_true_rb(i,:), 'b', 'linewidth', 1.5);
-    plot(target_est_rb(1,:), rh_est_rb(i,:), 'r', 'linewidth', 1.25);
+    plot(target_truth_rb(1,1:skip:end), rh_true_rb(i,1:skip:end), 'b', 'linewidth', 1.5);
+    plot(target_est_rb(1,1:skip:end), rh_est_rb(i,1:skip:end), 'r', 'linewidth', 1.25);
     if i == 1
         title('Range+Bearings Relative Target Radius and Altitude')
         legend('truth', 'estimate')
@@ -95,8 +96,8 @@ ylabels = ["v_x", "v_y", "v_z"];
 for i=1:3
     subplot(3, 1, i); hold on; grid on;
     ylabel(ylabels(i));
-    plot(command_bo(1,:), command_bo(i+7,:), 'r', 'linewidth', 1.25);
-    plot(target_truth_bo(1,:), vel_true_bo(i, :), 'b', 'linewidth', 1.5);
+    plot(command_bo(1,1:skip:end), command_bo(i+7,1:skip:end), 'r', 'linewidth', 1.25);
+    plot(target_truth_bo(1,1:skip:end), vel_true_bo(i,1:skip:end), 'b', 'linewidth', 1.5);
     if i == 1
         title('Bearings-only Commanded and True Velocities')
         legend('command', 'truth')
@@ -114,8 +115,8 @@ ylabels = ["v_x", "v_y", "v_z"];
 for i=1:3
     subplot(3, 1, i); hold on; grid on;
     ylabel(ylabels(i));
-    plot(command_rb(1,:), command_rb(i+7,:), 'r', 'linewidth', 1.25);
-    plot(target_truth_rb(1,:), vel_true_rb(i, :), 'b', 'linewidth', 1.5);
+    plot(command_rb(1,1:skip:end), command_rb(i+7,1:skip:end), 'r', 'linewidth', 1.25);
+    plot(target_truth_rb(1,1:skip:end), vel_true_rb(i,1:skip:end), 'b', 'linewidth', 1.5);
     if i == 1
         title('Range+Bearings Commanded and True Velocities')
         legend('command', 'truth')
