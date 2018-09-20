@@ -133,6 +133,10 @@ private:
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
                     const unsigned &iters);
+  void optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
+                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
+                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
+                     const unsigned &iters);
   void se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E);
   void dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE);
 
@@ -149,6 +153,7 @@ private:
   dxVector lambda_;
   dxMatrix Lambda_;
   double vo_meas_gate_upper_, vo_meas_gate_lower_;
+  double q_time_avg_, R_time_avg_, nn_;
 
   // Storage for current IMU measurement
   uVector imu_;

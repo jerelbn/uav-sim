@@ -152,6 +152,10 @@ void EKF::load(const std::string &filename)
 
   // Initial IMU
   imu_.setZero();
+
+  q_time_avg_ = 0;
+  R_time_avg_ = 0;
+  nn_ = 0;
 }
 
 
@@ -238,7 +242,21 @@ void EKF::imageUpdate()
     Eigen::Vector3d t = pt / pt.norm();
     common::Quaternion zt(t);
     common::Quaternion zq = q_c2ck;
+    Eigen::Matrix3d R, Rt;
+    R = zq.R();
+    Rt = zt.R();
+    auto t0 = std::chrono::system_clock::now();
     optimizePose(zq, zt, dv_k_, dv_, 10);
+    auto t1 = std::chrono::system_clock::now();
+    optimizePose2(R, Rt, dv_k_, dv_, 10);
+    auto t2 = std::chrono::system_clock::now();
+    auto q_time = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    auto R_time = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    q_time_avg_ = (nn_ * q_time_avg_ + q_time) / (nn_ + 1);
+    R_time_avg_ = (nn_ * R_time_avg_ + R_time) / (nn_ + 1);
+    ++nn_;
+    std::cout << tracked_pts_.size() << ", " << q_time_avg_ << ", " << R_time_avg_ << ", "
+              << (zq.rot(common::e1) - R * common::e1).norm() << ", " << (zt.rot(common::e1) - Rt * common::e1).norm() << std::endl;
 
     // Measurement model and jacobian
     common::Quaternion ht, hq;
@@ -438,7 +456,7 @@ void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
     // Pre-compute a few things
     R = q.R();
     t = qt.uvec();
-    Rtx = R*common::skew(t);
+    Rtx = R * common::skew(t);
     e1x_Rtx = e1x * Rtx;
     e2x_Rtx = e2x * Rtx;
     e3x_Rtx = e3x * Rtx;
@@ -469,6 +487,76 @@ void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
     // Update camera rotation and translation
     q *= common::Quaternion::exp(delta.segment<3>(0));
     qt *= common::Quaternion::exp(qt.proj() * delta.segment<2>(3));
+  }
+}
+
+
+// Relative camera pose optimizer using rotation matrices
+void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
+                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
+                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
+                        const unsigned &iters)
+{
+  // Ensure number of directions vectors from each camera match
+  if (e1.size() != e2.size())
+  {
+    std::cout << "\nError in optimizePose. Direction vector arrays must be the same size.\n\n";
+    return;
+  }
+
+  // Constants
+  const int N = e1.size();
+  static const Eigen::Matrix3d e1x = common::skew(common::e1);
+  static const Eigen::Matrix3d e2x = common::skew(common::e2);
+  static const Eigen::Matrix3d e3x = common::skew(common::e3);
+
+  // Declare things that change each loop
+  static Eigen::Matrix3d Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
+  static Eigen::Vector3d t, e1tx_t, e2tx_t, Rte1, Rte2, delta2, delta3;
+  static Eigen::Matrix<double,5,1> delta;
+  static Eigen::Matrix<double, 1000, 1> r;
+  static Eigen::Matrix<double, 1000, 5> J;
+
+  // Main optimization loop
+  for (int i = 0; i < iters; ++i)
+  {
+    // Pre-compute a few things
+    t = Rt * common::e3;
+    Rtx = R * common::skew(t);
+    e1x_Rtx = e1x * Rtx;
+    e2x_Rtx = e2x * Rtx;
+    e3x_Rtx = e3x * Rtx;
+    Rte1 = Rt * common::e1;
+    Rte2 = Rt * common::e2;
+    e1tx = common::skew(Rte1);
+    e2tx = common::skew(Rte2);
+    e1tx_t = e1tx * t;
+    e2tx_t = e2tx * t;
+    R_e1tx_tx = R * common::skew(e1tx_t);
+    R_e2tx_tx = R * common::skew(e2tx_t);
+
+    // Vector of residual errors
+    for (int j = 0; j < N; ++j)
+      se(r(j), e1[j], e2[j], Rtx);
+
+    // Jacobian of residual errors
+    for (int j = 0; j < N; ++j)
+    {
+      dse(J(j,0), e1[j], e2[j], Rtx, -e1x_Rtx);
+      dse(J(j,1), e1[j], e2[j], Rtx, -e2x_Rtx);
+      dse(J(j,2), e1[j], e2[j], Rtx, -e3x_Rtx);
+      dse(J(j,3), e1[j], e2[j], Rtx, -R_e1tx_tx);
+      dse(J(j,4), e1[j], e2[j], Rtx, -R_e2tx_tx);
+    }
+
+    // Innovation
+    delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
+
+    // Update camera rotation and translation
+    delta3 = -delta.segment<3>(0);
+    delta2 = -Rt * common::I_2x3.transpose() * delta.segment<2>(3);
+    R = common::expR(common::skew(delta3)) * R;
+    Rt = common::expR(common::skew(delta2)) * Rt;
   }
 }
 
