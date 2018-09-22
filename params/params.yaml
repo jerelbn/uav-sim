@@ -164,8 +164,8 @@ lambda: [1, 1, 1, # POS
          1, 1, 1] # ACC
 
 pixel_disparity_threshold: 20
-max_tracked_features: 100
-min_kf_feature_matches: 50
+max_tracked_features: 200
+min_kf_feature_matches: 100
 
 # Bicyle setup
 bicycle_accurate_integration: true
