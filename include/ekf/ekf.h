@@ -189,84 +189,58 @@ private:
   // Ceres
   struct SampsonError
   {
-    SampsonError(const double _ek1, const double _ek2, const double _ek3,
-                 const double _ec1, const double _ec2, const double _ec3)
-        : ek1(_ek1), ek2(_ek2), ek3(_ek3), ec1(_ec1), ec2(_ec2), ec3(_ec3) {}
+    SampsonError(const Eigen::Vector3d _ek, const Eigen::Vector3d _ec)
+        : ek(_ek), ec(_ec) {}
 
     template <typename T>
     bool operator()(const T* const _R, const T* const _Rt, T* residual) const
     {
-      const T R11 = _R[0];
-      const T R21 = _R[1];
-      const T R31 = _R[2];
-      const T R12 = _R[3];
-      const T R22 = _R[4];
-      const T R32 = _R[5];
-      const T R13 = _R[6];
-      const T R23 = _R[7];
-      const T R33 = _R[8];
+      // Map inputs to Eigen matrices
+      Eigen::Matrix<T,3,3> R = Eigen::Map<const Eigen::Matrix<T,3,3>>(_R);
+      Eigen::Matrix<T,3,3> Rt = Eigen::Map<const Eigen::Matrix<T,3,3>>(_Rt);
 
-      const T Rt13 = _Rt[6];
-      const T Rt23 = _Rt[7];
-      const T Rt33 = _Rt[8];
-
-      residual[0] = -(ec3*(ek1*(R12*Rt13 - R11*Rt23) + ek2*(R22*Rt13 - R21*Rt23) + ek3*(R32*Rt13 - R31*Rt23)) -
-                      ec2*(ek1*(R13*Rt13 - R11*Rt33) + ek2*(R23*Rt13 - R21*Rt33) + ek3*(R33*Rt13 - R31*Rt33)) +
-                      ec1*(ek1*(R13*Rt23 - R12*Rt33) + ek2*(R23*Rt23 - R22*Rt33) + ek3*(R33*Rt23 - R32*Rt33)))/
-                      pow(pow(ec3*(R12*Rt13 - R11*Rt23) - ec2*(R13*Rt13 - R11*Rt33) + ec1*(R13*Rt23 - R12*Rt33), 2.0) +
-                          pow(ec3*(R22*Rt13 - R21*Rt23) - ec2*(R23*Rt13 - R21*Rt33) + ec1*(R23*Rt23 - R22*Rt33), 2.0) +
-                          pow(ek1*(R13*Rt13 - R11*Rt33) + ek2*(R23*Rt13 - R21*Rt33) + ek3*(R33*Rt13 - R31*Rt33), 2.0) +
-                          pow(ek1*(R13*Rt23 - R12*Rt33) + ek2*(R23*Rt23 - R22*Rt33) + ek3*(R33*Rt23 - R32*Rt33), 2.0), 0.5);
+      // Construct residual
+      const Eigen::Matrix<T,3,1> t = Rt * common::e3.cast<T>();
+      const Eigen::Matrix<T,3,3> E = R * common::skew(t);
+      const Eigen::Matrix<T,1,3> ekT_E = ek.cast<T>().transpose() * E;
+      const Eigen::Matrix<T,3,1> E_ec = E * ec.cast<T>();
+      const T ekT_E_ec = ek.cast<T>().transpose() * E_ec;
+      residual[0] = ekT_E_ec / sqrt(ekT_E(0) * ekT_E(0) + ekT_E(1) * ekT_E(1) + E_ec(0) * E_ec(0) + E_ec(1) * E_ec(1));
       return true;
     }
 
   private:
 
-    const double ek1, ek2, ek3, ec1, ec2, ec3;
+    const Eigen::Vector3d ek, ec;
 
   };
 
-  class ReprojectionError {
-   public:
-    ReprojectionError(
-        const Eigen::Matrix<double, 3, 4>& projection_matrix,
-        const Eigen::Vector2d& feature)
-        : projection_matrix_(projection_matrix), feature_(feature) {}
+  struct SO3Plus
+  {
+    template<typename T>
+    bool operator()(const T *x, const T *delta, T *x_plus_delta) const
+    {
+      Eigen::Map<const Eigen::Matrix<T,3,3>> _R(x);
+      Eigen::Map<const Eigen::Matrix<T,3,1>> dR(delta);
 
-    template <typename T>
-    bool operator()(const T* input_point, T* reprojection_error) const {
-      Eigen::Map<const Eigen::Matrix<T, 4, 1> > point(input_point);
-
-      // Multiply the point with the projection matrix, then perform homogeneous
-      // normalization to obtain the 2D pixel location of the reprojection.
-      const Eigen::Matrix<T, 2, 1> reprojected_pixel =  (projection_matrix_ * input_point).hnormalized();
-
-      // Reprojection error is the distance from the reprojection to the observed
-      // feature location.
-      reprojection_error[0] = feature_[0] - reprojected_pixel[0];
-      reprojection_error[1] = feature_[1] - reprojected_pixel[1];
+      Eigen::Map<Eigen::Matrix<T,3,3>> R(x_plus_delta);
+      R = common::expR(common::skew(Eigen::Matrix<T,3,1>(-dR))) * _R;
       return true;
     }
-
-   private:
-    const Eigen::Matrix<double, 3, 4>& projection_matrix_;
-    const Eigen::Vector2d& feature_;
   };
 
-  class SO3LocalParameterization : public ceres::LocalParameterization
+  struct S2Plus
   {
-    virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const;
-    virtual bool ComputeJacobian(const double *x, double *jacobian) const;
-    virtual int GlobalSize() const { return 9; }
-    virtual int LocalSize() const { return 3; }
-  };
+    template<typename T>
+    bool operator()(const T *x, const T *delta, T *x_plus_delta) const
+    {
+      Eigen::Map<const Eigen::Matrix<T,3,3>> _R(x);
+      Eigen::Map<const Eigen::Matrix<T,2,1>> dR(delta);
 
-  class S2LocalParameterization : public ceres::LocalParameterization
-  {
-    virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const;
-    virtual bool ComputeJacobian(const double *x, double *jacobian) const;
-    virtual int GlobalSize() const { return 9; }
-    virtual int LocalSize() const { return 2; }
+      Eigen::Map<Eigen::Matrix<T,3,3>> R(x_plus_delta);
+      R = common::expR(common::skew(Eigen::Matrix<T,3,1>(-_R * common::I_2x3.cast<T>().transpose() * dR))) * _R;
+      return true;
+    }
   };
 
 };

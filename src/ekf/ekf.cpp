@@ -262,11 +262,11 @@ void EKF::imageUpdate()
     R_time_avg_ = (nn_ * R_time_avg_ + R_time) / (nn_ + 1);
     ceres_time_avg_ = (nn_ * ceres_time_avg_ + ceres_time) / (nn_ + 1);
     ++nn_;
-    std::cout << tracked_pts_.size() << ", " << q_time_avg_ << ", " << R_time_avg_ << ", " << ceres_time_avg_ << ", "
-              << (zq.rot(common::e1) - R * common::e1).norm() << ", "
-              << (zt.rot(common::e1) - Rt * common::e1).norm() << ", "
-              << (zq.rot(common::e1) - R2 * common::e1).norm() << ", "
-              << (zt.rot(common::e1) - Rt2 * common::e1).norm() << std::endl;
+//    std::cout << tracked_pts_.size() << ", " << q_time_avg_ << ", " << R_time_avg_ << ", " << ceres_time_avg_ << ", "
+//              << (zq.rot(common::e1) - R * common::e1).norm() << ", "
+//              << (zt.rot(common::e1) - Rt * common::e1).norm() << ", "
+//              << (zq.rot(common::e1) - R2 * common::e1).norm() << ", "
+//              << (zt.rot(common::e1) - Rt2 * common::e1).norm() << std::endl;
 
     // Measurement model and jacobian
     common::Quaternion ht, hq;
@@ -563,10 +563,8 @@ void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
     delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
 
     // Update camera rotation and translation
-    delta3 = -delta.segment<3>(0);
-    delta2 = -Rt * common::I_2x3.transpose() * delta.segment<2>(3);
-    R = common::expR(common::skew(delta3)) * R;
-    Rt = common::expR(common::skew(delta2)) * Rt;
+    R = common::expR(common::skew(Eigen::Vector3d(-delta.segment<3>(0)))) * R;
+    Rt = common::expR(common::skew(Eigen::Vector3d(-Rt * common::I_2x3.transpose() * delta.segment<2>(3)))) * Rt;
   }
 }
 
@@ -586,21 +584,18 @@ void EKF::optimizePose3(Eigen::Matrix3d &R, Eigen::Matrix3d &Rt,
 
   // Build optimization problem with Ceres-Solver
   ceres::Problem problem;
-  ceres::LossFunction *loss_function;
-  loss_function = NULL;
 
-  ceres::LocalParameterization *SO3_local_parameterization = new EKF::SO3LocalParameterization();
+  ceres::LocalParameterization *SO3_local_parameterization = new ceres::AutoDiffLocalParameterization<SO3Plus,9,3>;
   problem.AddParameterBlock(R.data(), 9, SO3_local_parameterization);
 
-  ceres::LocalParameterization *S2_local_parameterization = new EKF::S2LocalParameterization();
+  ceres::LocalParameterization *S2_local_parameterization = new ceres::AutoDiffLocalParameterization<S2Plus,9,2>;
   problem.AddParameterBlock(Rt.data(), 9, S2_local_parameterization);
 
   for (int i = 0; i < e1.size(); ++i)
   {
     ceres::CostFunction* cost_function =
-        new ceres::AutoDiffCostFunction<SampsonError, 1, 9, 9>(
-        new SampsonError(e1[i](0), e1[i](1), e1[i](2), e2[i](0), e2[i](1), e2[i](2)));
-    problem.AddResidualBlock(cost_function, loss_function, R.data(), Rt.data());
+        new ceres::AutoDiffCostFunction<SampsonError, 1, 9, 9>(new SampsonError(e1[i], e2[i]));
+    problem.AddResidualBlock(cost_function, NULL, R.data(), Rt.data());
   }
 
   // Solve for the optimal rotation and translation direciton
@@ -608,53 +603,11 @@ void EKF::optimizePose3(Eigen::Matrix3d &R, Eigen::Matrix3d &Rt,
   options.linear_solver_type = ceres::DENSE_QR;
   options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
   options.max_num_iterations = iters;
-  options.max_solver_time_in_seconds = 0.1;
+//  options.gradient_tolerance = 1e-6;
+  options.minimizer_progress_to_stdout = true;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
-}
-
-
-bool EKF::SO3LocalParameterization::Plus(const double *x, const double *delta, double *x_plus_delta) const
-{
-    Eigen::Map<const Eigen::Matrix3d> _R(x);
-    Eigen::Map<const Eigen::Vector3d> dR(delta);
-    Eigen::Vector3d delta3 = -dR;
-
-    Eigen::Map<Eigen::Matrix3d> R(x_plus_delta);
-
-    R = common::expR(common::skew(delta3)) * _R;
-
-    return true;
-}
-
-
-bool EKF::SO3LocalParameterization::ComputeJacobian(const double *x, double *jacobian) const
-{
-  Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> j(jacobian);
-  j.topRows<3>().setIdentity();
-  j.bottomRows<6>().setZero();
-}
-
-
-bool EKF::S2LocalParameterization::Plus(const double *x, const double *delta, double *x_plus_delta) const
-{
-    Eigen::Map<const Eigen::Matrix3d> _R(x);
-    Eigen::Map<const Eigen::Vector2d> dR(delta);
-    Eigen::Vector3d delta2 = -_R * common::I_2x3.transpose() * dR;
-
-    Eigen::Map<Eigen::Matrix3d> R(x_plus_delta);
-
-    R = common::expR(common::skew(delta2)) * _R;
-
-    return true;
-}
-
-
-bool EKF::S2LocalParameterization::ComputeJacobian(const double *x, double *jacobian) const
-{
-  Eigen::Map<Eigen::Matrix<double, 9, 2, Eigen::RowMajor>> j(jacobian);
-  j.topRows<2>().setIdentity();
-  j.bottomRows<7>().setZero();
+//  std::cout << summary.BriefReport() << "\n\n";
 }
 
 
