@@ -61,7 +61,8 @@ void Quadrotor::load(const std::string &filename)
 }
 
 
-void Quadrotor::f(const vehicle::State& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw)
+void Quadrotor::f(const vehicle::State& x, const commandVector& u,
+                  const Eigen::Vector3d& vw, vehicle::dxVector& dx)
 {
   v_rel_ = x.v - x.q.rot(vw);
   dx.segment<3>(vehicle::DPX) = x.q.inv().rot(x.v);
@@ -73,53 +74,39 @@ void Quadrotor::f(const vehicle::State& x, const commandVector& u, vehicle::dxVe
 }
 
 
+void Quadrotor::rk4(std::function<void(const vehicle::State&, const commandVector&,
+                                       const Eigen::Vector3d&, vehicle::dxVector&)> func,
+         const double& dt, const vehicle::State& x, const commandVector& u,
+         const Eigen::Vector3d& vw, vehicle::dxVector& dx)
+{
+  func(x, u, vw, k1_);
+  func(x + k1_ * dt / 2, u, vw, k2_);
+  func(x + k2_ * dt / 2, u, vw, k3_);
+  func(x + k3_ * dt, u, vw, k4_);
+  dx = (k1_ + 2 * k2_ + 2 * k3_ + k4_) * dt / 6.0;
+}
+
+
 void Quadrotor::propagate(const double &t, const commandVector& u, const Eigen::Vector3d& vw)
 {
   // Time step
   double dt = t - t_prev_;
   t_prev_ = t;
 
-  // Differential Equations
+  // Integration
   if (accurate_integration_)
   {
-    // 4th order Runge-Kutta integration
-    f(x_, u, k1_, vw);
-
-    x2_ = x_;
-    x2_.p += k1_.segment<3>(vehicle::DPX) * dt / 2;
-    x2_.q += k1_.segment<3>(vehicle::DQX) * dt / 2;
-    x2_.v += k1_.segment<3>(vehicle::DVX) * dt / 2;
-    x2_.omega += k1_.segment<3>(vehicle::DWX) * dt / 2;
-    f(x2_, u, k2_, vw);
-
-    x3_ = x_;
-    x3_.p += k2_.segment<3>(vehicle::DPX) * dt / 2;
-    x3_.q += k2_.segment<3>(vehicle::DQX) * dt / 2;
-    x3_.v += k2_.segment<3>(vehicle::DVX) * dt / 2;
-    x3_.omega += k2_.segment<3>(vehicle::DWX) * dt / 2;
-    f(x3_, u, k3_, vw);
-
-    x4_ = x_;
-    x4_.p += k3_.segment<3>(vehicle::DPX) * dt;
-    x4_.q += k3_.segment<3>(vehicle::DQX) * dt;
-    x4_.v += k3_.segment<3>(vehicle::DVX) * dt;
-    x4_.omega += k3_.segment<3>(vehicle::DWX) * dt;
-    f(x4_, u, k4_, vw);
-
-    dx_ = (k1_ + 2 * k2_ + 2 * k3_ + k4_) * dt / 6.0;
+    // 4th order Runge-Kutta
+    rk4(std::bind(&quadrotor::Quadrotor::f,this,std::placeholders::_1,std::placeholders::_2,
+    std::placeholders::_3,std::placeholders::_4), dt, x_, u, vw, dx_);
   }
   else
   {
-    // Euler integration
-    f(x_, u, dx_, vw);
+    // Euler
+    f(x_, u, vw, dx_);
     dx_ *= dt;
   }
-
-  // Copy output
-  x_.p += dx_.segment<3>(vehicle::DPX);
-  x_.q += dx_.segment<3>(vehicle::DQX);
-  x_.v += dx_.segment<3>(vehicle::DVX);
-  x_.omega += dx_.segment<3>(vehicle::DWX);
+  x_ += dx_;
 }
 
 
@@ -141,7 +128,7 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
 void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
 {
   static vehicle::dxVector dx;
-  f(x_, u, dx, vw);
+  f(x_, u, vw, dx);
   x_.accel = dx.segment<3>(vehicle::DVX);
 }
 

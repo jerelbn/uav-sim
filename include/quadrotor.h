@@ -28,10 +28,16 @@ public:
 
 private:
 
-  void f(const vehicle::State& x, const commandVector& u, vehicle::dxVector& dx, const Eigen::Vector3d& vw);
+  void f(const vehicle::State& x, const commandVector& u,
+         const Eigen::Vector3d& vw, vehicle::dxVector& dx);
+  void rk4(std::function<void(const vehicle::State&, const commandVector&,
+                        const Eigen::Vector3d&, vehicle::dxVector&)> func,
+           const double& dt, const vehicle::State& x, const commandVector& u,
+           const Eigen::Vector3d& vw, vehicle::dxVector& dx);
   void propagate(const double &dt, const commandVector& u, const Eigen::Vector3d& vw);
   void updateAccel(const commandVector& u, const Eigen::Vector3d& vw);
-  void getOtherVehicles(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
+  void getOtherVehicles(const std::vector<Eigen::Vector3d,
+                        Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
 
   controller::Controller controller_;

@@ -86,7 +86,6 @@ struct State
     x.q = q + delta.segment<3>(DQX);
     x.v = v + delta.segment<3>(DVX);
     x.omega = omega + delta.segment<3>(DWX);
-    x.accel = accel + delta.segment<3>(DAX);
     return x;
   }
 
