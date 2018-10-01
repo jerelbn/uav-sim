@@ -8,15 +8,16 @@ control_using_estimates: false
 save_pixel_measurements: false
 
 # Truth Configuration
-use_accel_truth: false
-use_gyro_truth: false
-use_camera_truth: false
+use_accel_truth: true
+use_gyro_truth: true
+use_camera_truth: true
 
-x0: [0, 0, 0,   # POS
+x0: [0, 0, 0,    # POS
+     0, 0, 0,    # VEL
+     0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
-     0, 0, 0,    # VEL 
-     0, 0, 0,    # OMEGA 
-     0, 0, 0]    # ACC
+     0, 0, 0,    # OMEGA
+     0, 0, 0]    # ANG ACC
 
 
 # Controller Configuration

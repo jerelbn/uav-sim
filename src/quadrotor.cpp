@@ -52,7 +52,7 @@ void Quadrotor::load(const std::string &filename)
   controller_.computeControl(getTrueState(), 0, u_, Eigen::Vector3d(1,0,0));
 //  controller_.computeControl(ekf_.getVehicleState(), 0, u_);
   vw.setZero(); // get vw from environment
-  updateAccel(u_,vw);
+  updateAccels(u_,vw);
 
   // Initialize loggers
   common::get_yaml_node("log_directory", filename, directory_);
@@ -66,9 +66,9 @@ void Quadrotor::f(const vehicle::State& x, const commandVector& u,
 {
   v_rel_ = x.v - x.q.rot(vw);
   dx.segment<3>(vehicle::DPX) = x.q.inv().rot(x.v);
-  dx.segment<3>(vehicle::DQX) = x.omega;
   dx.segment<3>(vehicle::DVX) = -common::e3 * u(THRUST) * max_thrust_ / mass_ - linear_drag_.cwiseProduct(v_rel_).cwiseProduct(v_rel_) +
                                  common::gravity * x.q.rot(common::e3) - x.omega.cross(x.v);
+  dx.segment<3>(vehicle::DQX) = x.omega;
   dx.segment<3>(vehicle::DWX) = inertia_inv_ * (u.segment<3>(TAUX) - x.omega.cross(inertia_matrix_ * x.omega) -
                                 angular_drag_matrix_ * x.omega.cwiseProduct(x.omega));
 }
@@ -97,8 +97,10 @@ void Quadrotor::propagate(const double &t, const commandVector& u, const Eigen::
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta
-    rk4(std::bind(&quadrotor::Quadrotor::f,this,std::placeholders::_1,std::placeholders::_2,
-    std::placeholders::_3,std::placeholders::_4), dt, x_, u, vw, dx_);
+    rk4(std::bind(&quadrotor::Quadrotor::f, this,
+        std::placeholders::_1,std::placeholders::_2,
+        std::placeholders::_3,std::placeholders::_4),
+        dt, x_, u, vw, dx_);
   }
   else
   {
@@ -121,15 +123,16 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
     controller_.computeControl(ekf_.getVehicleState(), t, u_, other_vehicle_positions[0]); // Update control input with estimates
   else
     controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions[0]); // Update control input with truth
-  updateAccel(u_, env.get_vw()); // Update true acceleration
+  updateAccels(u_, env.get_vw()); // Update true acceleration
 }
 
 
-void Quadrotor::updateAccel(const commandVector &u, const Eigen::Vector3d &vw)
+void Quadrotor::updateAccels(const commandVector &u, const Eigen::Vector3d &vw)
 {
   static vehicle::dxVector dx;
   f(x_, u, vw, dx);
-  x_.accel = dx.segment<3>(vehicle::DVX);
+  x_.lin_accel = dx.segment<3>(vehicle::DVX);
+  x_.ang_accel = dx.segment<3>(vehicle::DWX);
 }
 
 

@@ -77,7 +77,7 @@ struct State
   State();
   State(const xVector &x0);
   Eigen::Vector3d p;
-  common::Quaternion q;
+  common::Quaternion<double> q;
   Eigen::Vector3d v;
   Eigen::Vector3d bg;
   Eigen::Vector3d ba;
@@ -118,8 +118,8 @@ public:
   static void f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
   static void getF(dxMatrix &F, const State &x, const Eigen::Vector3d &gyro);
   static void getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x);
-  static void imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
-                     const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
+  static void imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
+                     const common::Quaternion<double> &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion<double> &q_ik,
                      const Eigen::Vector3d &p_ik);
   const xVector getState() const { return x_.toEigen(); }
   vehicle::State getVehicleState() const;
@@ -130,15 +130,11 @@ private:
   void propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc);
   void imageUpdate();
   bool trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts);
-  void optimizePose(common::Quaternion& q, common::Quaternion& qt,
+  void optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
                     const unsigned &iters);
   void optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
-                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
-                     const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
-                     const unsigned &iters);
-  void optimizePose3(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
                      const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                      const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
                      const unsigned &iters);
@@ -166,14 +162,14 @@ private:
   // Keyframe and image update data
   double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
   Eigen::Vector3d pk_; // Keyframe inertial position
-  common::Quaternion qk_; // Keyframe body attitude
+  common::Quaternion<double> qk_; // Keyframe body attitude
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > pts_k_; // Keyframe image points
   std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > pts_match_;
   std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > pts_match_k_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > dv_, dv_k_; // Landmark direction vectors
 
   // Camera parameters
-  common::Quaternion q_bc_;
+  common::Quaternion<double> q_bc_;
   Eigen::Vector3d p_bc_;
   Eigen::Matrix3d K_, K_inv_;
 

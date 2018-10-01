@@ -1,7 +1,7 @@
 % Load truth
 file = fopen(strcat(directory,'true_state.bin'), 'r');
 true_state = fread(file, 'double');
-true_state = reshape(true_state, 1 + 16, []);
+true_state = reshape(true_state, 1 + 19, []);
 
 % Load EKF state
 file = fopen(strcat(directory,'ekf_state.bin'), 'r');
@@ -46,7 +46,7 @@ gyro_noise = gyro(8:10,:);
 true_heading = zeros(1,size(true_state,2));
 ekf_heading = zeros(1,size(ekf_state,2));
 for i = 1:size(true_heading,2)
-    true_heading(i) = yaw_from_q(true_state(5:8,i));
+    true_heading(i) = yaw_from_q(true_state(11:14,i));
     ekf_heading(i) = yaw_from_q(ekf_state(5:8,i));
 end
 

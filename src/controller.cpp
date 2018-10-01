@@ -188,11 +188,11 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     double tilt_angle = acos(k.transpose() * kd); // desired tilt
 
     // get shortest rotation to desired tilt
-    common::Quaternion q_c;
+    common::Quaternion<double> q_c;
     if (tilt_angle > 1e-6)
     {
       Eigen::Vector3d k_cross_kd = k.cross(kd);
-      q_c = common::Quaternion::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
+      q_c = common::Quaternion<double>::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
     }
 
     // pack up attitude commands
@@ -218,7 +218,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     else
     {
       zdot = vz_ - x.omega.cross(z_) - kz_ * z_tilde;
-      vzdot = -x.omega.cross(vz_) - x.accel - x.omega.cross(x.v) - kvz_ * z_tilde;
+      vzdot = -x.omega.cross(vz_) - x.lin_accel - x.omega.cross(x.v) - kvz_ * z_tilde;
     }
     z_ += zdot * dt;
     vz_ += vzdot * dt;
@@ -227,7 +227,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Extract local level frame rotation
     double phi = x.q.roll();
     double theta = x.q.pitch();
-    common::Quaternion q_l2b(phi, theta, 0.0);
+    common::Quaternion<double> q_l2b(phi, theta, 0.0);
 
     // Commanded velocity in the local level reference frame
     static const Eigen::Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();

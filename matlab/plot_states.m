@@ -29,15 +29,16 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Attitude', 'NumberTitle', 'off');
 titles = ["w","x","y","z"];
-idx = 4;
+idx1 = 10;
+idx2 = 4;
 for i=1:4
     subplot(4, 1, i); hold on;
     title(titles(i));
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.3);
+    plot(ekf_state(1,:), ekf_state(i+idx2,:), 'r');
     if (plot_covariance && i > 1)
-        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx2,:) + sigma * sqrt(ekf_cov(i+idx2-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx2,:) - sigma * sqrt(ekf_cov(i+idx2-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
     end
     legend('truth', 'estimate')
 end
@@ -46,15 +47,16 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Velocity', 'NumberTitle', 'off');
 titles = ['u','v','w'];
-idx = 8;
+idx1 = 4;
+idx2 = 8;
 for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3);
-    plot(ekf_state(1,:), ekf_state(i+idx,:), 'r');
+    plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.3);
+    plot(ekf_state(1,:), ekf_state(i+idx2,:), 'r');
     if (plot_covariance)
-        plot(ekf_cov(1,:), ekf_state(i+idx,:) + sigma * sqrt(ekf_cov(i+idx-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
-        plot(ekf_cov(1,:), ekf_state(i+idx,:) - sigma * sqrt(ekf_cov(i+idx-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx2,:) + sigma * sqrt(ekf_cov(i+idx2-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
+        plot(ekf_cov(1,:), ekf_state(i+idx2,:) - sigma * sqrt(ekf_cov(i+idx2-1,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
     end
     legend('truth', 'estimate')
 end
@@ -97,7 +99,7 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Omega', 'NumberTitle', 'off');
 titles = ["x","y","z"];
-idx = 11;
+idx = 14;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));
@@ -110,7 +112,7 @@ end
 figure(f); clf; f=f+1;
 set(gcf, 'name', 'Accel', 'NumberTitle', 'off');
 titles = ["x","y","z"];
-idx = 14;
+idx = 7;
 for i=1:3
     subplot(3,1,i); hold on;
     title(titles(i));

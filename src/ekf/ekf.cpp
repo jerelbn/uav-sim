@@ -8,7 +8,7 @@ namespace ekf
 State::State()
 {
   p.setZero();
-  q = common::Quaternion();
+  q = common::Quaternion<double>();
   v.setZero();
   bg.setZero();
   ba.setZero();
@@ -18,7 +18,7 @@ State::State()
 State::State(const xVector &x)
 {
   p = x.segment<3>(PX);
-  q = common::Quaternion(x.segment<4>(QW));
+  q = common::Quaternion<double>(Eigen::Vector4d(x.segment<4>(QW)));
   v = x.segment<3>(VX);
   bg = x.segment<3>(GX);
   ba = x.segment<3>(AX);
@@ -54,7 +54,7 @@ Eigen::Matrix<double, NUM_STATES, 1> State::toEigen() const
 Eigen::Matrix<double, NUM_DOF, 1> State::minimal() const
 {
   Eigen::Matrix<double, NUM_DOF, 1> x;
-  x << p, common::Quaternion::log(q), v, bg, ba;
+  x << p, common::Quaternion<double>::log(q), v, bg, ba;
   return x;
 }
 
@@ -65,10 +65,10 @@ vehicle::State EKF::getVehicleState() const
   // for the gyro bias and accel bias positions
   vehicle::State x;
   x.p = x_.p;
-  x.q = x_.q;
   x.v = x_.v;
+  x.lin_accel = imu_.segment<3>(UAX);
+  x.q = x_.q;
   x.omega = imu_.segment<3>(UWX);
-  x.accel = imu_.segment<3>(UAX);
   return x;
 }
 
@@ -134,7 +134,7 @@ void EKF::load(const std::string &filename)
   common::get_yaml_eigen("camera_matrix", filename, K_);
   K_inv_ = K_.inverse();
   common::get_yaml_eigen("q_bc", filename, q_bc);
-  q_bc_ = common::Quaternion(q_bc);
+  q_bc_ = common::Quaternion<double>(q_bc);
   q_bc_.normalize();
   common::get_yaml_eigen("p_bc", filename, p_bc_);
 
@@ -218,7 +218,7 @@ void EKF::imageUpdate()
   dv_.clear();
   dv_k_.clear();
   double mean_disparity = 0;
-  common::Quaternion q_c2ck = q_bc_.inv() * x_.q.inv() * qk_ * q_bc_;
+  common::Quaternion<double> q_c2ck = q_bc_.inv() * x_.q.inv() * qk_ * q_bc_;
   for (int n = 0; n < pts_match_.size(); ++n)
   {
     // Image points without rotation
@@ -241,8 +241,8 @@ void EKF::imageUpdate()
     // Compute relative camera pose initial guess from state then optimize it
     Eigen::Vector3d pt = q_bc_.rot(x_.q.rot(pk_ + qk_.inv().rot(p_bc_) - x_.p) - p_bc_);
     Eigen::Vector3d t = pt / pt.norm();
-    common::Quaternion zt(t);
-    common::Quaternion zq = q_c2ck;
+    common::Quaternion<double> zt(t);
+    common::Quaternion<double> zq = q_c2ck;
     Eigen::Matrix3d R, Rt, R2, Rt2;
     R = zq.R();
     Rt = zt.R();
@@ -253,29 +253,26 @@ void EKF::imageUpdate()
     auto t1 = std::chrono::system_clock::now();
     optimizePose2(R, Rt, dv_k_, dv_, 10);
     auto t2 = std::chrono::system_clock::now();
-    optimizePose3(R2, Rt2, dv_k_, dv_, 10);
-    auto t3 = std::chrono::system_clock::now();
     auto q_time = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
     auto R_time = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    auto ceres_time = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
     q_time_avg_ = (nn_ * q_time_avg_ + q_time) / (nn_ + 1);
     R_time_avg_ = (nn_ * R_time_avg_ + R_time) / (nn_ + 1);
-    ceres_time_avg_ = (nn_ * ceres_time_avg_ + ceres_time) / (nn_ + 1);
     ++nn_;
-//    std::cout << tracked_pts_.size() << ", " << q_time_avg_ << ", " << R_time_avg_ << ", " << ceres_time_avg_ << ", "
+//    std::cout << tracked_pts_.size() << ", " << q_time_avg_ << ", " << R_time_avg_ << ", "
 //              << (zq.rot(common::e1) - R * common::e1).norm() << ", "
 //              << (zt.rot(common::e1) - Rt * common::e1).norm() << ", "
 //              << (zq.rot(common::e1) - R2 * common::e1).norm() << ", "
 //              << (zt.rot(common::e1) - Rt2 * common::e1).norm() << std::endl;
 
     // Measurement model and jacobian
-    common::Quaternion ht, hq;
+    common::Quaternion<double> ht, hq;
     Eigen::Matrix<double, 5, NUM_DOF> H;
     imageH(ht, hq, H, x_, q_bc_, p_bc_, qk_, pk_);
 
     // Error in translation direction and rotation
-    Eigen::Vector2d err_t = common::Quaternion::log_uvec(zt,ht);
+    Eigen::Vector2d err_t = common::Quaternion<double>::log_uvec(zt,ht);
     Eigen::Vector3d err_q = zq - hq;
+//    std::cout << "err_t: " << err_t.transpose() << ", err_q: " << err_q.transpose() << std::endl;
 
     // Innovation error
     Eigen::Matrix<double, 5, 1> err_i;
@@ -398,8 +395,8 @@ void EKF::getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x)
 }
 
 
-void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
-                 const common::Quaternion &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion &q_ik,
+void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
+                 const common::Quaternion<double> &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion<double> &q_ik,
                  const Eigen::Vector3d &p_ik)
 {
   // Declarations
@@ -413,10 +410,10 @@ void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<d
   double tT_k = t.transpose() * common::e3;
   at = acos(tT_k) * t_x_k / t_x_k.norm();
 
-  ht = common::Quaternion::exp(at);
+  ht = common::Quaternion<double>::exp(at);
   hq = q_bc.inv() * x.q.inv() * q_ik * q_bc;
 
-  Gamma_at = common::Quaternion::dexp(at);
+  Gamma_at = common::Quaternion<double>::dexp(at);
   double txk_mag = t_x_k.norm();
   dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
   dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
@@ -435,7 +432,7 @@ void EKF::imageH(common::Quaternion &ht, common::Quaternion &hq, Eigen::Matrix<d
 
 
 // Relative camera pose optimizer
-void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
+void EKF::optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
                        const unsigned &iters)
@@ -495,8 +492,8 @@ void EKF::optimizePose(common::Quaternion& q, common::Quaternion& qt,
     delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
 
     // Update camera rotation and translation
-    q *= common::Quaternion::exp(delta.segment<3>(0));
-    qt *= common::Quaternion::exp(qt.proj() * delta.segment<2>(3));
+    q += Eigen::Vector3d(delta.segment<3>(0));
+    qt += Eigen::Vector3d(qt.proj() * delta.segment<2>(3));
   }
 }
 
@@ -566,48 +563,6 @@ void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
     R = common::expR(common::skew(Eigen::Vector3d(-delta.segment<3>(0)))) * R;
     Rt = common::expR(common::skew(Eigen::Vector3d(-Rt * common::I_2x3.transpose() * delta.segment<2>(3)))) * Rt;
   }
-}
-
-
-// Optimize relative pose with the Ceres solver
-void EKF::optimizePose3(Eigen::Matrix3d &R, Eigen::Matrix3d &Rt,
-                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &e1,
-                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &e2,
-                        const unsigned &iters)
-{
-  // Ensure number of directions vectors from each camera match
-  if (e1.size() != e2.size())
-  {
-    std::cout << "\nError in optimizePose. Direction vector arrays must be the same size.\n\n";
-    return;
-  }
-
-  // Build optimization problem with Ceres-Solver
-  ceres::Problem problem;
-
-  ceres::LocalParameterization *SO3_local_parameterization = new ceres::AutoDiffLocalParameterization<SO3Plus,9,3>;
-  problem.AddParameterBlock(R.data(), 9, SO3_local_parameterization);
-
-  ceres::LocalParameterization *S2_local_parameterization = new ceres::AutoDiffLocalParameterization<S2Plus,9,2>;
-  problem.AddParameterBlock(Rt.data(), 9, S2_local_parameterization);
-
-  for (int i = 0; i < e1.size(); ++i)
-  {
-    ceres::CostFunction* cost_function =
-        new ceres::AutoDiffCostFunction<SampsonError, 1, 9, 9>(new SampsonError(e1[i], e2[i]));
-    problem.AddResidualBlock(cost_function, NULL, R.data(), Rt.data());
-  }
-
-  // Solve for the optimal rotation and translation direciton
-  ceres::Solver::Options options;
-  options.linear_solver_type = ceres::DENSE_QR;
-  options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
-  options.max_num_iterations = iters;
-//  options.gradient_tolerance = 1e-6;
-  options.minimizer_progress_to_stdout = true;
-  ceres::Solver::Summary summary;
-  ceres::Solve(options, &problem, &summary);
-//  std::cout << summary.BriefReport() << "\n\n";
 }
 
 

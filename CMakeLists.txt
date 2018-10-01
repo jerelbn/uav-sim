@@ -38,6 +38,3 @@ add_executable(jacobians_test
   src/ekf/ekf.cpp
 )
 target_link_libraries(jacobians_test common_cpp ${YAML_CPP_LIBRARIES} ${CERES_LIBRARIES} stdc++fs)
-
-add_executable(array_tests src/ekf/array_tests.cpp)
-target_link_libraries(array_tests common_cpp)

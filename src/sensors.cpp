@@ -80,7 +80,7 @@ void Sensors::load(const std::string filename)
   last_camera_update_ = 0.0;
   pixel_noise_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
   K_inv_ = K_.inverse();
-  q_bc_ = common::Quaternion(q_bc);
+  q_bc_ = common::Quaternion<double>(q_bc);
   q_bc_.normalize();
   pixel_noise_.setZero();
   new_camera_meas_ = false;
@@ -120,7 +120,7 @@ void Sensors::imu(const double t, const vehicle::State& x)
       common::randomNormalMatrix(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
-    accel_ = x.accel - common::gravity * x.q.rot(common::e3) + x.omega.cross(x.v) + accel_bias_ + accel_noise_;
+    accel_ = x.lin_accel - common::gravity * x.q.rot(common::e3) + x.omega.cross(x.v) + accel_bias_ + accel_noise_;
     gyro_ = x.omega + gyro_bias_ + gyro_noise_;
 
     // Log IMU data
@@ -151,7 +151,7 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
       common::randomNormalMatrix(pixel_noise_,pixel_noise_dist_,rng_);
 
     // Compute camera pose
-    common::Quaternion q_i2c = x.q * q_bc_;
+    common::Quaternion<double> q_i2c = x.q * q_bc_;
     Eigen::Vector3d p_i2c = x.p + x.q.inv().rot(p_bc_);
 
     // Project landmarks into image

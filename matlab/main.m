@@ -16,10 +16,10 @@ read_logs;
 plot_environment;
 
 %% Plot states and wind
-% plot_states;
+plot_states;
 
 %% Plot estimated target states
-plot_target_states;
+% plot_target_states;
 
 %% Plot bicycle states
 % plot_bicycle_states;
