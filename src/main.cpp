@@ -65,7 +65,7 @@ int main()
 
     // Increment time step
     t += dt;
-//    prog_bar.print(t/dt);
+    prog_bar.print(t/dt);
   }
 
   return 0;
