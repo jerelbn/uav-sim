@@ -60,8 +60,8 @@ private:
   Eigen::Vector2d pixel_noise_;
   Eigen::Matrix3d K_, K_inv_;
   Eigen::Vector2d image_size_;
-  common::Quaternion<double> q_bc_;
-  Eigen::Vector3d p_bc_;
+  common::Quaternion<double> q_bc_, q_bu_; // rotations body-to-camera and body-to-IMU
+  Eigen::Vector3d p_bc_, p_bu_; // translations body-to-camera and body-to-IMU in body frame
   std::ofstream cam_log_;
 
 };

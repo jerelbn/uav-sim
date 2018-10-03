@@ -37,12 +37,17 @@ void Sensors::load(const std::string filename)
 
   // IMU
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
+  Eigen::Vector4d q_bu;
   common::get_yaml_node("imu_update_rate", filename, imu_update_rate_);
+  common::get_yaml_eigen("q_bu", filename, q_bu);
+  common::get_yaml_eigen("p_bu", filename, p_bu_);
   common::get_yaml_node("use_accel_truth", filename, use_accel_truth_);
   common::get_yaml_node("accel_noise_stdev", filename, accel_noise_stdev);
   common::get_yaml_node("accel_walk_stdev", filename, accel_walk_stdev);
   common::get_yaml_node("accel_bias_init_bound", filename, accel_bias_init_bound);
   last_imu_update_ = 0.0;
+  q_bu_ = common::Quaternion<double>(q_bu);
+  q_bu_.normalize();
   accel_noise_dist_ = std::normal_distribution<double>(0.0, accel_noise_stdev);
   accel_walk_dist_ = std::normal_distribution<double>(0.0, accel_walk_stdev);
   accel_bias_.setRandom();
@@ -120,8 +125,11 @@ void Sensors::imu(const double t, const vehicle::State& x)
       common::randomNormalMatrix(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
-    accel_ = x.lin_accel - common::gravity * x.q.rot(common::e3) + x.omega.cross(x.v) + accel_bias_ + accel_noise_;
-    gyro_ = x.omega + gyro_bias_ + gyro_noise_;
+    static common::Quaternion<double> q_i2u;
+    q_i2u = x.q * q_bu_;
+    accel_ = q_bu_.rot(x.lin_accel + x.omega.cross(x.v) + x.omega.cross(x.omega.cross(p_bu_)) +
+             x.ang_accel.cross(p_bu_)) - common::gravity * q_i2u.rot(common::e3) + accel_bias_ + accel_noise_;
+    gyro_ = q_bu_.rot(x.omega) + gyro_bias_ + gyro_noise_;
 
     // Log IMU data
     accel_log_.write((char*)&t, sizeof(double));
