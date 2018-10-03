@@ -112,7 +112,7 @@ void EKF::load(const std::string &filename)
   // EKF initializations
   xVector x0;
   dxVector P0_diag, Qx_diag;
-  Eigen::Vector4d q_bc;
+  Eigen::Vector4d q_bc, q_bu;
   Eigen::Matrix<double, NUM_INPUTS, 1> Qu_diag;
   Eigen::Matrix<double, 5, 1> R_vo_diag;
   common::get_yaml_eigen("xhat0", filename, x0);
@@ -134,9 +134,13 @@ void EKF::load(const std::string &filename)
   common::get_yaml_eigen("camera_matrix", filename, K_);
   K_inv_ = K_.inverse();
   common::get_yaml_eigen("q_bc", filename, q_bc);
+  common::get_yaml_eigen("q_bc", filename, q_bu);
   q_bc_ = common::Quaternion<double>(q_bc);
   q_bc_.normalize();
+  q_bu_ = common::Quaternion<double>(q_bu);
+  q_bu_.normalize();
   common::get_yaml_eigen("p_bc", filename, p_bc_);
+  common::get_yaml_eigen("p_bu", filename, p_bu_);
 
   // Keyframe and update
   common::get_yaml_node("pixel_disparity_threshold", filename, pixel_disparity_threshold_);
@@ -196,12 +200,16 @@ void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::V
   double dt = t - t_prev_;
   t_prev_ = t;
 
+  // Center the IMU measurement on the body
+  Eigen::Vector3d gyrob = q_bu_.inv().rot(gyro);
+  Eigen::Vector3d accb = q_bu_.inv().rot(acc - gyro.cross(gyro.cross(p_bu_)));
+
   // Store unbiased IMU for control
-  imu_.segment<3>(UAX) = acc - x_.ba;
-  imu_.segment<3>(UWX) = gyro - x_.bg;
+  imu_.segment<3>(UAX) = accb - x_.ba;
+  imu_.segment<3>(UWX) = gyrob - x_.bg;
 
   // Propagate the state
-  f(xdot_, x_, gyro, acc);
+  f(xdot_, x_, gyrob, accb);
   x_ += xdot_ * dt;
 
   // Propagate the covariance - guarantee positive-definite P with discrete propagation

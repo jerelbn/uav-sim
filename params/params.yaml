@@ -103,8 +103,8 @@ wall_height: 10 # Total room height
 
 ## IMU
 imu_update_rate: 250
-p_bu: [0.05, 0, 0] # translation from body to IMU in body frame
-q_bu: [1, 0, 0, 0] # rotation from body to IMU frame
+p_bu: [0.05, 0.01, 0.02] # translation from body to IMU in body frame
+q_bu: [0.5, 0.5, 0.5, 0.5] # rotation from body to IMU frame
 
 accel_noise_stdev: 0.5
 accel_bias_init_bound: 0.5

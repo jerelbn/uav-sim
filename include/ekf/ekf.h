@@ -169,8 +169,8 @@ private:
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > dv_, dv_k_; // Landmark direction vectors
 
   // Camera parameters
-  common::Quaternion<double> q_bc_;
-  Eigen::Vector3d p_bc_;
+  common::Quaternion<double> q_bc_, q_bu_;
+  Eigen::Vector3d p_bc_, p_bu_;
   Eigen::Matrix3d K_, K_inv_;
 
   // Feature tracking parameters
