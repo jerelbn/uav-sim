@@ -38,3 +38,8 @@ add_executable(jacobians_test
   src/ekf/ekf.cpp
 )
 target_link_libraries(jacobians_test common_cpp ${YAML_CPP_LIBRARIES} ${CERES_LIBRARIES} stdc++fs)
+
+add_executable(mocap_opt
+  src/mocap_optimization.cpp
+)
+target_link_libraries(mocap_opt common_cpp ${CERES_LIBRARIES})

@@ -126,7 +126,7 @@ p_bc: [0.1, 0, 0.05] # translation from body to camera in body frame
 q_bc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
 
 ## Motion Capture
-mocap_update_rate: 100
+mocap_update_rate: 50
 mocap_noise_stdev: 0.01
 p_bm: [0, 0, 0] # translation from body to mocap_body in body frame
 q_bm: [1, 0, 0, 0] # rotation from body to mocap_body
