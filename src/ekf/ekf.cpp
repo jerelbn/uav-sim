@@ -134,7 +134,7 @@ void EKF::load(const std::string &filename)
   common::get_yaml_eigen("camera_matrix", filename, K_);
   K_inv_ = K_.inverse();
   common::get_yaml_eigen("q_bc", filename, q_bc);
-  common::get_yaml_eigen("q_bc", filename, q_bu);
+  common::get_yaml_eigen("q_bu", filename, q_bu);
   q_bc_ = common::Quaternion<double>(q_bc);
   q_bc_.normalize();
   q_bu_ = common::Quaternion<double>(q_bu);
