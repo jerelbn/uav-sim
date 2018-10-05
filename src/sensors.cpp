@@ -233,6 +233,8 @@ void Sensors::mocap(const double &t, const vehicle::State &x)
     // Log Mocap data
     mocap_log_.write((char*)&t, sizeof(double));
     mocap_log_.write((char*)mocap_.data(), mocap_.rows() * sizeof(double));
+    mocap_log_.write((char*)p_bm_.data(), 3 * sizeof(double));
+    mocap_log_.write((char*)q_bm_.data(), 4 * sizeof(double));
   }
   else
   {
