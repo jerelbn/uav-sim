@@ -125,7 +125,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::State &x, const 
 
 void Sensors::imu(const double t, const vehicle::State& x)
 {
-  double dt = common::decRound(t - last_imu_update_, 1e4);
+  double dt = common::decRound(t - last_imu_update_, 1e6);
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
   {
     new_imu_meas_ = true;
@@ -167,7 +167,7 @@ void Sensors::imu(const double t, const vehicle::State& x)
 
 void Sensors::camera(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm)
 {
-  double dt = common::decRound(t - last_camera_update_, 1e4);
+  double dt = common::decRound(t - last_camera_update_, 1e6);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
     new_camera_meas_ = true;
@@ -216,9 +216,9 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
 }
 
 
-void Sensors::mocap(const double &t, const vehicle::State &x)
+void Sensors::mocap(const double t, const vehicle::State &x)
 {
-  double dt = common::decRound(t - last_mocap_update_, 1e4);
+  double dt = common::decRound(t - last_mocap_update_, 1e6);
   if (t == 0 || dt >= 1.0 / mocap_update_rate_)
   {
     new_mocap_meas_ = true;
@@ -235,6 +235,7 @@ void Sensors::mocap(const double &t, const vehicle::State &x)
     mocap_log_.write((char*)mocap_.data(), mocap_.rows() * sizeof(double));
     mocap_log_.write((char*)p_bm_.data(), 3 * sizeof(double));
     mocap_log_.write((char*)q_bm_.data(), 4 * sizeof(double));
+    mocap_log_.write((char*)mocap_noise_.data(), mocap_noise_.rows() * sizeof(double));
   }
   else
   {

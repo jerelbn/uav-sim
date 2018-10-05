@@ -45,7 +45,7 @@ gyro_noise = gyro(8:10,:);
 % Load motion capture measurements
 file = fopen(strcat(directory,'mocap.bin'), 'r');
 mocap = fread(file, 'double');
-mocap = reshape(mocap, 15, []);
+mocap = reshape(mocap, 21, []);
 
 % Compute heading truth and estimates
 true_heading = zeros(1,size(true_state,2));

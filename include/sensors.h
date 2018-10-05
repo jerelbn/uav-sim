@@ -33,7 +33,7 @@ private:
 
   void imu(const double t, const vehicle::State &x);
   void camera(const double t, const vehicle::State& x, const Eigen::MatrixXd& lm);
-  void mocap(const double& t, const vehicle::State& x);
+  void mocap(const double t, const vehicle::State& x);
   void depth(const double t, const vehicle::State& x);
   void gps(const double t, const vehicle::State& x);
   void baro(const double t, const vehicle::State& x);
