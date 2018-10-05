@@ -20,6 +20,7 @@ Sensors::~Sensors()
   accel_log_.close();
   gyro_log_.close();
   cam_log_.close();
+  mocap_log_.close();
 }
 
 
@@ -90,11 +91,26 @@ void Sensors::load(const std::string filename)
   pixel_noise_.setZero();
   new_camera_meas_ = false;
 
+  // Motion Capture
+  double mocap_noise_stdev;
+  Eigen::Vector4d q_bm;
+  common::get_yaml_node("use_mocap_truth", filename, use_mocap_truth_);
+  common::get_yaml_node("mocap_update_rate", filename, mocap_update_rate_);
+  common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
+  common::get_yaml_eigen("q_bm", filename, q_bm);
+  common::get_yaml_eigen("p_bm", filename, p_bm_);
+  q_bm_ = common::Quaternion<double>(q_bm);
+  q_bm_.normalize();
+  mocap_noise_dist_ = std::normal_distribution<double>(0.0, mocap_noise_stdev);
+  mocap_noise_.setZero();
+  new_mocap_meas_ = false;
+
   // Initialize loggers
   common::get_yaml_node("log_directory", filename, directory_);
   accel_log_.open(directory_ + "/accel.bin");
   gyro_log_.open(directory_ + "/gyro.bin");
   cam_log_.open(directory_ + "/camera.bin");
+  mocap_log_.open(directory_ + "/mocap.bin");
 }
 
 
@@ -103,6 +119,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::State &x, const 
   // Update all sensor measurements
   imu(t, x);
   camera(t, x, lm);
+  mocap(t, x);
 }
 
 
@@ -195,6 +212,31 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
   else
   {
     new_camera_meas_ = false;
+  }
+}
+
+
+void Sensors::mocap(const double &t, const vehicle::State &x)
+{
+  double dt = common::decRound(t - last_mocap_update_, 1e4);
+  if (t == 0 || dt >= 1.0 / mocap_update_rate_)
+  {
+    new_mocap_meas_ = true;
+    last_mocap_update_ = t;
+    if (!use_mocap_truth_)
+      common::randomNormalMatrix(mocap_noise_,mocap_noise_dist_,rng_);
+
+    // Populate mocap measurement
+    mocap_.head<3>() = x.p + x.q.inv().rot(p_bm_) + mocap_noise_.head<3>();
+    mocap_.tail<4>() = (x.q * q_bm_ + mocap_noise_.tail<3>()).toEigen();
+
+    // Log Mocap data
+    mocap_log_.write((char*)&t, sizeof(double));
+    mocap_log_.write((char*)mocap_.data(), mocap_.rows() * sizeof(double));
+  }
+  else
+  {
+    new_mocap_meas_ = false;
   }
 }
 

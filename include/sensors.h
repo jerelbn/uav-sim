@@ -24,14 +24,16 @@ public:
   void updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;
+  Eigen::Matrix<double, 7, 1> mocap_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
 
-  bool new_imu_meas_, new_camera_meas_;
+  bool new_imu_meas_, new_camera_meas_, new_mocap_meas_;
 
 private:
 
   void imu(const double t, const vehicle::State &x);
   void camera(const double t, const vehicle::State& x, const Eigen::MatrixXd& lm);
+  void mocap(const double& t, const vehicle::State& x);
   void depth(const double t, const vehicle::State& x);
   void gps(const double t, const vehicle::State& x);
   void baro(const double t, const vehicle::State& x);
@@ -63,6 +65,16 @@ private:
   common::Quaternion<double> q_bc_, q_bu_; // rotations body-to-camera and body-to-IMU
   Eigen::Vector3d p_bc_, p_bu_; // translations body-to-camera and body-to-IMU in body frame
   std::ofstream cam_log_;
+
+  // Motion Capture
+  bool use_mocap_truth_;
+  double last_mocap_update_;
+  double mocap_update_rate_;
+  std::normal_distribution<double> mocap_noise_dist_;
+  Eigen::Matrix<double, 6, 1> mocap_noise_;
+  Eigen::Vector3d p_bm_; // translation body-to-mocap-body in body frame
+  common::Quaterniond q_bm_; // rotation body-to-mocap-body
+  std::ofstream mocap_log_;
 
 };
 

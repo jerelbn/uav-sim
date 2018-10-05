@@ -11,6 +11,7 @@ save_pixel_measurements: false
 use_accel_truth: false
 use_gyro_truth: false
 use_camera_truth: false
+use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
      0, 0, 0,    # VEL
@@ -124,12 +125,17 @@ camera_matrix: [480,   0, 320,
 p_bc: [0.1, 0, 0.05] # translation from body to camera in body frame
 q_bc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
 
+## Motion Capture
+mocap_update_rate: 100
+mocap_noise_stdev: 0.01
+p_bm: [0, 0, 0] # translation from body to mocap_body in body frame
+q_bm: [1, 0, 0, 0] # rotation from body to mocap_body
+
 ## Depth
 ## Altimeter
 ## Barometer
 ## Magnetometer
 ## GPS
-## Motion Capture
 
 
 # Estimator Configuration
