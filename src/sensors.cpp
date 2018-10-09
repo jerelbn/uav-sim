@@ -228,7 +228,7 @@ void Sensors::mocap(const double t, const vehicle::State &x)
 
     // Populate mocap measurement
     mocap_.head<3>() = x.p + x.q.inv().rot(p_bm_) + mocap_noise_.head<3>();
-    mocap_.tail<4>() = (x.q * q_bm_ + mocap_noise_.tail<3>()).toEigen();
+    mocap_.tail<4>() = (x.q * q_bm_ + Eigen::Vector3d(mocap_noise_.tail<3>())).toEigen();
 
     // Log Mocap data
     mocap_log_.write((char*)&t, sizeof(double));

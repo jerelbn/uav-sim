@@ -29,7 +29,7 @@ State State::operator+(const dxVector &delta) const
 {
   State x;
   x.p = p + delta.segment<3>(DPX);
-  x.q = q + delta.segment<3>(DQX);
+  x.q = q + Eigen::Vector3d(delta.segment<3>(DQX));
   x.v = v + delta.segment<3>(DVX);
   x.bg = bg + delta.segment<3>(DGX);
   x.ba = ba + delta.segment<3>(DAX);

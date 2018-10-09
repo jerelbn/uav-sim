@@ -10,7 +10,7 @@ save_pixel_measurements: false
 # Truth Configuration
 use_accel_truth: true
 use_gyro_truth: true
-use_camera_truth: false
+use_camera_truth: true
 use_mocap_truth: true
 
 x0: [0, 0, 0,    # POS
