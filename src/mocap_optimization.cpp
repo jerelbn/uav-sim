@@ -6,11 +6,13 @@
 using namespace std;
 using namespace Eigen;
 
-enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, STATE_SIZE};
-typedef Matrix<double, STATE_SIZE, 1> StateVec;
+enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, AX, AY, AZ, GX, GY, GZ, STATE_SIZE};
+enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ, DELTA_STATE_SIZE};
+typedef Matrix<double, STATE_SIZE, 1> State;
+typedef vector<State,aligned_allocator<State>> state_vector;
 
 // Print vector of eigen vectors
-void print_state(const string& name, const vector<StateVec>& v,
+void print_state(const string& name, const state_vector& v,
                  const int& start, const int& end)
 {
   cout << name << " = \n";
@@ -32,11 +34,15 @@ struct StatePlus
     Map<const Matrix<T,3,1>> p(x1+PX);
     Map<const Matrix<T,3,1>> v(x1+VX);
     const common::Quaternion<T> q(x1+QW);
-    Map<const Matrix<T,9,1>> delta_(delta);
+    Map<const Matrix<T,3,1>> ba(x1+AX);
+    Map<const Matrix<T,3,1>> bg(x1+GX);
+    Map<const Matrix<T,DELTA_STATE_SIZE,1>> delta_(delta);
     Map<Matrix<T,STATE_SIZE,1>> x2_(x2);
-    x2_.template segment<3>(PX) = p + delta_.template segment<3>(PX);
-    x2_.template segment<3>(VX) = v + delta_.template segment<3>(VX);
-    x2_.template segment<4>(QW) = (q + Matrix<T,3,1>(delta_.template segment<3>(QW))).toEigen();
+    x2_.template segment<3>(PX) = p + delta_.template segment<3>(DPX);
+    x2_.template segment<3>(VX) = v + delta_.template segment<3>(DVX);
+    x2_.template segment<4>(QW) = (q + Matrix<T,3,1>(delta_.template segment<3>(DQX))).toEigen();
+    x2_.template segment<3>(AX) = ba + delta_.template segment<3>(DAX);
+    x2_.template segment<3>(GX) = bg + delta_.template segment<3>(DGX);
     return true;
   }
 };
@@ -80,25 +86,31 @@ struct ImuError
     Matrix<T,3,1> p2hat(x1+PX);
     Matrix<T,3,1> v2hat(x1+VX);
     common::Quaternion<T> q2hat(x1+QW);
+    Matrix<T,3,1> ba2hat(x1+AX);
+    Matrix<T,3,1> bg2hat(x1+GX);
 
     // Map current state
     Map<const Matrix<T,3,1>> p2(x2+PX);
     Map<const Matrix<T,3,1>> v2(x2+VX);
     const common::Quaternion<T> q2(x2+QW);
+    Map<const Matrix<T,3,1>> ba2(x2+AX);
+    Map<const Matrix<T,3,1>> bg2(x2+GX);
 
     // Predict current state with IMU measurements
     for (int i = 0; i < dts.size(); ++i)
     {
       p2hat += v2hat * T(dts[i]);
-      v2hat += (q2hat.inv().rot(accs[i].cast<T>()) + T(common::gravity) * common::e3.cast<T>()) * T(dts[i]);
-      q2hat += Matrix<T,3,1>(gyros[i].cast<T>() * T(dts[i]));
+      v2hat += (q2hat.inv().rot(accs[i].cast<T>() - ba2hat) + T(common::gravity) * common::e3.cast<T>()) * T(dts[i]);
+      q2hat += Matrix<T,3,1>(gyros[i].cast<T>() - bg2hat) * T(dts[i]);
     }
 
     // Map output and fill it with new values
-    Map<Matrix<T,STATE_SIZE-1,1>> residuals_(residuals);
-    residuals_.template segment<3>(PX) = p2 - p2hat;
-    residuals_.template segment<3>(VX) = v2 - v2hat;
-    residuals_.template segment<3>(QW) = q2 - q2hat;
+    Map<Matrix<T,DELTA_STATE_SIZE,1>> residuals_(residuals);
+    residuals_.template segment<3>(DPX) = p2 - p2hat;
+    residuals_.template segment<3>(DVX) = v2 - v2hat;
+    residuals_.template segment<3>(DQX) = q2 - q2hat;
+    residuals_.template segment<3>(DAX) = ba2 - ba2hat;
+    residuals_.template segment<3>(DGX) = bg2 - bg2hat;
     return true;
   }
 
@@ -124,7 +136,7 @@ int main()
 
   // Compute truth
   int j = 0;
-  vector<StateVec> xt(mocap.cols());
+  state_vector xt(mocap.cols());
   for (int i = 0; i < truth.cols(); ++i)
   {
     if (truth(0,i) == mocap(0,j)) // times happen to line up for now
@@ -133,8 +145,11 @@ int main()
       xt[j].segment<3>(PX) = truth.block<3,1>(1,i);
       xt[j].segment<3>(VX) = q_i2b.inv().rot(truth.block<3,1>(4,i));
       xt[j].segment<4>(QW) = truth.block<4,1>(10,i);
+      xt[j].segment<3>(AX) = acc.block<3,1>(4,i);
+      xt[j].segment<3>(GX) = gyro.block<3,1>(4,i);
       ++j;
     }
+    if (j > mocap.cols()-1) break;
   }
 
   // Parameters
@@ -143,12 +158,14 @@ int main()
   const int print_end = mocap.cols();
 
   // Initialize the states with mocap
-  vector<StateVec> x(N);
+  state_vector x(N);
   for (int i = 0; i < N; ++i)
   {
     // Mocap for position/attitude
     x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
     x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
+    x[i].segment<3>(AX).setZero();
+    x[i].segment<3>(GX).setZero();
 
     // Compute velocity by numerical differentiation
     if (i == 0) // forward difference
@@ -170,7 +187,7 @@ int main()
 
   // Add parameter blocks
   ceres::LocalParameterization *state_local_parameterization =
-      new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,STATE_SIZE-1>;
+      new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
 
@@ -200,7 +217,7 @@ int main()
       }
     }
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<ImuError, STATE_SIZE-1, STATE_SIZE, STATE_SIZE>(
+      new ceres::AutoDiffCostFunction<ImuError, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE>(
       new ImuError(dts, accs, gyros));
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data());
   }

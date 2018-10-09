@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 5.0
+tf: 2.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -8,10 +8,10 @@ control_using_estimates: false
 save_pixel_measurements: false
 
 # Truth Configuration
-use_accel_truth: true
-use_gyro_truth: true
-use_camera_truth: true
-use_mocap_truth: true
+use_accel_truth: false
+use_gyro_truth: false
+use_camera_truth: false
+use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
      0, 0, 0,    # VEL
