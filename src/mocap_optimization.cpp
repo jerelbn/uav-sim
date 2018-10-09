@@ -268,7 +268,7 @@ int main()
 
   // Solve for the optimal rotation and translation direciton
   ceres::Solver::Options options;
-  options.linear_solver_type = ceres::DENSE_QR;
+  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
   options.max_num_iterations = 100;
   options.minimizer_progress_to_stdout = true;

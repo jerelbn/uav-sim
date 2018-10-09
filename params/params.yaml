@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 5.0
+tf: 30.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
