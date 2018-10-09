@@ -48,10 +48,10 @@ struct StatePlus
 };
 
 
-struct MocapError
+struct MocapFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MocapError(const Vector3d& p_meas, const Vector4d& q_meas)
+  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas)
       : p_meas_(p_meas), q_meas_(q_meas) {}
 
   template <typename T>
@@ -73,14 +73,15 @@ private:
 };
 
 
-struct ImuError
+struct PropagationFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  ImuError(const vector<double>& _dts, const vector<Vector3d>& _accs, const vector<Vector3d>& _gyros)
-      : dts(_dts), accs(_accs), gyros(_gyros) {}
+  PropagationFactor(const vector<double>& _dts, const vector<Vector3d>& _accs, const vector<Vector3d>& _gyros)
+      : dts(_dts), accs(_accs), gyros(_gyros), E3(common::e3 * common::e3.transpose()),
+        IE3(common::I_3x3 - common::e3 * common::e3.transpose()) {}
 
   template <typename T>
-  bool operator()(const T* const x1, const T* const x2, T* residuals) const
+  bool operator()(const T* const x1, const T* const x2, const T* const cd, T* residuals) const
   {
     // Copy previous state
     Matrix<T,3,1> p2hat(x1+PX);
@@ -100,7 +101,8 @@ struct ImuError
     for (int i = 0; i < dts.size(); ++i)
     {
       p2hat += v2hat * T(dts[i]);
-      v2hat += (q2hat.inv().rot(accs[i].cast<T>() - ba2hat) + T(common::gravity) * common::e3.cast<T>()) * T(dts[i]);
+      v2hat += (q2hat.inv().rot(E3.cast<T>() * (accs[i].cast<T>() - ba2hat) - cd[0] * IE3.cast<T>() * q2hat.rot(v2hat)) +
+               T(common::gravity) * common::e3.cast<T>()) * T(dts[i]);
       q2hat += Matrix<T,3,1>(gyros[i].cast<T>() - bg2hat) * T(dts[i]);
     }
 
@@ -118,6 +120,32 @@ private:
 
   const vector<double> dts;
   const vector<Vector3d> accs, gyros;
+  const Matrix3d E3, IE3;
+
+};
+
+
+struct DragFactor
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  DragFactor(const Vector3d& acc_meas)
+      : acc_meas_(acc_meas), IE3(common::I_3x3 - common::e3 * common::e3.transpose()) {}
+
+  template <typename T>
+  bool operator()(const T* const x, const T* const cd, T* residuals) const
+  {
+    const common::Quaternion<T> q(x+QW);
+    Map<const Matrix<T,3,1>> v(x+VX);
+    Map<const Matrix<T,3,1>> ba(x+AX);
+    Map<Matrix<T,2,1>> residuals_(residuals);
+    residuals_ = common::I_2x3.cast<T>() * (acc_meas_.cast<T>() - (ba - cd[0] * IE3.cast<T>() * q.rot(v)));
+    return true;
+  }
+
+private:
+
+  const Vector3d acc_meas_;
+  const Matrix3d IE3;
 
 };
 
@@ -164,7 +192,7 @@ int main()
     // Mocap for position/attitude
     x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
     x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
-    x[i].segment<3>(AX).setZero();
+    x[i].segment<3>(AX).setZero(); // TODO: Initialize biases assuming constant between mocap measurements
     x[i].segment<3>(GX).setZero();
 
     // Compute velocity by numerical differentiation
@@ -178,9 +206,11 @@ int main()
       x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) /
                             (mocap(0,i+1) - mocap(0,i-1));
   }
+  double cd = 0.2; // drag coefficient
 
   // Print initial state
   print_state("x0", x, print_start, print_end);
+  cout << "cd0 = " << cd << endl;
 
   // Build optimization problem with Ceres-Solver
   ceres::Problem problem;
@@ -190,13 +220,14 @@ int main()
       new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
+  problem.AddParameterBlock(&cd, 1);
 
   // Add Mocap residuals
   for (int i = 0; i < N; ++i)
   {
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<MocapError, 6, STATE_SIZE>(
-      new MocapError(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
+      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE>(
+      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
     problem.AddResidualBlock(cost_function, NULL, x[i].data());
   }
 
@@ -217,9 +248,22 @@ int main()
       }
     }
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<ImuError, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE>(
-      new ImuError(dts, accs, gyros));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data());
+      new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE, 1>(
+      new PropagationFactor(dts, accs, gyros));
+    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data(), &cd);
+  }
+
+  // Add drag residuals
+  for (int i = 0; i < N; ++i)
+  {
+    for (int j = 0; j < acc.cols(); ++j)
+    {
+      ceres::CostFunction* cost_function =
+        new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1>(
+        new DragFactor(acc.block<3,1>(1,j)));
+      problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd);
+      break;
+    }
   }
 
   // Solve for the optimal rotation and translation direciton
@@ -234,7 +278,9 @@ int main()
 
   // Print solution and truth
   print_state("xf", x, print_start, print_end);
+  cout << "cdf = " << cd << endl;
   print_state("xt", xt, print_start, print_end);
+  cout << "cdt = " << 0.1 << endl;
 
   return 0;
 }
