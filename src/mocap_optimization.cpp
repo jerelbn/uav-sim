@@ -7,7 +7,20 @@ using namespace std;
 using namespace Eigen;
 
 enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, STATE_SIZE};
-typedef Matrix<double, STATE_SIZE, 1> state;
+typedef Matrix<double, STATE_SIZE, 1> StateVec;
+
+// Print vector of eigen vectors
+void print_state(const string& name, const vector<StateVec>& v,
+                 const int& start, const int& end)
+{
+  cout << name << " = \n";
+  MatrixXd x_print(v[0].rows(),end-start);
+  for (int i = 0; i < end-start; ++i)
+  {
+    x_print.col(i) = v[i+start];
+  }
+  cout << x_print << endl;
+}
 
 
 // Local parameterization for Quaternions
@@ -57,26 +70,29 @@ private:
 struct ImuError
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  ImuError(const double& dt, const Vector3d& acc1, const Vector3d& gyro1)
-      : dt_(dt), acc1_(acc1), gyro1_(gyro1) {}
+  ImuError(const vector<double>& _dts, const vector<Vector3d>& _accs, const vector<Vector3d>& _gyros)
+      : dts(_dts), accs(_accs), gyros(_gyros) {}
 
   template <typename T>
   bool operator()(const T* const x1, const T* const x2, T* residuals) const
   {
-    // Map previous state
-    Map<const Matrix<T,3,1>> p1(x1+PX);
-    Map<const Matrix<T,3,1>> v1(x1+VX);
-    const common::Quaternion<T> q1(x1+QW);
+    // Copy previous state
+    Matrix<T,3,1> p2hat(x1+PX);
+    Matrix<T,3,1> v2hat(x1+VX);
+    common::Quaternion<T> q2hat(x1+QW);
 
     // Map current state
     Map<const Matrix<T,3,1>> p2(x2+PX);
     Map<const Matrix<T,3,1>> v2(x2+VX);
     const common::Quaternion<T> q2(x2+QW);
 
-    // Predict current state with IMU
-    Matrix<T,3,1> p2hat = p1 + v1 * T(dt_);
-    Matrix<T,3,1> v2hat = v1 + (q1.inv().rot(acc1_.cast<T>()) + T(common::gravity) * common::e3.cast<T>()) * T(dt_);
-    common::Quaternion<T> q2hat = q1 + Matrix<T,3,1>(gyro1_.cast<T>() * T(dt_));
+    // Predict current state with IMU measurements
+    for (int i = 0; i < dts.size(); ++i)
+    {
+      p2hat += v2hat * T(dts[i]);
+      v2hat += (q2hat.inv().rot(accs[i].cast<T>()) + T(common::gravity) * common::e3.cast<T>()) * T(dts[i]);
+      q2hat += Matrix<T,3,1>(gyros[i].cast<T>() * T(dts[i]));
+    }
 
     // Map output and fill it with new values
     Map<Matrix<T,STATE_SIZE-1,1>> residuals_(residuals);
@@ -88,8 +104,8 @@ struct ImuError
 
 private:
 
-  const double dt_;
-  const Vector3d acc1_, gyro1_;
+  const vector<double> dts;
+  const vector<Vector3d> accs, gyros;
 
 };
 
@@ -106,41 +122,48 @@ int main()
   MatrixXd mocap = common::load_binary_to_matrix<double>("../logs/mocap.bin", 21);
   MatrixXd truth = common::load_binary_to_matrix<double>("../logs/true_state.bin", 20);
 
-  const int N = 50;
-  const int print_size = 10;
-  const int print_start = 40;
+  // Compute truth
+  int j = 0;
+  vector<StateVec> xt(mocap.cols());
+  for (int i = 0; i < truth.cols(); ++i)
+  {
+    if (truth(0,i) == mocap(0,j)) // times happen to line up for now
+    {
+      common::Quaterniond q_i2b(truth.block<4,1>(10,i));
+      xt[j].segment<3>(PX) = truth.block<3,1>(1,i);
+      xt[j].segment<3>(VX) = q_i2b.inv().rot(truth.block<3,1>(4,i));
+      xt[j].segment<4>(QW) = truth.block<4,1>(10,i);
+      ++j;
+    }
+  }
 
-  // Define the states
-  vector<Matrix<double, STATE_SIZE, 1>> x(N);
+  // Parameters
+  const int N = mocap.cols();
+  const int print_start = mocap.cols()-5;
+  const int print_end = mocap.cols();
+
+  // Initialize the states with mocap
+  vector<StateVec> x(N);
   for (int i = 0; i < N; ++i)
   {
-    if (i == 0)
-    {
-      x[i].setZero();
-      x[i](QW) = 1;
-    }
-    else
-    {
-      double dt = acc(0,i) - acc(0,i-1);
-      Vector3d p = x[i-1].segment<3>(PX);
-      Vector3d v = x[i-1].segment<3>(VX);
-      common::Quaterniond q(x[i-1].segment<4>(QW));
-      x[i].segment<3>(PX) = p + v * dt;
-      x[i].segment<3>(VX) = v + (q.rot(acc.block<3,1>(1,i-1)) + common::gravity * common::e3) * dt;
-      x[i].segment<4>(QW) = (q + Vector3d(gyro.block<3,1>(1,i-1) * dt)).toEigen();
-    }
+    // Mocap for position/attitude
+    x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
+    x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
+
+    // Compute velocity by numerical differentiation
+    if (i == 0) // forward difference
+      x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) /
+                            (mocap(0,i+1) - mocap(0,i));
+    else if (i == N-1) // backward difference
+      x[i].segment<3>(VX) = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) /
+                            (mocap(0,i) - mocap(0,i-1));
+    else // central difference
+      x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) /
+                            (mocap(0,i+1) - mocap(0,i-1));
   }
 
   // Print initial state
-  cout << "x0 = \n";
-  Matrix<double,STATE_SIZE,print_size> x_print;
-  for (int i = 0; i < print_size; ++i)
-  {
-    x_print.block<3,1>(PX,i) = x[i+print_start].segment<3>(PX);
-    x_print.block<3,1>(VX,i) = x[i+print_start].segment<3>(VX);
-    x_print.block<4,1>(QW,i) = x[i+print_start].segment<4>(QW);
-  }
-  cout << x_print << "\n\n";
+  print_state("x0", x, print_start, print_end);
 
   // Build optimization problem with Ceres-Solver
   ceres::Problem problem;
@@ -156,17 +179,29 @@ int main()
   {
     ceres::CostFunction* cost_function =
       new ceres::AutoDiffCostFunction<MocapError, 6, STATE_SIZE>(
-      new MocapError(truth.block<3,1>(1,i), truth.block<4,1>(10,i)));
+      new MocapError(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
     problem.AddResidualBlock(cost_function, NULL, x[i].data());
   }
 
   // Add IMU residuals
   for (int i = 0; i < N-1; ++i)
   {
-    double dt = acc(0,i+1)-acc(0,i);
+    // create vector of delta times and measurements from current to next node
+    vector<double> dts;
+    vector<Vector3d> accs, gyros;
+    for (int j = 0; j < acc.cols(); ++j)
+    {
+      // Accelerometer and gyro usually run on same time steps in an IMU
+      if (acc(0,j) >= mocap(0,i) && acc(0,j) < mocap(0,i+1))
+      {
+        dts.push_back(acc(0,j+1) - acc(0,j));
+        accs.push_back(acc.block<3,1>(1,j));
+        gyros.push_back(gyro.block<3,1>(1,j));
+      }
+    }
     ceres::CostFunction* cost_function =
       new ceres::AutoDiffCostFunction<ImuError, STATE_SIZE-1, STATE_SIZE, STATE_SIZE>(
-      new ImuError(dt, acc.block<3,1>(1,i), gyro.block<3,1>(1,i)));
+      new ImuError(dts, accs, gyros));
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data());
   }
 
@@ -181,24 +216,8 @@ int main()
   cout << summary.BriefReport() << "\n\n";
 
   // Print solution and truth
-  cout << "xf = \n";
-  for (int i = 0; i < print_size; ++i)
-  {
-    x_print.block<3,1>(PX,i) = x[i+print_start].segment<3>(PX);
-    x_print.block<3,1>(VX,i) = x[i+print_start].segment<3>(VX);
-    x_print.block<4,1>(QW,i) = x[i+print_start].segment<4>(QW);
-  }
-  cout << x_print << "\n\n";
-
-  cout << "xt = \n";
-  for (int i = 0; i < print_size; ++i)
-  {
-    common::Quaterniond q_i2b(truth.block<4,1>(10,i+print_start));
-    x_print.block<3,1>(PX,i) = truth.block<3,1>(1,i+print_start);
-    x_print.block<3,1>(VX,i) = q_i2b.inv().rot(truth.block<3,1>(4,i+print_start));
-    x_print.block<4,1>(QW,i) = truth.block<4,1>(10,i+print_start);
-  }
-  cout << x_print << endl;
+  print_state("xf", x, print_start, print_end);
+  print_state("xt", xt, print_start, print_end);
 
   return 0;
 }
