@@ -9,6 +9,7 @@ using namespace Eigen;
 enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, AX, AY, AZ, GX, GY, GZ, STATE_SIZE};
 enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ, DELTA_STATE_SIZE};
 typedef Matrix<double, STATE_SIZE, 1> State;
+typedef Matrix<double, DELTA_STATE_SIZE, 1> DeltaState;
 typedef vector<State,aligned_allocator<State>> state_vector;
 
 // Print vector of eigen vectors
@@ -46,6 +47,26 @@ struct StatePlus
     return true;
   }
 };
+
+
+template<typename T>
+void state_dynamics(const Matrix<T,3,1>& p, const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
+                    const Matrix<T,3,1>& ba, const Matrix<T,3,1>& bg, const T& cd,
+                    const Matrix<T,3,1>& acc, const Matrix<T,3,1>& omega,
+                    Matrix<T,DELTA_STATE_SIZE,1>& dx)
+{
+  // Constants
+  static Matrix<T,3,3> E3(common::e3.cast<T>() * common::e3.transpose().cast<T>());
+  static Matrix<T,3,3> IE3(common::I_3x3.cast<T>() - common::e3.cast<T>() * common::e3.transpose().cast<T>());
+  static Matrix<T,3,1> e3(common::e3.cast<T>());
+  static T g = T(common::gravity);
+
+  // Pack output
+  dx.setZero();
+  dx.template segment<3>(DPX) = v;
+  dx.template segment<3>(DVX) = q.inv().rot(E3 * (acc - ba) - cd * IE3 * q.rot(v)) + g * e3;
+  dx.template segment<3>(DQX) = omega - bg;
+}
 
 
 struct MocapFactor
@@ -98,12 +119,13 @@ struct PropagationFactor
     Map<const Matrix<T,3,1>> bg2(x2+GX);
 
     // Predict current state with IMU measurements
+    Matrix<T,DELTA_STATE_SIZE,1> dx;
     for (int i = 0; i < dts.size(); ++i)
     {
-      p2hat += v2hat * T(dts[i]);
-      v2hat += (q2hat.inv().rot(E3.cast<T>() * (accs[i].cast<T>() - ba2hat) - cd[0] * IE3.cast<T>() * q2hat.rot(v2hat)) +
-               T(common::gravity) * common::e3.cast<T>()) * T(dts[i]);
-      q2hat += Matrix<T,3,1>(gyros[i].cast<T>() - bg2hat) * T(dts[i]);
+      state_dynamics<T>(p2hat, v2hat, q2hat, ba2hat, bg2hat, cd[0], accs[i].cast<T>(), gyros[i].cast<T>(), dx);
+      p2hat += dx.template segment<3>(DPX) * T(dts[i]);
+      v2hat += dx.template segment<3>(DVX) * T(dts[i]);
+      q2hat += dx.template segment<3>(DQX) * T(dts[i]);
     }
 
     // Map output and fill it with new values
@@ -206,7 +228,7 @@ int main()
       x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) /
                             (mocap(0,i+1) - mocap(0,i-1));
   }
-  double cd = 0.2; // drag coefficient
+  double cd = 0.1; // drag coefficient
 
   // Print initial state
   print_state("x0", x, print_start, print_end);
@@ -221,6 +243,7 @@ int main()
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
   problem.AddParameterBlock(&cd, 1);
+  problem.SetParameterBlockConstant(&cd);
 
   // Add Mocap residuals
   for (int i = 0; i < N; ++i)
