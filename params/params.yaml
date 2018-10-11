@@ -107,11 +107,11 @@ imu_update_rate: 250
 p_bu: [0, 0, 0] # translation from body to IMU in body frame
 q_bu: [1, 0, 0, 0] # rotation from body to IMU frame
 
-accel_noise_stdev: 0.5
+accel_noise_stdev: 0.005
 accel_bias_init_bound: 0.5
 accel_walk_stdev: 0.01
 
-gyro_noise_stdev: 0.1
+gyro_noise_stdev: 0.001
 gyro_bias_init_bound: 0.2
 gyro_walk_stdev: 0.001
 

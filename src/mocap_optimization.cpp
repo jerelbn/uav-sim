@@ -26,6 +26,22 @@ void print_state(const string& name, const state_vector& v,
 }
 
 
+// Logger to save initial, final, and true states for plotting in MATLAB
+void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t, state_vector states, const double& cd)
+{
+  ofstream logger;
+  logger.open(filename);
+  for (int i = 0; i < states.size(); ++i)
+  {
+    logger.write((char*)&t(i), sizeof(double));
+    logger.write((char*)states[i].data(), states[i].rows() * sizeof(double));
+    logger.write((char*)&cd, sizeof(double));
+  }
+  logger.close();
+  cout << "\nLogged " << filename << "\n\n";
+}
+
+
 // Local parameterization for Quaternions
 struct StatePlus
 {
@@ -63,8 +79,8 @@ void state_dynamics(const Matrix<T,3,1>& p, const Matrix<T,3,1>& v, const common
 
   // Pack output
   dx.setZero();
-  dx.template segment<3>(DPX) = v;
-  dx.template segment<3>(DVX) = q.inv().rot(E3 * (acc - ba) - cd * IE3 * q.rot(v)) + g * e3;
+  dx.template segment<3>(DPX) = q.inv().rot(v);
+  dx.template segment<3>(DVX) = E3 * (acc - ba) + g * q.rot(e3) - cd * IE3 * v.cwiseProduct(v) - (omega - bg).cross(v);
   dx.template segment<3>(DQX) = omega - bg;
 }
 
@@ -160,7 +176,7 @@ struct DragFactor
     Map<const Matrix<T,3,1>> v(x+VX);
     Map<const Matrix<T,3,1>> ba(x+AX);
     Map<Matrix<T,2,1>> residuals_(residuals);
-    residuals_ = common::I_2x3.cast<T>() * (acc_meas_.cast<T>() - (ba - cd[0] * IE3.cast<T>() * q.rot(v)));
+    residuals_ = common::I_2x3.cast<T>() * (acc_meas_.cast<T>() - (ba - cd[0] * IE3.cast<T>() * v.cwiseProduct(v)));
     return true;
   }
 
@@ -191,9 +207,8 @@ int main()
   {
     if (truth(0,i) == mocap(0,j)) // times happen to line up for now
     {
-      common::Quaterniond q_i2b(truth.block<4,1>(10,i));
       xt[j].segment<3>(PX) = truth.block<3,1>(1,i);
-      xt[j].segment<3>(VX) = q_i2b.inv().rot(truth.block<3,1>(4,i));
+      xt[j].segment<3>(VX) = truth.block<3,1>(4,i);
       xt[j].segment<4>(QW) = truth.block<4,1>(10,i);
       xt[j].segment<3>(AX) = acc.block<3,1>(4,i);
       xt[j].segment<3>(GX) = gyro.block<3,1>(4,i);
@@ -201,6 +216,7 @@ int main()
     }
     if (j > mocap.cols()-1) break;
   }
+  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, 0.1);
 
   // Parameters
   const int N = mocap.cols();
@@ -214,8 +230,8 @@ int main()
     // Mocap for position/attitude
     x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
     x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
-    x[i].segment<3>(AX).setZero(); // TODO: Initialize biases assuming constant between mocap measurements
-    x[i].segment<3>(GX).setZero();
+    x[i].segment<3>(AX) = xt[i].segment<3>(AX);//Vector3d(0,0,0);//acc.block<3,1>(4,0); // TODO: Initialize biases assuming constant between mocap measurements
+    x[i].segment<3>(GX) = xt[i].segment<3>(GX);//Vector3d(0,0,0);//gyro.block<3,1>(4,0);
 
     // Compute velocity by numerical differentiation
     if (i == 0) // forward difference
@@ -227,12 +243,17 @@ int main()
     else // central difference
       x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) /
                             (mocap(0,i+1) - mocap(0,i-1));
+
+    // Rotate velocity into body frame
+    common::Quaterniond q_i2b(mocap.block<4,1>(4,i));
+    x[i].segment<3>(VX) = q_i2b.rot(x[i].segment<3>(VX));
   }
   double cd = 0.1; // drag coefficient
+  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd);
 
   // Print initial state
   print_state("x0", x, print_start, print_end);
-  cout << "cd0 = " << cd << endl;
+  cout << "cd0 = " << cd << "\n\n";
 
   // Build optimization problem with Ceres-Solver
   ceres::Problem problem;
@@ -243,7 +264,7 @@ int main()
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
   problem.AddParameterBlock(&cd, 1);
-  problem.SetParameterBlockConstant(&cd);
+//  problem.SetParameterBlockConstant(&cd);
 
   // Add Mocap residuals
   for (int i = 0; i < N; ++i)
@@ -299,9 +320,11 @@ int main()
   ceres::Solve(options, &problem, &summary);
   cout << summary.BriefReport() << "\n\n";
 
+  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd);
+
   // Print solution and truth
   print_state("xf", x, print_start, print_end);
-  cout << "cdf = " << cd << endl;
+  cout << "cdf = " << cd << "\n\n";
   print_state("xt", xt, print_start, print_end);
   cout << "cdt = " << 0.1 << endl;
 
