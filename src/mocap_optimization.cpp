@@ -41,11 +41,43 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t, state
 }
 
 
+// Derivative of q + delta w.r.t. delta
 template<typename T>
-void state_dynamics(const Matrix<T,3,1>& p, const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
-                    const Matrix<T,3,1>& ba, const Matrix<T,3,1>& bg, const T& cd,
-                    const Matrix<T,3,1>& acc, const Matrix<T,3,1>& omega,
-                    Matrix<T,DELTA_STATE_SIZE,1>& dx)
+Matrix<T,4,3> dqpd_dd(const Matrix<T,4,1>& q)
+{
+  Matrix<T,4,3> m;
+  m << -q(1), -q(2), -q(3),
+        q(0), -q(3),  q(2),
+        q(3),  q(0), -q(1),
+       -q(2),  q(1),  q(0);
+  m *= 0.5;
+  return m;
+}
+
+
+// Derivative of state + state_delta w.r.t. state_delta
+template<typename T>
+Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dxpd_dd(const Matrix<T,STATE_SIZE,1>& x)
+{
+  Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dx;
+  dx.setZero();
+  dx.template block<3,3>(PX,DPX).setIdentity();
+  dx.template block<3,3>(VX,DVX).setIdentity();
+  dx.template block<4,3>(QW,DQX) = dqpd_dd<T>(x.template segment<4>(QW));
+  dx.template block<3,3>(AX,DAX).setIdentity();
+  dx.template block<3,3>(GX,DGX).setIdentity();
+  dx(CD,DCD) = T(1.0);
+  return dx;
+}
+
+
+// State dynamics including input noise for Jacobian calculations
+template<typename T>
+void dynamics(const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
+                     const Matrix<T,3,1>& ba, const Matrix<T,3,1>& bg, const T& cd,
+                     const Matrix<T,3,1>& acc, const Matrix<T,3,1>& omega,
+                     const Matrix<T,3,1>& na, const Matrix<T,3,1>& ng,
+                     Matrix<T,DELTA_STATE_SIZE,1>& dx)
 {
   // Constants
   static Matrix<T,3,3> E3(common::e3.cast<T>() * common::e3.transpose().cast<T>());
@@ -56,22 +88,124 @@ void state_dynamics(const Matrix<T,3,1>& p, const Matrix<T,3,1>& v, const common
   // Pack output
   dx.setZero();
   dx.template segment<3>(DPX) = q.inv().rot(v);
-  dx.template segment<3>(DVX) = E3 * (acc - ba) + g * q.rot(e3) - cd * IE3 * v.cwiseProduct(v) - (omega - bg).cross(v);
-  dx.template segment<3>(DQX) = omega - bg;
+  dx.template segment<3>(DVX) = E3 * (acc - ba - na) + g * q.rot(e3) - cd * IE3 * v.cwiseProduct(v) - (omega - bg - ng).cross(v);
+  dx.template segment<3>(DQX) = omega - bg - ng;
 }
 
 
-// Derivative of q + delta w.r.t. delta
-template<typename T>
-Matrix<T,4,3> dqpd_dd(const Vector4d& q)
+// Struct for calculation of Jacobian of dynamics w.r.t. the state
+struct StateDot
 {
-  Matrix<T,4,3> m;
-  m << -q(QX), -q(QY), -q(QZ),
-        q(QW), -q(QZ),  q(QY),
-        q(QZ),  q(QW), -q(QX),
-       -q(QY),  q(QX),  q(QW);
-  m *= 0.5;
-  return m;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  StateDot(const Vector3d& _acc, const Vector3d& _omega)
+    : acc(_acc), omega(_omega) {}
+
+  template <typename T>
+  bool operator()(const T* const x, T* residual) const
+  {
+    // Constants
+    static const Matrix<T,3,1> z3(T(0), T(0), T(0));
+
+    // Map states
+    Map<const Matrix<T,3,1>> v(x+VX);
+    const common::Quaternion<T> q(x+QW);
+    Map<const Matrix<T,3,1>> ba(x+AX);
+    Map<const Matrix<T,3,1>> bg(x+GX);
+
+    // Compute output
+    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
+    dynamics<T>(v, q, ba, bg, x[CD], acc.cast<T>(), omega.cast<T>(), z3, z3, dx);
+    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
+    dx_ = dx;
+    return true;
+  }
+
+private:
+
+  const Vector3d acc, omega;
+
+};
+
+
+// Struct for calculation of Jacobian of dynamics w.r.t. the input noise
+struct StateDot2
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  StateDot2(const State& _x, const Vector3d& _acc, const Vector3d& _omega)
+    : x(_x), acc(_acc), omega(_omega) {}
+
+  template <typename T>
+  bool operator()(const T* const noise, T* residual) const
+  {
+    // Containers
+    static Matrix<T,3,1> v, ba, bg;
+
+    // Copy states for easy reading
+    v = x.segment<3>(VX).cast<T>();
+    common::Quaternion<T> q(x.segment<4>(QW).cast<T>());
+    ba = x.segment<3>(AX).cast<T>();
+    bg = x.segment<3>(GX).cast<T>();
+
+    // Map noise
+    Map<const Matrix<T,3,1>> na(noise);
+    Map<const Matrix<T,3,1>> ng(noise+3);
+
+    // Compute output
+    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
+    dynamics<T>(v, q, ba, bg, T(x(CD)), acc.cast<T>(), omega.cast<T>(), na, ng, dx);
+    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
+    dx_ = dx;
+    return true;
+  }
+
+private:
+
+  const State x;
+  const Vector3d acc, omega;
+
+};
+
+
+// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. minimal state
+template<typename T>
+Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> F(const Matrix<T,STATE_SIZE,1>& x,
+                                              const Matrix<T,3,1>& acc,
+                                              const Matrix<T,3,1>& omega)
+{
+  // Calculate autodiff Jacobian
+  T const* x_ptr = x.data();
+  T const* const* x_ptr_ptr = &x_ptr;
+  Matrix<T,DELTA_STATE_SIZE,1> r;
+  Matrix<T,DELTA_STATE_SIZE,STATE_SIZE,RowMajor> J_autodiff;
+  T* J_autodiff_ptr_ptr[1];
+  J_autodiff_ptr_ptr[0] = J_autodiff.data();
+  ceres::AutoDiffCostFunction<StateDot, DELTA_STATE_SIZE, STATE_SIZE> cost_function(new StateDot(acc, omega));
+  cost_function.Evaluate(x_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
+
+  // Convert autodiff Jacobian to minimal Jacobian
+  return J_autodiff * dxpd_dd<T>(x);
+}
+
+
+// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. input noise
+template<typename T>
+Matrix<T,DELTA_STATE_SIZE,6> G(const Matrix<T,6,1>& n,
+                               const Matrix<T,STATE_SIZE,1>& x,
+                               const Matrix<T,3,1>& acc,
+                               const Matrix<T,3,1>& omega)
+{
+  // Calculate autodiff Jacobian
+  T const* n_ptr = n.data();
+  T const* const* n_ptr_ptr = &n_ptr;
+  Matrix<T,DELTA_STATE_SIZE,1> r;
+  Matrix<T,DELTA_STATE_SIZE,6,RowMajor> J_autodiff;
+  T* J_autodiff_ptr_ptr[1];
+  J_autodiff_ptr_ptr[0] = J_autodiff.data();
+  ceres::AutoDiffCostFunction<StateDot2, DELTA_STATE_SIZE, 6> cost_function(new StateDot2(x, acc, omega));
+  cost_function.Evaluate(n_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
+
+  // Convert autodiff Jacobian to minimal Jacobian
+  return J_autodiff;
 }
 
 
@@ -100,31 +234,6 @@ struct StatePlus
 };
 
 
-struct MocapFactor
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas)
-      : p_meas_(p_meas), q_meas_(q_meas) {}
-
-  template <typename T>
-  bool operator()(const T* const x, T* residuals) const
-  {
-    Map<const Matrix<T,3,1>> p(x+PX);
-    const common::Quaternion<T> q(x+QW);
-    Map<Matrix<T,6,1>> residuals_(residuals);
-    residuals_.template segment<3>(0) = p_meas_.cast<T>() - p;
-    residuals_.template segment<3>(3) = q_meas_.cast<T>() - q;
-    return true;
-  }
-
-private:
-
-  const Vector3d p_meas_;
-  const common::Quaterniond q_meas_;
-
-};
-
-
 struct PropagationFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -135,6 +244,9 @@ struct PropagationFactor
   template <typename T>
   bool operator()(const T* const x1, const T* const x2, T* residuals) const
   {
+    // Constants
+    static const Matrix<T,3,1> z3(T(0), T(0), T(0));
+
     // Copy previous state
     Matrix<T,3,1> p2hat(x1+PX);
     Matrix<T,3,1> v2hat(x1+VX);
@@ -153,7 +265,7 @@ struct PropagationFactor
     Matrix<T,DELTA_STATE_SIZE,1> dx;
     for (int i = 0; i < dts.size(); ++i)
     {
-      state_dynamics<T>(p2hat, v2hat, q2hat, ba2hat, bg2hat, x1[CD], accs[i].cast<T>(), gyros[i].cast<T>(), dx);
+      dynamics<T>(v2hat, q2hat, ba2hat, bg2hat, x1[CD], accs[i].cast<T>(), gyros[i].cast<T>(), z3, z3, dx);
       p2hat += dx.template segment<3>(DPX) * T(dts[i]);
       v2hat += dx.template segment<3>(DVX) * T(dts[i]);
       q2hat += dx.template segment<3>(DQX) * T(dts[i]);
@@ -175,6 +287,31 @@ private:
   const vector<double> dts;
   const vector<Vector3d> accs, gyros;
   const Matrix3d E3, IE3;
+
+};
+
+
+struct MocapFactor
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas)
+      : p_meas_(p_meas), q_meas_(q_meas) {}
+
+  template <typename T>
+  bool operator()(const T* const x, T* residuals) const
+  {
+    Map<const Matrix<T,3,1>> p(x+PX);
+    const common::Quaternion<T> q(x+QW);
+    Map<Matrix<T,6,1>> residuals_(residuals);
+    residuals_.template segment<3>(0) = p_meas_.cast<T>() - p;
+    residuals_.template segment<3>(3) = q_meas_.cast<T>() - q;
+    return true;
+  }
+
+private:
+
+  const Vector3d p_meas_;
+  const common::Quaterniond q_meas_;
 
 };
 
@@ -285,16 +422,7 @@ int main()
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
 
-  // Add Mocap residuals
-  for (int i = 0; i < N; ++i)
-  {
-    ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE>(
-      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data());
-  }
-
-  // Add IMU residuals
+  // Add IMU factors
   for (int i = 0; i < N-1; ++i)
   {
     // create vector of delta times and measurements from current to next node
@@ -316,7 +444,16 @@ int main()
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data());
   }
 
-  // Add drag residuals
+  // Add Mocap factors
+  for (int i = 0; i < N; ++i)
+  {
+    ceres::CostFunction* cost_function =
+      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE>(
+      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
+    problem.AddResidualBlock(cost_function, NULL, x[i].data());
+  }
+
+  // Add drag factors
   for (int i = 0; i < N; ++i)
   {
     for (int j = 0; j < acc.cols(); ++j)
@@ -344,6 +481,10 @@ int main()
   // Print solution and truth
   print_state("xf", x, print_start, print_end);
   print_state("xt", xt, print_start, print_end);
+
+  Matrix<double,6,1> n; n.setOnes();
+  cout << "\nF = \n" << F<double>(x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
+  cout << "\nG = \n" << G<double>(n, x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
 
   return 0;
 }
