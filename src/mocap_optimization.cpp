@@ -6,8 +6,8 @@
 using namespace std;
 using namespace Eigen;
 
-enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, AX, AY, AZ, GX, GY, GZ, STATE_SIZE};
-enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ, DELTA_STATE_SIZE};
+enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, AX, AY, AZ, GX, GY, GZ, CD, STATE_SIZE};
+enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ, DCD, DELTA_STATE_SIZE};
 typedef Matrix<double, STATE_SIZE, 1> State;
 typedef Matrix<double, DELTA_STATE_SIZE, 1> DeltaState;
 typedef vector<State,aligned_allocator<State>> state_vector;
@@ -27,7 +27,7 @@ void print_state(const string& name, const state_vector& v,
 
 
 // Logger to save initial, final, and true states for plotting in MATLAB
-void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t, state_vector states, const double& cd)
+void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t, state_vector states)
 {
   ofstream logger;
   logger.open(filename);
@@ -35,34 +35,10 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t, state
   {
     logger.write((char*)&t(i), sizeof(double));
     logger.write((char*)states[i].data(), states[i].rows() * sizeof(double));
-    logger.write((char*)&cd, sizeof(double));
   }
   logger.close();
   cout << "\nLogged " << filename << "\n\n";
 }
-
-
-// Local parameterization for Quaternions
-struct StatePlus
-{
-  template<typename T>
-  bool operator()(const T* x1, const T* delta, T* x2) const
-  {
-    Map<const Matrix<T,3,1>> p(x1+PX);
-    Map<const Matrix<T,3,1>> v(x1+VX);
-    const common::Quaternion<T> q(x1+QW);
-    Map<const Matrix<T,3,1>> ba(x1+AX);
-    Map<const Matrix<T,3,1>> bg(x1+GX);
-    Map<const Matrix<T,DELTA_STATE_SIZE,1>> delta_(delta);
-    Map<Matrix<T,STATE_SIZE,1>> x2_(x2);
-    x2_.template segment<3>(PX) = p + delta_.template segment<3>(DPX);
-    x2_.template segment<3>(VX) = v + delta_.template segment<3>(DVX);
-    x2_.template segment<4>(QW) = (q + Matrix<T,3,1>(delta_.template segment<3>(DQX))).toEigen();
-    x2_.template segment<3>(AX) = ba + delta_.template segment<3>(DAX);
-    x2_.template segment<3>(GX) = bg + delta_.template segment<3>(DGX);
-    return true;
-  }
-};
 
 
 template<typename T>
@@ -83,6 +59,45 @@ void state_dynamics(const Matrix<T,3,1>& p, const Matrix<T,3,1>& v, const common
   dx.template segment<3>(DVX) = E3 * (acc - ba) + g * q.rot(e3) - cd * IE3 * v.cwiseProduct(v) - (omega - bg).cross(v);
   dx.template segment<3>(DQX) = omega - bg;
 }
+
+
+// Derivative of q + delta w.r.t. delta
+template<typename T>
+Matrix<T,4,3> dqpd_dd(const Vector4d& q)
+{
+  Matrix<T,4,3> m;
+  m << -q(QX), -q(QY), -q(QZ),
+        q(QW), -q(QZ),  q(QY),
+        q(QZ),  q(QW), -q(QX),
+       -q(QY),  q(QX),  q(QW);
+  m *= 0.5;
+  return m;
+}
+
+
+// Local parameterization for Quaternions
+struct StatePlus
+{
+  template<typename T>
+  bool operator()(const T* x1, const T* delta, T* x2) const
+  {
+    Map<const Matrix<T,3,1>> p(x1+PX);
+    Map<const Matrix<T,3,1>> v(x1+VX);
+    const common::Quaternion<T> q(x1+QW);
+    Map<const Matrix<T,3,1>> ba(x1+AX);
+    Map<const Matrix<T,3,1>> bg(x1+GX);
+    Map<const Matrix<T,1,1>> cd(x1+CD);
+    Map<const Matrix<T,DELTA_STATE_SIZE,1>> delta_(delta);
+    Map<Matrix<T,STATE_SIZE,1>> x2_(x2);
+    x2_.template segment<3>(PX) = p + delta_.template segment<3>(DPX);
+    x2_.template segment<3>(VX) = v + delta_.template segment<3>(DVX);
+    x2_.template segment<4>(QW) = (q + Matrix<T,3,1>(delta_.template segment<3>(DQX))).toEigen();
+    x2_.template segment<3>(AX) = ba + delta_.template segment<3>(DAX);
+    x2_.template segment<3>(GX) = bg + delta_.template segment<3>(DGX);
+    x2_.template segment<1>(CD) = cd + delta_.template segment<1>(DCD);
+    return true;
+  }
+};
 
 
 struct MocapFactor
@@ -118,7 +133,7 @@ struct PropagationFactor
         IE3(common::I_3x3 - common::e3 * common::e3.transpose()) {}
 
   template <typename T>
-  bool operator()(const T* const x1, const T* const x2, const T* const cd, T* residuals) const
+  bool operator()(const T* const x1, const T* const x2, T* residuals) const
   {
     // Copy previous state
     Matrix<T,3,1> p2hat(x1+PX);
@@ -138,7 +153,7 @@ struct PropagationFactor
     Matrix<T,DELTA_STATE_SIZE,1> dx;
     for (int i = 0; i < dts.size(); ++i)
     {
-      state_dynamics<T>(p2hat, v2hat, q2hat, ba2hat, bg2hat, cd[0], accs[i].cast<T>(), gyros[i].cast<T>(), dx);
+      state_dynamics<T>(p2hat, v2hat, q2hat, ba2hat, bg2hat, x1[CD], accs[i].cast<T>(), gyros[i].cast<T>(), dx);
       p2hat += dx.template segment<3>(DPX) * T(dts[i]);
       v2hat += dx.template segment<3>(DVX) * T(dts[i]);
       q2hat += dx.template segment<3>(DQX) * T(dts[i]);
@@ -151,6 +166,7 @@ struct PropagationFactor
     residuals_.template segment<3>(DQX) = q2 - q2hat;
     residuals_.template segment<3>(DAX) = ba2 - ba2hat;
     residuals_.template segment<3>(DGX) = bg2 - bg2hat;
+    residuals_(DCD) = x2[CD] - x1[CD];
     return true;
   }
 
@@ -170,13 +186,13 @@ struct DragFactor
       : acc_meas_(acc_meas), IE3(common::I_3x3 - common::e3 * common::e3.transpose()) {}
 
   template <typename T>
-  bool operator()(const T* const x, const T* const cd, T* residuals) const
+  bool operator()(const T* const x, T* residuals) const
   {
     const common::Quaternion<T> q(x+QW);
     Map<const Matrix<T,3,1>> v(x+VX);
     Map<const Matrix<T,3,1>> ba(x+AX);
     Map<Matrix<T,2,1>> residuals_(residuals);
-    residuals_ = common::I_2x3.cast<T>() * (acc_meas_.cast<T>() - (ba - cd[0] * IE3.cast<T>() * v.cwiseProduct(v)));
+    residuals_ = common::I_2x3.cast<T>() * (acc_meas_.cast<T>() - (ba - x[CD] * IE3.cast<T>() * v.cwiseProduct(v)));
     return true;
   }
 
@@ -212,11 +228,12 @@ int main()
       xt[j].segment<4>(QW) = truth.block<4,1>(10,i);
       xt[j].segment<3>(AX) = acc.block<3,1>(4,i);
       xt[j].segment<3>(GX) = gyro.block<3,1>(4,i);
+      xt[j](CD) = 0.1;
       ++j;
     }
     if (j > mocap.cols()-1) break;
   }
-  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, 0.1);
+  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt);
 
   // Parameters
   const int N = mocap.cols();
@@ -232,6 +249,7 @@ int main()
     x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
     x[i].segment<3>(AX) = xt[i].segment<3>(AX);//Vector3d(0,0,0);//acc.block<3,1>(4,0); // TODO: Initialize biases assuming constant between mocap measurements
     x[i].segment<3>(GX) = xt[i].segment<3>(GX);//Vector3d(0,0,0);//gyro.block<3,1>(4,0);
+    x[i](CD) = 0.1;
 
     // Compute velocity by numerical differentiation
     if (i == 0) // forward difference
@@ -248,12 +266,15 @@ int main()
     common::Quaterniond q_i2b(mocap.block<4,1>(4,i));
     x[i].segment<3>(VX) = q_i2b.rot(x[i].segment<3>(VX));
   }
-  double cd = 0.1; // drag coefficient
-  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd);
+  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x);
+
+  // Initial covariance
+  // Feed each factor a pointer to its needed covariance
+  // Let the PropagationFactor update the covariances each time
+  // its residual calculation is called
 
   // Print initial state
   print_state("x0", x, print_start, print_end);
-  cout << "cd0 = " << cd << "\n\n";
 
   // Build optimization problem with Ceres-Solver
   ceres::Problem problem;
@@ -263,8 +284,6 @@ int main()
       new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
-  problem.AddParameterBlock(&cd, 1);
-//  problem.SetParameterBlockConstant(&cd);
 
   // Add Mocap residuals
   for (int i = 0; i < N; ++i)
@@ -292,9 +311,9 @@ int main()
       }
     }
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE, 1>(
+      new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE>(
       new PropagationFactor(dts, accs, gyros));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data(), &cd);
+    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data());
   }
 
   // Add drag residuals
@@ -303,9 +322,9 @@ int main()
     for (int j = 0; j < acc.cols(); ++j)
     {
       ceres::CostFunction* cost_function =
-        new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1>(
+        new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE>(
         new DragFactor(acc.block<3,1>(1,j)));
-      problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd);
+      problem.AddResidualBlock(cost_function, NULL, x[i].data());
       break;
     }
   }
@@ -320,13 +339,11 @@ int main()
   ceres::Solve(options, &problem, &summary);
   cout << summary.BriefReport() << "\n\n";
 
-  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd);
+  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x);
 
   // Print solution and truth
   print_state("xf", x, print_start, print_end);
-  cout << "cdf = " << cd << "\n\n";
   print_state("xt", xt, print_start, print_end);
-  cout << "cdt = " << 0.1 << endl;
 
   return 0;
 }
