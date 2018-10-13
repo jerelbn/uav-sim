@@ -10,7 +10,9 @@ enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, AX, AY, AZ, GX, GY, GZ, CD, STATE_
 enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ, DCD, DELTA_STATE_SIZE};
 typedef Matrix<double, STATE_SIZE, 1> State;
 typedef Matrix<double, DELTA_STATE_SIZE, 1> DeltaState;
+typedef Matrix<double, DELTA_STATE_SIZE, DELTA_STATE_SIZE> CovMatrix;
 typedef vector<State,aligned_allocator<State>> state_vector;
+typedef vector<CovMatrix,aligned_allocator<CovMatrix>> cov_vector;
 
 // Print vector of eigen vectors
 void print_state(const string& name, const state_vector& v,
@@ -168,7 +170,7 @@ private:
 
 // Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. minimal state
 template<typename T>
-Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> F(const Matrix<T,STATE_SIZE,1>& x,
+Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> getF(const Matrix<T,STATE_SIZE,1>& x,
                                               const Matrix<T,3,1>& acc,
                                               const Matrix<T,3,1>& omega)
 {
@@ -189,7 +191,7 @@ Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> F(const Matrix<T,STATE_SIZE,1>& x,
 
 // Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. input noise
 template<typename T>
-Matrix<T,DELTA_STATE_SIZE,6> G(const Matrix<T,6,1>& n,
+Matrix<T,DELTA_STATE_SIZE,6> getG(const Matrix<T,6,1>& n,
                                const Matrix<T,STATE_SIZE,1>& x,
                                const Matrix<T,3,1>& acc,
                                const Matrix<T,3,1>& omega)
@@ -237,9 +239,9 @@ struct StatePlus
 struct PropagationFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  PropagationFactor(const vector<double>& _dts, const vector<Vector3d>& _accs, const vector<Vector3d>& _gyros)
-      : dts(_dts), accs(_accs), gyros(_gyros), E3(common::e3 * common::e3.transpose()),
-        IE3(common::I_3x3 - common::e3 * common::e3.transpose()) {}
+  PropagationFactor(const vector<double>& _dts, const vector<Vector3d>& _accs,
+                    const vector<Vector3d>& _gyros, CovMatrix& _P)
+      : dts(_dts), accs(_accs), gyros(_gyros), P(_P) {}
 
   template <typename T>
   bool operator()(const T* const x1, const T* const x2, T* residuals) const
@@ -247,14 +249,14 @@ struct PropagationFactor
     // Constants
     static const Matrix<T,3,1> z3(T(0), T(0), T(0));
 
-    // Copy previous state
+    // Copy current state
     Matrix<T,3,1> p2hat(x1+PX);
     Matrix<T,3,1> v2hat(x1+VX);
     common::Quaternion<T> q2hat(x1+QW);
     Matrix<T,3,1> ba2hat(x1+AX);
     Matrix<T,3,1> bg2hat(x1+GX);
 
-    // Map current state
+    // Map next state
     Map<const Matrix<T,3,1>> p2(x2+PX);
     Map<const Matrix<T,3,1>> v2(x2+VX);
     const common::Quaternion<T> q2(x2+QW);
@@ -279,6 +281,10 @@ struct PropagationFactor
     residuals_.template segment<3>(DAX) = ba2 - ba2hat;
     residuals_.template segment<3>(DGX) = bg2 - bg2hat;
     residuals_(DCD) = x2[CD] - x1[CD];
+
+    // Weight residuals by information matrix
+//    residuals_ = LLT<CovMatrix>(P1.inverse()).matrixL().transpose() * residuals_;
+
     return true;
   }
 
@@ -286,7 +292,7 @@ private:
 
   const vector<double> dts;
   const vector<Vector3d> accs, gyros;
-  const Matrix3d E3, IE3;
+  const CovMatrix P;
 
 };
 
@@ -376,6 +382,13 @@ int main()
   const int N = mocap.cols();
   const int print_start = mocap.cols()-5;
   const int print_end = mocap.cols();
+  Matrix<double,6,6> Qu;
+  Qu << 2.5e-5, 0, 0, 0, 0, 0,
+        0, 2.5e-5, 0, 0, 0, 0,
+        0, 0, 2.5e-5, 0, 0, 0,
+        0, 0, 0,   1e-6, 0, 0,
+        0, 0, 0, 0,   1e-6, 0,
+        0, 0, 0, 0, 0,   1e-6;
 
   // Initialize the states with mocap
   state_vector x(N);
@@ -384,9 +397,9 @@ int main()
     // Mocap for position/attitude
     x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
     x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
-    x[i].segment<3>(AX) = xt[i].segment<3>(AX);//Vector3d(0,0,0);//acc.block<3,1>(4,0); // TODO: Initialize biases assuming constant between mocap measurements
-    x[i].segment<3>(GX) = xt[i].segment<3>(GX);//Vector3d(0,0,0);//gyro.block<3,1>(4,0);
-    x[i](CD) = 0.1;
+    x[i].segment<3>(AX) = Vector3d(0,0,0);//acc.block<3,1>(4,0); // TODO: Initialize biases assuming constant between mocap measurements
+    x[i].segment<3>(GX) = Vector3d(0,0,0);//gyro.block<3,1>(4,0);
+    x[i](CD) = 0.2;
 
     // Compute velocity by numerical differentiation
     if (i == 0) // forward difference
@@ -405,10 +418,39 @@ int main()
   }
   log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x);
 
-  // Initial covariance
-  // Feed each factor a pointer to its needed covariance
-  // Let the PropagationFactor update the covariances each time
-  // its residual calculation is called
+  // Initialize covariance of each state
+  Matrix<double,DELTA_STATE_SIZE,1> cov0_vec;
+  cov0_vec << 0.0001, 0.0001, 0.0001, // POS
+              0.5, 0.5, 0.5, // VEL
+              0.0001, 0.0001, 0.0001, // ATT
+              0.2, 0.2, 0.2, // BIAS ACC
+              0.1, 0.1, 0.1, // BIAS GYRO
+              0.2; // DRAG
+  cov_vector P(N);
+  P[0] = cov0_vec.asDiagonal();
+  j = 0;
+  Matrix<double,6,1> n; n.setOnes();
+  CovMatrix I; I.setIdentity();
+  for (int i = 0; i < N-1; ++i)
+  {
+    double dt = mocap(0,i+1) - mocap(0,i);
+    Vector3d acc_, gyro_;
+    for (int j = 0; j < acc.cols(); ++j)
+    {
+      // Accelerometer and gyro usually run on same time steps in an IMU
+      if (acc(0,j) == mocap(0,i) && gyro(0,j) == mocap(0,i))
+      {
+        acc_ = acc.block<3,1>(1,j);
+        gyro_ = gyro.block<3,1>(1,j);
+        break;
+      }
+    }
+    CovMatrix F = getF<double>(x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i));
+    Matrix<double,DELTA_STATE_SIZE,6> G = getG<double>(n, x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i));
+    CovMatrix A = I + F*dt + F*F*dt*dt + F*F*F*dt*dt*dt;
+    Matrix<double,DELTA_STATE_SIZE,6> B = (dt*(I + F*dt/2.0 + F*F*dt*dt/3.0 + F*F*F*dt*dt*dt/4.0))*G;
+    P[i+1] = A * P[i] * A.transpose() + B * Qu * B.transpose();
+  }
 
   // Print initial state
   print_state("x0", x, print_start, print_end);
@@ -440,7 +482,7 @@ int main()
     }
     ceres::CostFunction* cost_function =
       new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE>(
-      new PropagationFactor(dts, accs, gyros));
+      new PropagationFactor(dts, accs, gyros, P[i]));
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data());
   }
 
@@ -458,13 +500,21 @@ int main()
   {
     for (int j = 0; j < acc.cols(); ++j)
     {
-      ceres::CostFunction* cost_function =
-        new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE>(
-        new DragFactor(acc.block<3,1>(1,j)));
-      problem.AddResidualBlock(cost_function, NULL, x[i].data());
-      break;
+      if (mocap(0,i) == acc(0,j))
+      {
+        ceres::CostFunction* cost_function =
+          new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE>(
+          new DragFactor(acc.block<3,1>(1,j)));
+        problem.AddResidualBlock(cost_function, NULL, x[i].data());
+        break;
+      }
     }
   }
+
+  // Covariance - need the covariance to propagate all the way through during each step of optimization
+  // - can save covariance of each state in factor struct
+  // - probably need to put ceres::Solve in a loop where it takes one step, then updates
+  //   covariance in each factor
 
   // Solve for the optimal rotation and translation direciton
   ceres::Solver::Options options;
@@ -478,13 +528,13 @@ int main()
 
   log_data("../logs/mocap_opt_final.bin", mocap.row(0), x);
 
-  // Print solution and truth
-  print_state("xf", x, print_start, print_end);
-  print_state("xt", xt, print_start, print_end);
+//  // Print solution and truth
+//  print_state("xf", x, print_start, print_end);
+//  print_state("xt", xt, print_start, print_end);
 
-  Matrix<double,6,1> n; n.setOnes();
-  cout << "\nF = \n" << F<double>(x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
-  cout << "\nG = \n" << G<double>(n, x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
+//  cout << "\nF = \n" << getF<double>(x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
+//  cout << "\nG = \n" << getG<double>(n, x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
+//  cout << "\nP[N] = \n" << P[N-1] << endl;
 
   return 0;
 }
