@@ -26,8 +26,8 @@ throttle_eq: 0.5
 mass: 1.0
 max_thrust: 19.6133
 inertia: [0.02, 0.02, 0.04]
-linear_drag: [0.1, 0.1, 0.0]
-angular_drag: [0.0, 0.0, 0.0]
+linear_drag: [0.1, 0.1, 0.001]
+angular_drag: [0.001, 0.001, 0.001]
 
 Kp: [1, 1, 1]
 Kd: [0.0, 0.0, 0.0]
