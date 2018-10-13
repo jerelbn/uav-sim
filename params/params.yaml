@@ -26,8 +26,8 @@ throttle_eq: 0.5
 mass: 1.0
 max_thrust: 19.6133
 inertia: [0.02, 0.02, 0.04]
-linear_drag: [0.1, 0.1, 0.01]
-angular_drag: [0.001, 0.001, 0.001]
+linear_drag: [0.1, 0.1, 0.0]
+angular_drag: [0.0, 0.0, 0.0]
 
 Kp: [1, 1, 1]
 Kd: [0.0, 0.0, 0.0]
@@ -127,7 +127,7 @@ q_bc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
 
 ## Motion Capture
 mocap_update_rate: 50
-mocap_noise_stdev: 0.01
+mocap_noise_stdev: 0.001
 p_bm: [0, 0, 0] # translation from body to mocap_body in body frame
 q_bm: [1, 0, 0, 0] # rotation from body to mocap_body
 
@@ -151,9 +151,9 @@ P0_diag: [0.001, 0.001, 0.001, # POS
           0.1, 0.1, 0.1, # OMEGA
           0.2, 0.2, 0.2] # ACC
 
-Qx_diag: [0.0, 0.0, 0.0, # POS
+Qx_diag: [0.001, 0.001, 0.001, # POS
           0.0, 0.0, 0.0, # ATT
-          0.0, 0.0, 0.0, # VEL
+          0.0001, 0.0001, 0.0001, # VEL
           0.000000000016, 0.000000000016, 0.000000000016, # OMEGA
           0.0000000016, 0.0000000016, 0.0000000016] # ACC
 

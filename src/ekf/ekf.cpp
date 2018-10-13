@@ -486,6 +486,9 @@ void EKF::optimizePose(common::Quaternion<double>& q, common::Quaternion<double>
     for (int j = 0; j < N; ++j)
       se(r(j), e1[j], e2[j], Rtx);
 
+    // Stop if error is small enough
+    if (r.topRows(N).sum() < 1e-6) break;
+
     // Jacobian of residual errors
     for (int j = 0; j < N; ++j)
     {
@@ -554,6 +557,9 @@ void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
     for (int j = 0; j < N; ++j)
       se(r(j), e1[j], e2[j], Rtx);
 
+    // Stop if error is small enough
+    if (r.topRows(N).sum() < 1e-1) break;
+
     // Jacobian of residual errors
     for (int j = 0; j < N; ++j)
     {
@@ -579,9 +585,14 @@ void EKF::se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, 
 {
   static Eigen::Vector3d e1T_E, E_e2;
   double e1T_E_e2 = e1.transpose() * E * e2;
-  e1T_E = (e1.transpose() * E).transpose();
-  E_e2 = E * e2;
-  err = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+  if (e1T_E_e2 < 1e-6)
+    err = 0;
+  else
+  {
+    e1T_E = (e1.transpose() * E).transpose();
+    E_e2 = E * e2;
+    err = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+  }
 }
 
 
@@ -589,15 +600,20 @@ void EKF::se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, 
 void EKF::dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE)
 {
   static Eigen::Vector3d e1T_E, E_e2, e1T_dE, dE_e2;
-  e1T_E = (e1.transpose() * E).transpose();
-  E_e2 = E * e2;
-  e1T_dE = (e1.transpose() * dE).transpose();
-  dE_e2 = dE * e2;
-  double val1 = sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
-  double val2 = e1T_E(0) * e1T_dE(0) + e1T_E(1) * e1T_dE(1) + E_e2(0) * dE_e2(0) + E_e2(1) * dE_e2(1);
-  double e1T_dE_e2 = e1.transpose() * dE * e2;
   double e1T_E_e2 = e1.transpose() * E * e2;
-  derr = (e1T_dE_e2 * val1 - e1T_E_e2 * val2) / (val1 * val1);
+  if (e1T_E_e2 < 1e-6)
+    derr = 0;
+  else
+  {
+    e1T_E = (e1.transpose() * E).transpose();
+    E_e2 = E * e2;
+    e1T_dE = (e1.transpose() * dE).transpose();
+    dE_e2 = dE * e2;
+    double val1 = sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+    double val2 = e1T_E(0) * e1T_dE(0) + e1T_E(1) * e1T_dE(1) + E_e2(0) * dE_e2(0) + E_e2(1) * dE_e2(1);
+    double e1T_dE_e2 = e1.transpose() * dE * e2;
+    derr = (e1T_dE_e2 * val1 - e1T_E_e2 * val2) / (val1 * val1);
+  }
 }
 
 
