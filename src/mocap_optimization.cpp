@@ -30,7 +30,8 @@ void print_state(const string& name, const state_vector& v,
 
 // Logger to save initial, final, and true states for plotting in MATLAB
 void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
-              const state_vector& states, const double& cd)
+              const state_vector& states, const double& cd,
+              const Matrix<double,7,1>& T_bm)
 {
   ofstream logger;
   logger.open(filename);
@@ -39,6 +40,7 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
     logger.write((char*)&t(i), sizeof(double));
     logger.write((char*)states[i].data(), states[i].rows() * sizeof(double));
     logger.write((char*)&cd, sizeof(double));
+    logger.write((char*)T_bm.data(), T_bm.rows() * sizeof(double));
   }
   logger.close();
   cout << "\nLogged " << filename << "\n\n";
@@ -216,7 +218,7 @@ Matrix<T,DELTA_STATE_SIZE,6> getG(const Matrix<T,6,1>& n,
 }
 
 
-// Local parameterization for Quaternions
+// Local parameterization for the state
 struct StatePlus
 {
   template<typename T>
@@ -234,6 +236,23 @@ struct StatePlus
     x2_.template segment<4>(QW) = (q + Matrix<T,3,1>(delta_.template segment<3>(DQX))).toEigen();
     x2_.template segment<3>(AX) = ba + delta_.template segment<3>(DAX);
     x2_.template segment<3>(GX) = bg + delta_.template segment<3>(DGX);
+    return true;
+  }
+};
+
+
+// Local parameterization for poses
+struct PosePlus
+{
+  template<typename T>
+  bool operator()(const T* _x1, const T* _delta, T* _x2) const
+  {
+    const common::Transform<T> T_(_x1);
+    Map<const Matrix<T,6,1>> delta(_delta);
+    Map<Matrix<T,7,1>> x2(_x2);
+    common::Transform<T> T_2 = T_ + delta;
+    x2.template segment<3>(0) = T_2.p();
+    x2.template segment<4>(3) = T_2.q().toEigen();
     return true;
   }
 };
@@ -303,23 +322,23 @@ struct MocapFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas)
-      : p_meas_(p_meas), q_meas_(q_meas) {}
+      : T_meas_(p_meas, q_meas) {}
 
   template <typename T>
-  bool operator()(const T* const x, T* residuals) const
+  bool operator()(const T* const x, const T* const _T_bm, T* residuals) const
   {
     Map<const Matrix<T,3,1>> p(x+PX);
     const common::Quaternion<T> q(x+QW);
+    const common::Transform<T> T_bm(_T_bm);
+    common::Transform<T> T_hat(p + q.inv().rot(T_bm.p()), q * T_bm.q());
     Map<Matrix<T,6,1>> residuals_(residuals);
-    residuals_.template segment<3>(0) = p_meas_.cast<T>() - p;
-    residuals_.template segment<3>(3) = q_meas_.cast<T>() - q;
+    residuals_ = Matrix<T,6,1>(T_meas_.cast<T>() - T_hat);
     return true;
   }
 
 private:
 
-  const Vector3d p_meas_;
-  const common::Quaterniond q_meas_;
+  const common::Transformd T_meas_;
 
 };
 
@@ -377,7 +396,8 @@ int main()
     }
     if (j > mocap.cols()-1) break;
   }
-  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, 0.1);
+  common::Transformd T_bm_t(Vector3d(0.1, 0.1, 0.1),Vector4d(0.9928, 0.0447, 0.0547, 0.0971));
+  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, 0.1, T_bm_t.toEigen());
 
   // Parameters
   const int N = mocap.cols();
@@ -417,7 +437,8 @@ int main()
     x[i].segment<3>(VX) = q_i2b.rot(x[i].segment<3>(VX));
   }
   double cd = 0.2;
-  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd);
+  common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
+  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen());
 
   // Initialize covariance of each state
   Matrix<double,DELTA_STATE_SIZE,1> cov0_vec;
@@ -461,8 +482,12 @@ int main()
   // Add parameter blocks
   ceres::LocalParameterization *state_local_parameterization =
       new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
+  ceres::LocalParameterization *transform_local_parameterization =
+      new ceres::AutoDiffLocalParameterization<PosePlus,7,6>;
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
+  problem.AddParameterBlock(&cd, 1);
+  problem.AddParameterBlock(T_bm.data(), 7, transform_local_parameterization);
 
   // Add IMU factors
   for (int i = 0; i < N-1; ++i)
@@ -490,9 +515,9 @@ int main()
   for (int i = 0; i < N; ++i)
   {
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE>(
+      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7>(
       new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data());
+    problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data());
   }
 
   // Add drag factors
@@ -526,7 +551,7 @@ int main()
   ceres::Solve(options, &problem, &summary);
   cout << summary.BriefReport() << "\n\n";
 
-  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd);
+  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen());
 
 //  // Print solution and truth
 //  print_state("xf", x, print_start, print_end);

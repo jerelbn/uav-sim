@@ -6,7 +6,7 @@ f = 1; % Starts figure numbering
 plot_covariance = 1;
 
 %% Run Simulation
-% !cd ../build && ./uav_sim
+!cd ../build && ./uav_sim
 
 %% Read logs
 directory = '../logs/';

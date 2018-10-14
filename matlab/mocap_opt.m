@@ -3,6 +3,7 @@ clear
 format compact
 set(0,'DefaultFigureWindowStyle','docked')
 f = 1; % Starts figure numbering
+state_size = 1 + 16 + 1 + 7;
 
 %% Run Simulation
 % !cd ../build && ./uav_sim
@@ -14,17 +15,17 @@ directory = '../logs/';
 % Load truth
 file = fopen(strcat(directory,'mocap_opt_truth.bin'), 'r');
 truth = fread(file, 'double');
-truth = reshape(truth, 1 + 16 + 1, []);
+truth = reshape(truth, state_size, []);
 
 % Load initial estimate
 file = fopen(strcat(directory,'mocap_opt_initial.bin'), 'r');
 initial = fread(file, 'double');
-initial = reshape(initial, 1 + 16 + 1, []);
+initial = reshape(initial, state_size, []);
 
 % Load final estimate
 file = fopen(strcat(directory,'mocap_opt_final.bin'), 'r');
 final = fread(file, 'double');
-final = reshape(final, 1 + 16 + 1, []);
+final = reshape(final, state_size, []);
 
 %% Plot position states
 figure(f); clf; f=f+1;
@@ -113,6 +114,37 @@ titles = ["drag coeff"];
 idx = 17;
 for i=1:1
     subplot(1, 1, i); hold on;
+    title(titles(i));
+    plot(truth(1,:), truth(i + idx, :), 'linewidth', 1.3);
+    plot(initial(1,:), initial(i+idx,:), 'r-.');
+    plot(final(1,:), final(i + idx, :), 'g--');
+    if i == 1
+        legend('truth', 'initial', 'final')
+    end
+end
+
+%% Plot body to mocap pose
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'B2M Position', 'NumberTitle', 'off');
+titles = ["px", "py", "pz"];
+idx = 18;
+for i=1:3
+    subplot(3, 1, i); hold on;
+    title(titles(i));
+    plot(truth(1,:), truth(i + idx, :), 'linewidth', 1.3);
+    plot(initial(1,:), initial(i+idx,:), 'r-.');
+    plot(final(1,:), final(i + idx, :), 'g--');
+    if i == 1
+        legend('truth', 'initial', 'final')
+    end
+end
+
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'B2M Rotation', 'NumberTitle', 'off');
+titles = ["qw", "qx", "qy", "qz"];
+idx = 21;
+for i=1:4
+    subplot(4, 1, i); hold on;
     title(titles(i));
     plot(truth(1,:), truth(i + idx, :), 'linewidth', 1.3);
     plot(initial(1,:), initial(i+idx,:), 'r-.');

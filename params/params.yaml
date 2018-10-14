@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 30.0
+tf: 60.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -128,8 +128,8 @@ q_bc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
 ## Motion Capture
 mocap_update_rate: 50
 mocap_noise_stdev: 0.001
-p_bm: [0, 0, 0] # translation from body to mocap_body in body frame
-q_bm: [1, 0, 0, 0] # rotation from body to mocap_body
+p_bm: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
+q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 
 ## Depth
 ## Altimeter
