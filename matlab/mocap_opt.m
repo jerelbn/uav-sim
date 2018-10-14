@@ -3,7 +3,7 @@ clear
 format compact
 set(0,'DefaultFigureWindowStyle','docked')
 f = 1; % Starts figure numbering
-state_size = 1 + 16 + 1 + 7;
+state_size = 1 + 16 + 1 + 7 + 7;
 
 %% Run Simulation
 % !cd ../build && ./uav_sim
@@ -143,6 +143,37 @@ figure(f); clf; f=f+1;
 set(gcf, 'name', 'B2M Rotation', 'NumberTitle', 'off');
 titles = ["qw", "qx", "qy", "qz"];
 idx = 21;
+for i=1:4
+    subplot(4, 1, i); hold on;
+    title(titles(i));
+    plot(truth(1,:), truth(i + idx, :), 'linewidth', 1.3);
+    plot(initial(1,:), initial(i+idx,:), 'r-.');
+    plot(final(1,:), final(i + idx, :), 'g--');
+    if i == 1
+        legend('truth', 'initial', 'final')
+    end
+end
+
+%% Plot body to IMU pose
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'B2IMU Position', 'NumberTitle', 'off');
+titles = ["px", "py", "pz"];
+idx = 25;
+for i=1:3
+    subplot(3, 1, i); hold on;
+    title(titles(i));
+    plot(truth(1,:), truth(i + idx, :), 'linewidth', 1.3);
+    plot(initial(1,:), initial(i+idx,:), 'r-.');
+    plot(final(1,:), final(i + idx, :), 'g--');
+    if i == 1
+        legend('truth', 'initial', 'final')
+    end
+end
+
+figure(f); clf; f=f+1;
+set(gcf, 'name', 'B2IMU Rotation', 'NumberTitle', 'off');
+titles = ["qw", "qx", "qy", "qz"];
+idx = 28;
 for i=1:4
     subplot(4, 1, i); hold on;
     title(titles(i));
