@@ -454,7 +454,7 @@ int main()
   }
   double cd = 0.2;
   common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
-  common::Transformd T_bu(Vector3d(0.0, 0.0, 0.0),Vector4d(0.5993, 0.4900, 0.4007, 0.4900));
+  common::Transformd T_bu(Vector3d(0.0, 0.0, 0.0),Vector4d(0.8536, 0.3536, 0.1464, 0.3536));
   log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen());
 
   // Initialize covariance of each state
