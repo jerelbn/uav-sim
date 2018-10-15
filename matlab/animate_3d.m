@@ -43,7 +43,7 @@ function animate_3d(speed, env, truth, est, cmd, bicycle_state)
 end
 
 function handle = draw_body(iter, body_verts, state, handle)
-    R_I_b = R_from_q(state(5:8, iter));
+    R_I_b = R_from_q(state(11:14, iter));
     verts_I = (R_I_b' * body_verts' + state(2:4, iter))';
 
     % define all vertices
