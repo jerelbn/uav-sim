@@ -48,43 +48,14 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
 }
 
 
-//// Derivative of q + delta w.r.t. delta
-//template<typename T>
-//Matrix<T,4,3> dqpd_dd(const Matrix<T,4,1>& q)
-//{
-//  Matrix<T,4,3> m;
-//  m << -q(1), -q(2), -q(3),
-//        q(0), -q(3),  q(2),
-//        q(3),  q(0), -q(1),
-//       -q(2),  q(1),  q(0);
-//  m *= 0.5;
-//  return m;
-//}
-
-
-//// Derivative of state + state_delta w.r.t. state_delta
-//template<typename T>
-//Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dxpd_dd(const Matrix<T,STATE_SIZE,1>& x)
-//{
-//  Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dx;
-//  dx.setZero();
-//  dx.template block<3,3>(PX,DPX).setIdentity();
-//  dx.template block<3,3>(VX,DVX).setIdentity();
-//  dx.template block<4,3>(QW,DQX) = dqpd_dd<T>(x.template segment<4>(QW));
-//  dx.template block<3,3>(AX,DAX).setIdentity();
-//  dx.template block<3,3>(GX,DGX).setIdentity();
-//  return dx;
-//}
-
-
 // State dynamics including input noise for Jacobian calculations
 template<typename T>
 void dynamics(const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
-                     const Matrix<T,3,1>& ba, const Matrix<T,3,1>& bg, const T& cd,
-                     const common::Transform<T>& T_bu,
-                     const Matrix<T,3,1>& acc, const Matrix<T,3,1>& omega,
-                     const Matrix<T,3,1>& na, const Matrix<T,3,1>& ng,
-                     Matrix<T,DELTA_STATE_SIZE,1>& dx)
+              const Matrix<T,3,1>& ba, const Matrix<T,3,1>& bg, const T& cd,
+              const common::Transform<T>& T_bu,
+              const Matrix<T,3,1>& acc, const Matrix<T,3,1>& omega,
+              const Matrix<T,3,1>& na, const Matrix<T,3,1>& ng,
+              Matrix<T,DELTA_STATE_SIZE,1>& dx)
 {
   // Constants
   static Matrix<T,3,3> E3(common::e3.cast<T>() * common::e3.transpose().cast<T>());
@@ -106,124 +77,159 @@ void dynamics(const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
 }
 
 
-//// Struct for calculation of Jacobian of dynamics w.r.t. the state
-//struct StateDot
-//{
-//  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-//  StateDot(const double& _cd, const Vector3d& _acc, const Vector3d& _omega)
-//    : cd(_cd), acc(_acc), omega(_omega) {}
-
-//  template <typename T>
-//  bool operator()(const T* const x, T* residual) const
-//  {
-//    // Constants
-//    static const Matrix<T,3,1> z3(T(0), T(0), T(0));
-
-//    // Map states
-//    Map<const Matrix<T,3,1>> v(x+VX);
-//    const common::Quaternion<T> q(x+QW);
-//    Map<const Matrix<T,3,1>> ba(x+AX);
-//    Map<const Matrix<T,3,1>> bg(x+GX);
-
-//    // Compute output
-//    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
-//    dynamics<T>(v, q, ba, bg, T(cd), acc.cast<T>(), omega.cast<T>(), z3, z3, dx);
-//    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
-//    dx_ = dx;
-//    return true;
-//  }
-
-//private:
-
-//  const double cd;
-//  const Vector3d acc, omega;
-
-//};
+// Derivative of q + delta w.r.t. delta
+template<typename T>
+Matrix<T,4,3> dqpd_dd(const Matrix<T,4,1>& q)
+{
+  Matrix<T,4,3> m;
+  m << -q(1), -q(2), -q(3),
+        q(0), -q(3),  q(2),
+        q(3),  q(0), -q(1),
+       -q(2),  q(1),  q(0);
+  m *= 0.5;
+  return m;
+}
 
 
-//// Struct for calculation of Jacobian of dynamics w.r.t. the input noise
-//struct StateDot2
-//{
-//  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-//  StateDot2(const State& _x, const double& _cd, const Vector3d& _acc, const Vector3d& _omega)
-//    : x(_x), cd(_cd), acc(_acc), omega(_omega) {}
-
-//  template <typename T>
-//  bool operator()(const T* const noise, T* residual) const
-//  {
-//    // Containers
-//    static Matrix<T,3,1> v, ba, bg;
-
-//    // Copy states for easy reading
-//    v = x.segment<3>(VX).cast<T>();
-//    common::Quaternion<T> q(x.segment<4>(QW).cast<T>());
-//    ba = x.segment<3>(AX).cast<T>();
-//    bg = x.segment<3>(GX).cast<T>();
-
-//    // Map noise
-//    Map<const Matrix<T,3,1>> na(noise);
-//    Map<const Matrix<T,3,1>> ng(noise+3);
-
-//    // Compute output
-//    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
-//    dynamics<T>(v, q, ba, bg, T(cd), acc.cast<T>(), omega.cast<T>(), na, ng, dx);
-//    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
-//    dx_ = dx;
-//    return true;
-//  }
-
-//private:
-
-//  const double cd;
-//  const State x;
-//  const Vector3d acc, omega;
-
-//};
+// Derivative of state + state_delta w.r.t. state_delta
+template<typename T>
+Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dxpd_dd(const Matrix<T,STATE_SIZE,1>& x)
+{
+  Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dx;
+  dx.setZero();
+  dx.template block<3,3>(PX,DPX).setIdentity();
+  dx.template block<3,3>(VX,DVX).setIdentity();
+  dx.template block<4,3>(QW,DQX) = dqpd_dd<T>(x.template segment<4>(QW));
+  dx.template block<3,3>(AX,DAX).setIdentity();
+  dx.template block<3,3>(GX,DGX).setIdentity();
+  return dx;
+}
 
 
-//// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. minimal state
-//template<typename T>
-//Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> getF(const Matrix<T,STATE_SIZE,1>& x,
-//                                                 const double& cd,
-//                                                 const Matrix<T,3,1>& acc,
-//                                                 const Matrix<T,3,1>& omega)
-//{
-//  // Calculate autodiff Jacobian
-//  T const* x_ptr = x.data();
-//  T const* const* x_ptr_ptr = &x_ptr;
-//  Matrix<T,DELTA_STATE_SIZE,1> r;
-//  Matrix<T,DELTA_STATE_SIZE,STATE_SIZE,RowMajor> J_autodiff;
-//  T* J_autodiff_ptr_ptr[1];
-//  J_autodiff_ptr_ptr[0] = J_autodiff.data();
-//  ceres::AutoDiffCostFunction<StateDot, DELTA_STATE_SIZE, STATE_SIZE> cost_function(new StateDot(cd, acc, omega));
-//  cost_function.Evaluate(x_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
+// Struct for calculation of Jacobian of dynamics w.r.t. the state
+struct StateDot
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  StateDot(const Vector3d& _acc, const Vector3d& _omega,
+           const double& _cd, const common::Transformd& _T_bu)
+    : acc(_acc), omega(_omega), cd(_cd), T_bu(_T_bu) {}
 
-//  // Convert autodiff Jacobian to minimal Jacobian
-//  return J_autodiff * dxpd_dd<T>(x);
-//}
+  template <typename T>
+  bool operator()(const T* const x, T* residual) const
+  {
+    // Constants
+    static const Matrix<T,3,1> z3(T(0), T(0), T(0));
+
+    // Map states
+    Map<const Matrix<T,3,1>> v(x+VX);
+    const common::Quaternion<T> q(x+QW);
+    Map<const Matrix<T,3,1>> ba(x+AX);
+    Map<const Matrix<T,3,1>> bg(x+GX);
+
+    // Compute output
+    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
+    dynamics<T>(v, q, ba, bg, T(cd), T_bu.cast<T>(), acc.cast<T>(), omega.cast<T>(), z3, z3, dx);
+    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
+    dx_ = dx;
+    return true;
+  }
+
+private:
+
+  const double cd;
+  const Vector3d acc, omega;
+  const common::Transformd T_bu;
+
+};
 
 
-//// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. input noise
-//template<typename T>
-//Matrix<T,DELTA_STATE_SIZE,6> getG(const Matrix<T,6,1>& n,
-//                                  const Matrix<T,STATE_SIZE,1>& x,
-//                                  const double& cd,
-//                                  const Matrix<T,3,1>& acc,
-//                                  const Matrix<T,3,1>& omega)
-//{
-//  // Calculate autodiff Jacobian
-//  T const* n_ptr = n.data();
-//  T const* const* n_ptr_ptr = &n_ptr;
-//  Matrix<T,DELTA_STATE_SIZE,1> r;
-//  Matrix<T,DELTA_STATE_SIZE,6,RowMajor> J_autodiff;
-//  T* J_autodiff_ptr_ptr[1];
-//  J_autodiff_ptr_ptr[0] = J_autodiff.data();
-//  ceres::AutoDiffCostFunction<StateDot2, DELTA_STATE_SIZE, 6> cost_function(new StateDot2(x, cd, acc, omega));
-//  cost_function.Evaluate(n_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
+// Struct for calculation of Jacobian of dynamics w.r.t. the input noise
+struct StateDot2
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  StateDot2(const State& _x, const Vector3d& _acc, const Vector3d& _omega,
+            const double& _cd, const common::Transformd& _T_bu)
+    : x(_x), cd(_cd), acc(_acc), omega(_omega), T_bu(_T_bu) {}
 
-//  // Convert autodiff Jacobian to minimal Jacobian
-//  return J_autodiff;
-//}
+  template <typename T>
+  bool operator()(const T* const noise, T* residual) const
+  {
+    // Containers
+    static Matrix<T,3,1> v, ba, bg;
+
+    // Copy states for easy reading
+    v = x.segment<3>(VX).cast<T>();
+    common::Quaternion<T> q(x.segment<4>(QW).cast<T>());
+    ba = x.segment<3>(AX).cast<T>();
+    bg = x.segment<3>(GX).cast<T>();
+
+    // Map noise
+    Map<const Matrix<T,3,1>> na(noise);
+    Map<const Matrix<T,3,1>> ng(noise+3);
+
+    // Compute output
+    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
+    dynamics<T>(v, q, ba, bg, T(cd), T_bu.cast<T>(), acc.cast<T>(), omega.cast<T>(), na, ng, dx);
+    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
+    dx_ = dx;
+    return true;
+  }
+
+private:
+
+  const double cd;
+  const State x;
+  const Vector3d acc, omega;
+  const common::Transformd T_bu;
+
+};
+
+
+// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. minimal state
+template<typename T>
+Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> getF(const Matrix<T,STATE_SIZE,1>& x,
+                                                 const Matrix<T,3,1>& acc,
+                                                 const Matrix<T,3,1>& omega,
+                                                 const double& cd,
+                                                 const common::Transformd& T_bu)
+{
+  // Calculate autodiff Jacobian
+  T const* x_ptr = x.data();
+  T const* const* x_ptr_ptr = &x_ptr;
+  Matrix<T,DELTA_STATE_SIZE,1> r;
+  Matrix<T,DELTA_STATE_SIZE,STATE_SIZE,RowMajor> J_autodiff;
+  T* J_autodiff_ptr_ptr[1];
+  J_autodiff_ptr_ptr[0] = J_autodiff.data();
+  ceres::AutoDiffCostFunction<StateDot, DELTA_STATE_SIZE, STATE_SIZE> cost_function(new StateDot(acc, omega, cd, T_bu));
+  cost_function.Evaluate(x_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
+
+  // Convert autodiff Jacobian to minimal Jacobian
+  return J_autodiff * dxpd_dd<T>(x);
+}
+
+
+// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. input noise
+template<typename T>
+Matrix<T,DELTA_STATE_SIZE,6> getG(const Matrix<T,6,1>& n,
+                                  const Matrix<T,STATE_SIZE,1>& x,
+                                  const Matrix<T,3,1>& acc,
+                                  const Matrix<T,3,1>& omega,
+                                  const double& cd,
+                                  const common::Transformd& T_bu)
+{
+  // Calculate autodiff Jacobian
+  T const* n_ptr = n.data();
+  T const* const* n_ptr_ptr = &n_ptr;
+  Matrix<T,DELTA_STATE_SIZE,1> r;
+  Matrix<T,DELTA_STATE_SIZE,6,RowMajor> J_autodiff;
+  T* J_autodiff_ptr_ptr[1];
+  J_autodiff_ptr_ptr[0] = J_autodiff.data();
+  ceres::AutoDiffCostFunction<StateDot2, DELTA_STATE_SIZE, 6> cost_function(new StateDot2(x, acc, omega, cd, T_bu));
+  cost_function.Evaluate(n_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
+
+  // Convert autodiff Jacobian to minimal Jacobian
+  return J_autodiff;
+}
 
 
 // Local parameterization for the state
@@ -315,7 +321,7 @@ struct PropagationFactor
     residuals_.template segment<3>(DGX) = bg2 - bg2hat;
 
     // Weight residuals by information matrix
-//    residuals_ = LLT<CovMatrix>(P.inverse()).matrixL().transpose() * residuals_;
+    residuals_ = LLT<CovMatrix>(P.inverse()).matrixL().transpose() * residuals_;
 
     return true;
   }
@@ -332,8 +338,8 @@ private:
 struct MocapFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas)
-      : T_meas_(p_meas, q_meas) {}
+  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas, const Matrix<double,6,6>& _R)
+      : T_meas_(p_meas, q_meas), R(_R) {}
 
   template <typename T>
   bool operator()(const T* const x, const T* const _T_bm, T* residuals) const
@@ -344,12 +350,14 @@ struct MocapFactor
     common::Transform<T> T_hat(p + q.inv().rot(T_bm.p()), q * T_bm.q());
     Map<Matrix<T,6,1>> residuals_(residuals);
     residuals_ = Matrix<T,6,1>(T_meas_.cast<T>() - T_hat);
+    residuals_ = LLT<Matrix<double,6,6>>(R.inverse()).matrixL().transpose() * residuals_;
     return true;
   }
 
 private:
 
   const common::Transformd T_meas_;
+  const Matrix<double,6,6> R;
 
 };
 
@@ -357,8 +365,8 @@ private:
 struct DragFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  DragFactor(const Vector3d& _acc_meas, const Vector3d& _omega_meas)
-      : acc_meas(_acc_meas), omega_meas(_omega_meas) {}
+  DragFactor(const Vector3d& _acc_meas, const Vector3d& _omega_meas, const Matrix2d& _R_acc_xy)
+      : acc_meas(_acc_meas), omega_meas(_omega_meas), R_acc_xy(_R_acc_xy) {}
 
   template <typename T>
   bool operator()(const T* const x, const T* const cd, const T* const _T_bu, T* residuals) const
@@ -373,12 +381,14 @@ struct DragFactor
     Matrix<T,3,1> omega_b = T_bu.q().inv().rot(omega_meas - bg);
     residuals_ = common::I_2x3.cast<T>() * (T_bu.q().inv().rot(acc_meas.cast<T>() - ba) -
                  (omega_b.cross(omega_b.cross(T_bu.p())) - cd[0] * IE3 * v.cwiseProduct(v)));
+    residuals_ = LLT<Matrix2d>(R_acc_xy.inverse()).matrixL().transpose() * residuals_;
     return true;
   }
 
 private:
 
   const Vector3d acc_meas, omega_meas;
+  const Matrix2d R_acc_xy;
 
 };
 
@@ -426,6 +436,16 @@ int main()
         0, 0, 0,   1e-6, 0, 0,
         0, 0, 0, 0,   1e-6, 0,
         0, 0, 0, 0, 0,   1e-6;
+  Matrix<double,6,6> R_imu;
+  R_imu << 2.5e-3, 0, 0, 0, 0, 0,
+           0, 2.5e-3, 0, 0, 0, 0,
+           0, 0, 2.5e-3, 0, 0, 0,
+           0, 0, 0,   1e-4, 0, 0,
+           0, 0, 0, 0,   1e-4, 0,
+           0, 0, 0, 0, 0,   1e-4;
+  Matrix<double,6,6> R_mocap;
+  R_mocap.setIdentity();
+  R_mocap *= 1e-6;
 
   // Initialize the states with mocap
   state_vector x(N);
@@ -471,24 +491,24 @@ int main()
   CovMatrix I; I.setIdentity();
   for (int i = 0; i < N-1; ++i)
   {
-//    double dt = mocap(0,i+1) - mocap(0,i);
-//    Vector3d acc_, gyro_;
-//    for (int j = 0; j < acc.cols(); ++j)
-//    {
-//      // Accelerometer and gyro usually run on same time steps in an IMU
-//      if (acc(0,j) == mocap(0,i) && gyro(0,j) == mocap(0,i))
-//      {
-//        acc_ = acc.block<3,1>(1,j);
-//        gyro_ = gyro.block<3,1>(1,j);
-//        break;
-//      }
-//    }
-//    CovMatrix F = getF<double>(x[j], cd, acc.block<3,1>(1,i), gyro.block<3,1>(1,i));
-//    Matrix<double,DELTA_STATE_SIZE,6> G = getG<double>(n, x[j], cd, acc.block<3,1>(1,i), gyro.block<3,1>(1,i));
-//    CovMatrix A = I + F*dt + F*F*dt*dt + F*F*F*dt*dt*dt;
-//    Matrix<double,DELTA_STATE_SIZE,6> B = (dt*(I + F*dt/2.0 + F*F*dt*dt/3.0 + F*F*F*dt*dt*dt/4.0))*G;
-//    P[i+1] = A * P[i] * A.transpose() + B * Qu * B.transpose();
-    P[i+1] = I;
+    double dt = mocap(0,i+1) - mocap(0,i);
+    Vector3d acc_, gyro_;
+    for (int j = 0; j < acc.cols(); ++j)
+    {
+      // Accelerometer and gyro usually run on same time steps in an IMU
+      if (acc(0,j) == mocap(0,i) && gyro(0,j) == mocap(0,i))
+      {
+        acc_ = acc.block<3,1>(1,j);
+        gyro_ = gyro.block<3,1>(1,j);
+        break;
+      }
+    }
+    CovMatrix F = getF<double>(x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
+    Matrix<double,DELTA_STATE_SIZE,6> G = getG<double>(n, x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
+    CovMatrix A = I + F*dt + F*F*dt*dt/2.0 + F*F*F*dt*dt*dt/6.0;
+    Matrix<double,DELTA_STATE_SIZE,6> B = (dt*(I + F*dt/2.0 + F*F*dt*dt/6.0 + F*F*F*dt*dt*dt/24.0))*G;
+    P[i+1] = A * P[i] * A.transpose() + B * Qu * B.transpose();
+//    P[i+1] = I;
   }
 
 //  // Print initial state
@@ -535,7 +555,7 @@ int main()
   {
     ceres::CostFunction* cost_function =
       new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7>(
-      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i)));
+      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), R_mocap));
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data());
   }
 
@@ -548,23 +568,20 @@ int main()
       {
         ceres::CostFunction* cost_function =
           new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1, 7>(
-          new DragFactor(acc.block<3,1>(1,j),gyro.block<3,1>(1,j)));
+          new DragFactor(acc.block<3,1>(1,j),gyro.block<3,1>(1,j),R_imu.block<2,2>(0,0)));
         problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd, T_bu.data());
         break;
       }
     }
   }
 
-  // Covariance - need the covariance to propagate all the way through during each step of optimization
-  // - can save covariance of each state in factor struct
-  // - probably need to put ceres::Solve in a loop where it takes one step, then updates
-  //   covariance in each factor
-
-  // Solve for the optimal rotation and translation direciton
+  // Solve for the optimal rotation and translation direction
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
   options.max_num_iterations = 50;
+//  options.num_threads = 8;
+//  options.num_linear_solver_threads = 8;
   options.minimizer_progress_to_stdout = true;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
