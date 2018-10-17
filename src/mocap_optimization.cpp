@@ -321,7 +321,7 @@ struct PropagationFactor
     residuals_.template segment<3>(DGX) = bg2 - bg2hat;
 
     // Weight residuals by information matrix
-    residuals_ = LLT<CovMatrix>(P.inverse()).matrixL().transpose() * residuals_;
+//    residuals_ = LLT<CovMatrix>(P.inverse()).matrixL().transpose() * residuals_;
 
     return true;
   }
@@ -350,7 +350,7 @@ struct MocapFactor
     common::Transform<T> T_hat(p + q.inv().rot(T_bm.p()), q * T_bm.q());
     Map<Matrix<T,6,1>> residuals_(residuals);
     residuals_ = Matrix<T,6,1>(T_meas_.cast<T>() - T_hat);
-    residuals_ = LLT<Matrix<double,6,6>>(R.inverse()).matrixL().transpose() * residuals_;
+//    residuals_ = LLT<Matrix<double,6,6>>(R.inverse()).matrixL().transpose() * residuals_;
     return true;
   }
 
@@ -399,7 +399,7 @@ int main()
   // acc: [t,acc,bias,noise]
   // gyro: [t,gyro,bias,noise]
   // mocap: [t,pose,transform,noise]
-  // truth: [t,pos,vel,acc,att,avel,aacc]
+  // truth: [t,pos,vel,acc,att,avel,acc]
   MatrixXd acc = common::load_binary_to_matrix<double>("../logs/accel.bin", 10);
   MatrixXd gyro = common::load_binary_to_matrix<double>("../logs/gyro.bin", 10);
   MatrixXd mocap = common::load_binary_to_matrix<double>("../logs/mocap.bin", 21);
@@ -430,19 +430,12 @@ int main()
   const int print_start = mocap.cols()-5;
   const int print_end = mocap.cols();
   Matrix<double,6,6> Qu;
-  Qu << 2.5e-5, 0, 0, 0, 0, 0,
-        0, 2.5e-5, 0, 0, 0, 0,
-        0, 0, 2.5e-5, 0, 0, 0,
-        0, 0, 0,   1e-6, 0, 0,
-        0, 0, 0, 0,   1e-6, 0,
-        0, 0, 0, 0, 0,   1e-6;
-  Matrix<double,6,6> R_imu;
-  R_imu << 2.5e-3, 0, 0, 0, 0, 0,
-           0, 2.5e-3, 0, 0, 0, 0,
-           0, 0, 2.5e-3, 0, 0, 0,
-           0, 0, 0,   1e-4, 0, 0,
-           0, 0, 0, 0,   1e-4, 0,
-           0, 0, 0, 0, 0,   1e-4;
+  Qu << 2.5e-1, 0, 0, 0, 0, 0,
+        0, 2.5e-1, 0, 0, 0, 0,
+        0, 0, 2.5e-1, 0, 0, 0,
+        0, 0, 0,   1e-2, 0, 0,
+        0, 0, 0, 0,   1e-2, 0,
+        0, 0, 0, 0, 0,   1e-2;
   Matrix<double,6,6> R_mocap;
   R_mocap.setIdentity();
   R_mocap *= 1e-6;
@@ -479,9 +472,9 @@ int main()
 
   // Initialize covariance of each state
   Matrix<double,DELTA_STATE_SIZE,1> cov0_vec;
-  cov0_vec << 0.0001, 0.0001, 0.0001, // POS
+  cov0_vec << 0.01, 0.01, 0.01, // POS
               0.5, 0.5, 0.5, // VEL
-              0.0001, 0.0001, 0.0001, // ATT
+              0.01, 0.01, 0.01, // ATT
               0.2, 0.2, 0.2, // BIAS ACC
               0.1, 0.1, 0.1; // BIAS GYRO
   cov_vector P(N);
@@ -559,29 +552,45 @@ int main()
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data());
   }
 
-  // Add drag factors
-  for (int i = 0; i < N; ++i)
-  {
-    for (int j = 0; j < acc.cols(); ++j)
-    {
-      if (mocap(0,i) == acc(0,j))
-      {
-        ceres::CostFunction* cost_function =
-          new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1, 7>(
-          new DragFactor(acc.block<3,1>(1,j),gyro.block<3,1>(1,j),R_imu.block<2,2>(0,0)));
-        problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd, T_bu.data());
-        break;
-      }
-    }
-  }
+//  // Add drag factors
+//  for (int i = 0; i < N; ++i)
+//  {
+//    for (int j = 0; j < acc.cols(); ++j)
+//    {
+//      if (mocap(0,i) == acc(0,j))
+//      {
+//        Vector3d acc_mean, gyro_mean;
+//        if (j < 4)
+//        {
+//          acc_mean = acc.block<3,5>(1,j).rowwise().mean();
+//          gyro_mean = gyro.block<3,5>(1,j).rowwise().mean();
+//        }
+//        else if (j > acc.cols()-4)
+//        {
+//          acc_mean = acc.block<3,5>(1,j-4).rowwise().mean();
+//          gyro_mean = gyro.block<3,5>(1,j-4).rowwise().mean();
+//        }
+//        else
+//        {
+//          acc_mean = acc.block<3,9>(1,j-4).rowwise().mean();
+//          gyro_mean = gyro.block<3,9>(1,j-4).rowwise().mean();
+//        }
+//        ceres::CostFunction* cost_function =
+//          new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1, 7>(
+//          new DragFactor(acc_mean, gyro_mean, Qu.block<2,2>(0,0)));
+//        problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd, T_bu.data());
+//        break;
+//      }
+//    }
+//  }
 
   // Solve for the optimal rotation and translation direction
   ceres::Solver::Options options;
-  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+  options.linear_solver_type = ceres::SPARSE_SCHUR;
   options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
   options.max_num_iterations = 50;
-//  options.num_threads = 8;
-//  options.num_linear_solver_threads = 8;
+  options.num_threads = 8;
+  options.num_linear_solver_threads = 8;
   options.minimizer_progress_to_stdout = true;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
