@@ -5,7 +5,7 @@ project(uav_sim)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
-set(CMAKE_CXX_FLAGS "-std=c++14 -mavx -mfma")
+set(CMAKE_CXX_FLAGS "-std=c++14 -mavx2 -mfma -fopenmp")
 
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -33,11 +33,11 @@ add_executable(uav_sim
 )
 target_link_libraries(uav_sim common_cpp ${YAML_CPP_LIBRARIES} ${CERES_LIBRARIES} stdc++fs)
 
-add_executable(jacobians_test
-  src/ekf/jacobians_test.cpp
-  src/ekf/ekf.cpp
-)
-target_link_libraries(jacobians_test common_cpp ${YAML_CPP_LIBRARIES} ${CERES_LIBRARIES} stdc++fs)
+#add_executable(jacobians_test
+#  src/ekf/jacobians_test.cpp
+#  src/ekf/ekf.cpp
+#)
+#target_link_libraries(jacobians_test common_cpp ${YAML_CPP_LIBRARIES} ${CERES_LIBRARIES} stdc++fs)
 
 add_executable(mocap_opt
   src/mocap_optimization.cpp

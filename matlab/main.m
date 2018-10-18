@@ -3,7 +3,7 @@ clear
 format compact
 set(0,'DefaultFigureWindowStyle','docked')
 f = 1; % Starts figure numbering
-plot_covariance = 1;
+plot_covariance = 0;
 
 %% Run Simulation
 !cd ../build && ./uav_sim
@@ -31,7 +31,7 @@ plot_states;
 % plot_bicycle_commands;
 
 %% Plot sensor measurements
-plot_imu;
+% plot_imu;
 % plot_measurements;
 
 %% Plot 3D animation
