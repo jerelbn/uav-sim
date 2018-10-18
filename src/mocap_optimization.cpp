@@ -31,7 +31,8 @@ void print_state(const string& name, const state_vector& v,
 // Logger to save initial, final, and true states for plotting in MATLAB
 void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
               const state_vector& states, const double& cd,
-              const Matrix<double,7,1>& T_bm, const Matrix<double,7,1>& T_bu)
+              const Matrix<double,7,1>& T_bm, const Matrix<double,7,1>& T_bu,
+              const double& tm)
 {
   ofstream logger;
   logger.open(filename);
@@ -42,6 +43,7 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
     logger.write((char*)&cd, sizeof(double));
     logger.write((char*)T_bm.data(), T_bm.rows() * sizeof(double));
     logger.write((char*)T_bu.data(), T_bu.rows() * sizeof(double));
+    logger.write((char*)&tm, sizeof(double));
   }
   logger.close();
   cout << "\nLogged " << filename << "\n\n";
@@ -338,18 +340,24 @@ private:
 struct MocapFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas, const Matrix<double,6,6>& _R)
-      : T_meas_(p_meas, q_meas), R(_R) {}
+  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas, const Vector3d& _V, const Vector3d& _Omega, const Matrix<double,6,6>& _R)
+      : T_meas_(p_meas, q_meas), V(_V), Omega(_Omega), R(_R) {}
 
   template <typename T>
-  bool operator()(const T* const x, const T* const _T_bm, T* residuals) const
+  bool operator()(const T* const x, const T* const _T_bm, const T* const tm, T* residuals) const
   {
     Map<const Matrix<T,3,1>> p(x+PX);
     const common::Quaternion<T> q(x+QW);
     const common::Transform<T> T_bm(_T_bm);
     common::Transform<T> T_hat(p + q.inv().rot(T_bm.p()), q * T_bm.q());
     Map<Matrix<T,6,1>> residuals_(residuals);
-    residuals_ = Matrix<T,6,1>(T_meas_.cast<T>() - T_hat);
+
+    Matrix<T,6,1> delta;
+    delta.template segment<3>(0) = T_bm.q().rot(V.cast<T>()) * tm[0];
+    delta.template segment<3>(3) = Omega.cast<T>() * tm[0];
+    common::Transform<T> T_meas_tm = T_meas_.cast<T>() + delta;
+
+    residuals_ = Matrix<T,6,1>(T_meas_tm - T_hat);
 //    residuals_ = LLT<Matrix<double,6,6>>(R.inverse()).matrixL().transpose() * residuals_;
     return true;
   }
@@ -358,6 +366,7 @@ private:
 
   const common::Transformd T_meas_;
   const Matrix<double,6,6> R;
+  const Vector3d V, Omega;
 
 };
 
@@ -421,9 +430,15 @@ int main()
     }
     if (j > mocap.cols()-1) break;
   }
+  double cd_t = 0.1;
   common::Transformd T_bm_t(Vector3d(0.1, 0.1, 0.1),Vector4d(0.9928, 0.0447, 0.0547, 0.0971));
   common::Transformd T_bu_t(Vector3d(0.05, 0.01, 0.02),Vector4d(0.5, 0.5, 0.5, 0.5));
-  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, 0.1, T_bm_t.toEigen(), T_bu_t.toEigen());
+  double tm_t = 0.01; // Motion capture time offset from IMU
+  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, cd_t, T_bm_t.toEigen(), T_bu_t.toEigen(), tm_t);
+
+  // Corrupt mocap measurements time stamps
+  for (int i = 0; i < mocap.cols(); ++i)
+    mocap(0,i) += tm_t;
 
   // Parameters
   const int N = mocap.cols();
@@ -468,7 +483,8 @@ int main()
   double cd = 0.2;
   common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
   common::Transformd T_bu(Vector3d(0.0, 0.0, 0.0),Vector4d(0.8536, 0.3536, 0.1464, 0.3536));
-  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen());
+  double tm = 0.0;
+  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen(), tm);
 
   // Initialize covariance of each state
   Matrix<double,DELTA_STATE_SIZE,1> cov0_vec;
@@ -484,24 +500,24 @@ int main()
   CovMatrix I; I.setIdentity();
   for (int i = 0; i < N-1; ++i)
   {
-    double dt = mocap(0,i+1) - mocap(0,i);
-    Vector3d acc_, gyro_;
-    for (int j = 0; j < acc.cols(); ++j)
-    {
-      // Accelerometer and gyro usually run on same time steps in an IMU
-      if (acc(0,j) == mocap(0,i) && gyro(0,j) == mocap(0,i))
-      {
-        acc_ = acc.block<3,1>(1,j);
-        gyro_ = gyro.block<3,1>(1,j);
-        break;
-      }
-    }
-    CovMatrix F = getF<double>(x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
-    Matrix<double,DELTA_STATE_SIZE,6> G = getG<double>(n, x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
-    CovMatrix A = I + F*dt + F*F*dt*dt/2.0 + F*F*F*dt*dt*dt/6.0;
-    Matrix<double,DELTA_STATE_SIZE,6> B = (dt*(I + F*dt/2.0 + F*F*dt*dt/6.0 + F*F*F*dt*dt*dt/24.0))*G;
-    P[i+1] = A * P[i] * A.transpose() + B * Qu * B.transpose();
-//    P[i+1] = I;
+//    double dt = mocap(0,i+1) - mocap(0,i);
+//    Vector3d acc_, gyro_;
+//    for (int j = 0; j < acc.cols(); ++j)
+//    {
+//      // Accelerometer and gyro usually run on same time steps in an IMU
+//      if (acc(0,j) == mocap(0,i) && gyro(0,j) == mocap(0,i))
+//      {
+//        acc_ = acc.block<3,1>(1,j);
+//        gyro_ = gyro.block<3,1>(1,j);
+//        break;
+//      }
+//    }
+//    CovMatrix F = getF<double>(x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
+//    Matrix<double,DELTA_STATE_SIZE,6> G = getG<double>(n, x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
+//    CovMatrix A = I + F*dt + F*F*dt*dt/2.0 + F*F*F*dt*dt*dt/6.0;
+//    Matrix<double,DELTA_STATE_SIZE,6> B = (dt*(I + F*dt/2.0 + F*F*dt*dt/6.0 + F*F*F*dt*dt*dt/24.0))*G;
+//    P[i+1] = A * P[i] * A.transpose() + B * Qu * B.transpose();
+    P[i+1] = I;
   }
 
 //  // Print initial state
@@ -546,10 +562,32 @@ int main()
   // Add Mocap factors
   for (int i = 0; i < N; ++i)
   {
+    // Compute body linear/angular velocity from mocap measurements
+    Vector3d V, Omega;
+    if (i == 0)
+    {
+      double dt = mocap(0,i+1) - mocap(0,i);
+      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) / dt;
+      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i))) / dt;
+    }
+    else if (i == N-1)
+    {
+      double dt = mocap(0,i) - mocap(0,i-1);
+      V = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) / dt;
+      Omega = (common::Quaterniond(mocap.block<4,1>(4,i)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
+    }
+    else
+    {
+      double dt = mocap(0,i+1) - mocap(0,i-1);
+      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / dt;
+      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
+    }
+
+    // Add factor block
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7>(
-      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), R_mocap));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data());
+      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7, 1>(
+      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), V, Omega, R_mocap));
+    problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data(), &tm);
   }
 
 //  // Add drag factors
@@ -596,7 +634,7 @@ int main()
   ceres::Solve(options, &problem, &summary);
   cout << summary.BriefReport() << "\n\n";
 
-  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen());
+  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen(), tm);
 
 //  // Print solution and truth
 //  print_state("xf", x, print_start, print_end);
