@@ -171,7 +171,24 @@ void dynamics(const State<T> &x, const Matrix<T,NUM_INPUTS,1> &imu, const Matrix
 }
 
 
-//
+// Model for relative translation direction and rotation
+template<typename T>
+void rel_pose_model(const State<T> &x, const Matrix<T,3,1>& omega_sum, const T& dt,
+                    const common::Quaternion<T>& q_bc, const Matrix<T,3,1>& p_bc,
+                    common::Quaternion<T>& ht, common::Quaternion<T>& hq)
+{
+  // Compute translation direction model
+  static Matrix<T,3,1> pt, t, t_x_e3, at;
+  pt = -q_bc.rot(x.t.q().rot(x.t.p()) + p_bc);
+  t = pt / pt.norm();
+  t_x_e3 = t.cross(common::e3);
+  T tT_e3 = common::saturate<T>(t.dot(common::e3.cast<T>()), T(1.0), T(-1.0));
+  at = acos(tT_e3) * t_x_e3 / t_x_e3.norm();
+  ht = common::Quaternion<T>::exp(at);
+
+  // Compute rotation model
+  hq = q_bc.inv() * x.t.q().inv() * (x.t.q() + Matrix<T,3,1>(-omega_sum + x.bg * dt)) * q_bc;
+}
 
 
 // Derivative of q + delta w.r.t. delta
@@ -197,6 +214,30 @@ Matrix<T,7,6> dTpd_dd(const Matrix<T,7,1>& t)
   m.setZero();
   m.template block<3,3>(0,0) = T_.q().inv().R();
   m.template block<4,3>(3,3) = dqpd_dd(Matrix<T,4,1>(t.template segment<4>(3)));
+  return m;
+}
+
+
+// Derivative of qz + delta w.r.t. delta
+template<typename T>
+Matrix<T,4,2> dqzpd_dd(const Matrix<T,4,1>& q)
+{
+  // Unpacking and precalcs
+  T w = q(0);
+  T x = q(1);
+  T y = q(2);
+  T z = q(3);
+  T ww = w * w;
+  T xx = x * x;
+  T yy = y * y;
+  T zz = z * z;
+  T wxyz = ww + xx + yy + zz;
+
+  Matrix<T,4,2> m;
+  m << x * (0.5 - wxyz), y * (0.5 - wxyz),
+       w * (wxyz - 0.5),         -0.5 * z,
+                0.5 * z, w * (wxyz - 0.5),
+               -0.5 * y,          0.5 * x;
   return m;
 }
 
@@ -245,30 +286,33 @@ private:
 
 
 // Struct for calculation of Jacobian of the camera translation model w.r.t. the state
-struct TransModel
+struct RelPoseModel
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  TransModel(const Matrix<double,NUM_INPUTS,1>& _imu)
-    : imu(_imu) {}
+  RelPoseModel(const Vector3d& _omega_sum, const double& _dt,
+               const common::Quaterniond& _q_bc, const Vector3d& _p_bc)
+    : omega_sum(_omega_sum), dt(_dt), q_bc(_q_bc), p_bc(_p_bc) {}
 
   template <typename T>
-  bool operator()(const T* const _x, const T* const _n, T* residual) const
+  bool operator()(const T* const _x, T* residual) const
   {
-    // Map state and noise
+    // Map state
     const State<T> x(_x);
-    const Matrix<T,NUM_INPUTS,1> n(_n);
 
     // Compute output
-    Map<Matrix<T,NUM_DOF,1>> dx(residual);
-    Matrix<T,NUM_DOF,1> dx_;
-    dynamics<T>(x, imu.cast<T>(), n, dx_);
-    dx = dx_;
+    Map<Matrix<T,2,1>> h(residual);
+    common::Quaternion<T> ht, hq;
+    rel_pose_model(x, omega_sum.cast<T>(), T(dt), q_bc.cast<T>(), p_bc.cast<T>(), ht, hq);
+    h.template segment<4>(0) = ht;
+    h.template segment<4>(4) = hq;
     return true;
   }
 
 private:
 
-  const Matrix<double,NUM_INPUTS,1> imu;
+  const double dt;
+  const Vector3d omega_sum, p_bc;
+  const common::Quaterniond q_bc;
 
 };
 
@@ -295,6 +339,27 @@ void getFG(const Matrix<T,NUM_STATES,1>& x, const Matrix<T,6,1>& imu,
   // Convert autodiff Jacobian to minimal Jacobian
   F = J_autodiff_wrt_x * dxpd_dd<T>(x);
   G = J_autodiff_wrt_noise;
+}
+
+
+// Use automatic differentiation to calculate the Jacobian of relative pose model w.r.t. minimal state
+template<typename T>
+void getH_vo(const Matrix<T,NUM_STATES,1>& x, const Matrix<T,6,1>& imu,
+                 Matrix<T,5,NUM_DOF>& H)
+{
+  // Calculate autodiff Jacobian
+  T const* parameters[1];
+  parameters[0] = x.data();
+  Matrix<T,8,1> r;
+  Matrix<T,8,NUM_STATES,RowMajor> J;
+  T* J_autodiff_ptr_ptr[2];
+  J_autodiff_ptr_ptr[0] = J_autodiff_wrt_x.data();
+  J_autodiff_ptr_ptr[1] = J_autodiff_wrt_noise.data();
+  ceres::AutoDiffCostFunction<StateDot, NUM_DOF, NUM_STATES, NUM_INPUTS> cost_function(new StateDot(imu));
+  cost_function.Evaluate(parameters, r.data(), J_autodiff_ptr_ptr);
+
+  // Convert autodiff Jacobian to minimal Jacobian
+  H = J_autodiff_wrt_x * dxpd_dd<T>(x);
 }
 
 
