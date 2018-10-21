@@ -8,20 +8,24 @@ namespace ekf
 State::State()
 {
   p.setZero();
-  q = common::Quaternion<double>();
+  q = common::Quaterniond();
   v.setZero();
   bg.setZero();
   ba.setZero();
+  pk.setZero();
+  qk = common::Quaterniond();
 }
 
 
 State::State(const xVector &x)
 {
   p = x.segment<3>(PX);
-  q = common::Quaternion<double>(Vector4d(x.segment<4>(QW)));
+  q = common::Quaterniond(Vector4d(x.segment<4>(QW)));
   v = x.segment<3>(VX);
   bg = x.segment<3>(GX);
   ba = x.segment<3>(AX);
+  pk = x.segment<3>(KPX);
+  qk = common::Quaterniond(Vector4d(x.segment<4>(KQW)));
 }
 
 
@@ -33,7 +37,23 @@ State State::operator+(const dxVector &delta) const
   x.v = v + delta.segment<3>(DVX);
   x.bg = bg + delta.segment<3>(DGX);
   x.ba = ba + delta.segment<3>(DAX);
+  x.pk = pk + delta.segment<3>(DKPX);
+  x.qk = qk + Vector3d(delta.segment<3>(DKQX));
   return x;
+}
+
+
+dxVector State::operator-(const State &x2) const
+{
+  dxVector dx;
+  dx.segment<3>(DPX) = p - x2.p;
+  dx.segment<3>(DQX) = q - x2.q;
+  dx.segment<3>(DVX) = v - x2.v;
+  dx.segment<3>(DGX) = bg - x2.bg;
+  dx.segment<3>(DAX) = ba - x2.ba;
+  dx.segment<3>(DKPX) = pk - x2.pk;
+  dx.segment<3>(DKQX) = qk - x2.qk;
+  return dx;
 }
 
 
@@ -46,7 +66,7 @@ void State::operator+=(const dxVector &delta)
 Matrix<double, NUM_STATES, 1> State::toEigen() const
 {
   Matrix<double, NUM_STATES, 1> x;
-  x << p, q.toEigen(), v, bg, ba;
+  x << p, q.toEigen(), v, bg, ba, pk, qk.toEigen();
   return x;
 }
 
@@ -54,7 +74,7 @@ Matrix<double, NUM_STATES, 1> State::toEigen() const
 Matrix<double, NUM_DOF, 1> State::minimal() const
 {
   Matrix<double, NUM_DOF, 1> x;
-  x << p, common::Quaternion<double>::log(q), v, bg, ba;
+  x << p, common::Quaterniond::log(q), v, bg, ba, pk, common::Quaterniond::log(qk);
   return x;
 }
 
@@ -135,9 +155,9 @@ void EKF::load(const std::string &filename)
   K_inv_ = K_.inverse();
   common::get_yaml_eigen("q_bc", filename, q_bc);
   common::get_yaml_eigen("q_bu", filename, q_bu);
-  q_bc_ = common::Quaternion<double>(q_bc);
+  q_bc_ = common::Quaterniond(q_bc);
   q_bc_.normalize();
-  q_bu_ = common::Quaternion<double>(q_bu);
+  q_bu_ = common::Quaterniond(q_bu);
   q_bu_.normalize();
   common::get_yaml_eigen("p_bc", filename, p_bc_);
   common::get_yaml_eigen("p_bu", filename, p_bu_);
@@ -209,7 +229,7 @@ void EKF::propagate(const double &t, const Vector3d &gyro, const Vector3d &acc)
   imu_.segment<3>(UWX) = gyrob - x_.bg;
 
   // Propagate the state
-  f(xdot_, x_, gyrob, accb);
+  f(x_, gyrob, accb, xdot_);
   x_ += xdot_ * dt;
 
   // Propagate the covariance - guarantee positive-definite P with discrete propagation
@@ -226,7 +246,7 @@ void EKF::imageUpdate()
   dv_.clear();
   dv_k_.clear();
   double mean_disparity = 0;
-  common::Quaternion<double> q_c2ck = q_bc_.inv() * x_.q.inv() * qk_ * q_bc_;
+  common::Quaterniond q_c2ck = q_bc_.inv() * x_.q.inv() * qk_ * q_bc_;
   for (int n = 0; n < pts_match_.size(); ++n)
   {
     // Image points without rotation
@@ -249,8 +269,8 @@ void EKF::imageUpdate()
     // Compute relative camera pose initial guess from state then optimize it
     Vector3d pt = q_bc_.rot(x_.q.rot(pk_ + qk_.inv().rot(p_bc_) - x_.p) - p_bc_);
     Vector3d t = pt / pt.norm();
-    common::Quaternion<double> zt(t);
-    common::Quaternion<double> zq = q_c2ck;
+    common::Quaterniond zt(t);
+    common::Quaterniond zq = q_c2ck;
     Matrix3d R, Rt, R2, Rt2;
     R = zq.R();
     Rt = zt.R();
@@ -273,12 +293,12 @@ void EKF::imageUpdate()
 //              << (zt.rot(common::e1) - Rt2 * common::e1).norm() << std::endl;
 
     // Measurement model and jacobian
-    common::Quaternion<double> ht, hq;
+    common::Quaterniond ht, hq;
     Matrix<double, 5, NUM_DOF> H;
     imageH(ht, hq, H, x_, q_bc_, p_bc_, qk_, pk_);
 
     // Error in translation direction and rotation
-    Vector2d err_t = common::Quaternion<double>::log_uvec(zt,ht);
+    Vector2d err_t = common::Quaterniond::log_uvec(zt,ht);
     Vector3d err_q = zq - hq;
 //    std::cout << "err_t: " << err_t.transpose() << ", err_q: " << err_q.transpose() << std::endl;
 
@@ -371,13 +391,12 @@ bool EKF::trackFeatures(const std::vector<Vector3d, aligned_allocator<Vector3d> 
 }
 
 
-void EKF::f(dxVector &xdot, const State &x, const Vector3d &gyro, const Vector3d &acc)
+void EKF::f(const State &x, const Vector3d &gyro, const Vector3d &acc, dxVector &xdot)
 {
+  xdot.setZero();
   xdot.segment<3>(DPX) = x.q.inv().rot(x.v);
   xdot.segment<3>(DQX) = gyro - x.bg;
   xdot.segment<3>(DVX) = acc - x.ba + common::gravity * x.q.rot(common::e3) - (gyro - x.bg).cross(x.v);
-  xdot.segment<3>(DGX).setZero();
-  xdot.segment<3>(DAX).setZero();
 }
 
 
@@ -400,26 +419,23 @@ void EKF::getFG(const State &x, const Vector3d &gyro, dxMatrix &F, gMatrix &G)
 
 
 void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &p_bc,
-               const Vector3d &integrated_gyro, const double &dtk,
                common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H)
 {
   // Declarations
   static Vector3d pt, t, t_x_k, at;
-  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq;
+  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq, dpt_dpk;
   static Matrix<double, 2, 3> dexpat_dat;
 
   // Axis-angle representation of translation direction
-  pt = -q_bc.rot(x.q.rot(x.p) + p_bc);
+  pt = q_bc.rot(x.q.rot(x.pk - x.p));
   t = pt / pt.norm();
   t_x_k = t.cross(common::e3);
   double tT_k = common::saturate<double>(t.transpose() * common::e3, 1.0, -1.0);
   at = acos(tT_k) * t_x_k / t_x_k.norm();
 
-  Vector3d gyro_integration = q_bc.rot(-integrated_gyro + x.bg * dtk);
-
   // Create measurement models
   ht = common::Quaterniond::exp(at);
-  hq = common::Quaterniond::exp(gyro_integration);
+  hq = q_bc.inv() * x.q.inv() * x.qk * q_bc;
 
   // Sub-derivative calculations
   Gamma_at = common::Quaterniond::dexp(at);
@@ -432,19 +448,52 @@ void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &
   dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
   Matrix3d R_bc = q_bc.R();
   dpt_dp = -R_bc * x.q.R();
-  dpt_dq = -R_bc * common::skew(x.q.rot(x.p));
-  Matrix<double,2,3> pre_derivatives = dexpat_dat * dat_dt * dt_dpt;
+  dpt_dq = R_bc * common::skew(x.q.rot(x.pk - x.p));
+  dpt_dpk = R_bc * x.q.R();
+  Matrix<double,2,3> dexpat_dpt = dexpat_dat * dat_dt * dt_dpt;
 
   // Create measurement Jacobian
   H.setZero();
-  H.block<2,3>(0,DPX) = pre_derivatives * dpt_dp;
-  H.block<2,3>(0,DQX) = pre_derivatives * dpt_dq;
-  H.block<3,3>(2,DGX) = common::Quaterniond::dexp(gyro_integration) * R_bc * dtk;
+  H.block<2,3>(0,DPX) = dexpat_dpt * dpt_dp;
+  H.block<2,3>(0,DQX) = dexpat_dpt * dpt_dq;
+  H.block<2,3>(0,DKPX) = dexpat_dpt * dpt_dpk;
+  H.block<3,3>(2,DQX) = -R_bc * x.qk.R() * x.q.inv().R();
+  H.block<3,3>(2,DKQX) = R_bc;
 }
 
 
-void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
-                 const common::Quaternion<double> &q_bc, const Vector3d &p_bc, const common::Quaternion<double> &q_ik,
+void EKF::stateReset(const State &x, State &x_new)
+{
+  x_new = x;
+  x_new.p.setZero();
+  x_new.pk.setZero();
+  common::Quaterniond q_yaw = common::Quaterniond(0,0,x.q.yaw());
+  x_new.q = q_yaw.inv() * x.q;
+  x_new.qk = x_new.q;
+}
+
+
+void EKF::getN(const State &x, dxMatrix &N)
+{
+  double sp = sin(x.q.roll());
+  double cp = cos(x.q.roll());
+  double st = sin(x.q.pitch());
+  double ct = cos(x.q.pitch());
+  double tt = st / ct;
+  N.setIdentity();
+  N.topLeftCorner(3,3).setZero();
+  N.bottomRightCorner(6,6).setZero();
+  Matrix3d N_theta;
+  N_theta << 1.0,  sp * tt,  cp * tt,
+             0.0,  cp * cp, -cp * sp,
+             0.0, -cp * sp,  sp * sp;
+  N.block<3,3>(ekf::DQX,ekf::DQX) = N_theta;
+  N.block<3,3>(ekf::DKQX,ekf::DQX) = N_theta;
+}
+
+
+void EKF::imageH(common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
+                 const common::Quaterniond &q_bc, const Vector3d &p_bc, const common::Quaterniond &q_ik,
                  const Vector3d &p_ik)
 {
   // Declarations
@@ -458,10 +507,10 @@ void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq,
   double tT_k = t.transpose() * common::e3;
   at = acos(tT_k) * t_x_k / t_x_k.norm();
 
-  ht = common::Quaternion<double>::exp(at);
+  ht = common::Quaterniond::exp(at);
   hq = q_bc.inv() * x.q.inv() * q_ik * q_bc;
 
-  Gamma_at = common::Quaternion<double>::dexp(at);
+  Gamma_at = common::Quaterniond::dexp(at);
   double txk_mag = t_x_k.norm();
   dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
   dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
@@ -480,7 +529,7 @@ void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq,
 
 
 // Relative camera pose optimizer
-void EKF::optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
+void EKF::optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
                        const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
                        const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                        const unsigned &iters)

@@ -17,55 +17,34 @@ namespace ekf
 // State Indices
 enum
 {
-  PX,
-  PY,
-  PZ,
-  QW,
-  QX,
-  QY,
-  QZ,
-  VX,
-  VY,
-  VZ,
-  GX,
-  GY,
-  GZ,
-  AX,
-  AY,
-  AZ,
+  PX, PY, PZ,
+  QW, QX, QY, QZ,
+  VX, VY, VZ,
+  GX, GY, GZ,
+  AX, AY, AZ,
+  KPX, KPY, KPZ,
+  KQW, KQX, KQY, KQZ,
   NUM_STATES
 };
 
 // Derivative indices
 enum
 {
-  DPX,
-  DPY,
-  DPZ,
-  DQX,
-  DQY,
-  DQZ,
-  DVX,
-  DVY,
-  DVZ,
-  DGX,
-  DGY,
-  DGZ,
-  DAX,
-  DAY,
-  DAZ,
+  DPX, DPY, DPZ,
+  DQX, DQY, DQZ,
+  DVX, DVY, DVZ,
+  DGX, DGY, DGZ,
+  DAX, DAY, DAZ,
+  DKPX, DKPY, DKPZ,
+  DKQX, DKQY, DKQZ,
   NUM_DOF
 };
 
 // Input indices
 enum
 {
-  UWX,
-  UWY,
-  UWZ,
-  UAX,
-  UAY,
-  UAZ,
+  UWX, UWY, UWZ,
+  UAX, UAY, UAZ,
   NUM_INPUTS
 };
 
@@ -82,12 +61,15 @@ struct State
   State();
   State(const xVector &x0);
   Vector3d p;
-  common::Quaternion<double> q;
+  common::Quaterniond q;
   Vector3d v;
   Vector3d bg;
   Vector3d ba;
+  Vector3d pk;
+  common::Quaterniond qk;
 
   State operator+(const dxVector &delta) const;
+  dxVector operator-(const State &x2) const;
   void operator+=(const dxVector &delta);
   Matrix<double, NUM_STATES, 1> toEigen() const;
   Matrix<double, NUM_DOF, 1> minimal() const;
@@ -120,13 +102,14 @@ public:
 
   void load(const std::string &filename);
   void run(const double &t, const sensors::Sensors &sensors);
-  static void f(dxVector &xdot, const State &x, const Vector3d &gyro, const Vector3d &acc);
+  static void f(const State &x, const Vector3d &gyro, const Vector3d &acc, dxVector &xdot);
   static void getFG(const State &x, const Vector3d &gyro, dxMatrix &F, gMatrix &G);
   static void getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &p_bc,
-                   const Vector3d &integrated_gyro, const double &dtk,
                    common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H);
-  static void imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
-                     const common::Quaternion<double> &q_bc, const Vector3d &p_bc, const common::Quaternion<double> &q_ik,
+  static void stateReset(const State &x, State &x_new);
+  static void getN(const State &x, dxMatrix &N);
+  static void imageH(common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
+                     const common::Quaterniond &q_bc, const Vector3d &p_bc, const common::Quaterniond &q_ik,
                      const Vector3d &p_ik);
   const xVector getState() const { return x_.toEigen(); }
   vehicle::State getVehicleState() const;
@@ -137,7 +120,7 @@ private:
   void propagate(const double &t, const Vector3d &gyro, const Vector3d &acc);
   void imageUpdate();
   bool trackFeatures(const std::vector<Vector3d, aligned_allocator<Vector3d> > &pts);
-  void optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
+  void optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
                     const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
                     const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                     const unsigned &iters);
@@ -169,14 +152,14 @@ private:
   // Keyframe and image update data
   double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
   Vector3d pk_; // Keyframe inertial position
-  common::Quaternion<double> qk_; // Keyframe body attitude
+  common::Quaterniond qk_; // Keyframe body attitude
   std::vector<Vector3d, aligned_allocator<Vector3d> > pts_k_; // Keyframe image points
   std::vector<Vector2d, aligned_allocator<Vector2d> > pts_match_;
   std::vector<Vector2d, aligned_allocator<Vector2d> > pts_match_k_;
   std::vector<Vector3d, aligned_allocator<Vector3d> > dv_, dv_k_; // Landmark direction vectors
 
   // Camera parameters
-  common::Quaternion<double> q_bc_, q_bu_;
+  common::Quaterniond q_bc_, q_bu_;
   Vector3d p_bc_, p_bu_;
   Matrix3d K_, K_inv_;
 
