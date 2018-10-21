@@ -31,7 +31,7 @@ plot_states;
 % plot_bicycle_commands;
 
 %% Plot sensor measurements
-plot_imu;
+% plot_imu;
 % plot_measurements;
 
 %% Plot 3D animation

@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 120.0
+tf: 10.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -54,7 +54,7 @@ max_tau_z: 50.0
 # 0: waypoints
 # 1: trajectory
 # 2: circumnavigation
-path_type: 0
+path_type: 1
 
 waypoints: [0, 0, -4, 0,
             10, 0, -4, 0,
@@ -151,14 +151,14 @@ P0_diag: [0.001, 0.001, 0.001, # POS
           0.1, 0.1, 0.1, # OMEGA
           0.2, 0.2, 0.2] # ACC
 
-Qx_diag: [0.001, 0.001, 0.001, # POS
+Qx_diag: [0.0, 0.0, 0.0, # POS
           0.0, 0.0, 0.0, # ATT
-          0.0001, 0.0001, 0.0001, # VEL
-          0.000000000016, 0.000000000016, 0.000000000016, # OMEGA
-          0.0000000016, 0.0000000016, 0.0000000016] # ACC
+          0.0, 0.0, 0.0, # VEL
+          0.0, 0.0, 0.0, # OMEGA
+          0.0, 0.0, 0.0] # ACC
 
-Qu_diag: [0.00000016, 0.00000016, 0.00000016, # OMEGA
-          0.000004, 0.000004, 0.000004] # ACC
+Qu_diag: [0.25, 0.25, 0.25, # OMEGA
+          0.01, 0.01, 0.01] # ACC
 
 R_vo_diag: [0.01, 0.01, # Translation Direction
             0.001, 0.001, 0.001] # Rotation

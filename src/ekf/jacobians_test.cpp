@@ -7,15 +7,18 @@ int main()
   // Numerical differentiation step size and error tolerance
   double eps = 1e-5;
   double tol = 1e-3;
+  int iters = 1000;
 
   // Random variables
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  std::default_random_engine rng(seed);
-  std::normal_distribution<double> dist(0.0, 0.5);
+  unsigned seed = chrono::system_clock::now().time_since_epoch().count();
+  default_random_engine rng(seed);
+  normal_distribution<double> dist(0.0, 0.5);
 
   // Nominal state, gyro, accel, keyframe pose, and body-to-camera pose
   ekf::State x;
-  Eigen::Vector3d p_bc, p_ik, gyro, acc;
+  Matrix<double,6,1> n;
+  n.setOnes();
+  Vector3d p_bc, p_ik, gyro, acc;
   common::randomNormalMatrix(x.p, dist, rng);
   x.q = common::Quaternion<double>(dist, rng);
   common::randomNormalMatrix(x.v, dist, rng);
@@ -24,74 +27,81 @@ int main()
   common::randomNormalMatrix(gyro, dist, rng);
   common::randomNormalMatrix(acc, dist, rng);
   common::Quaternion<double> q_bc(dist, rng);
-  common::Quaternion<double> q_ik(dist, rng);
   common::randomNormalMatrix(p_bc, dist, rng);
   common::randomNormalMatrix(p_ik, dist, rng);
 
-  // Propagation Jacobian
-  ekf::dxMatrix F_numerical, F_analytical;
-  ekf::dxVector dxp, dxm;
-  for (int j = 0; j < 1000; ++j)
+  // Propagation Jacobians
   {
-    F_numerical.setZero();
-    for (int i = 0; i < ekf::NUM_DOF; ++i)
+    ekf::dxMatrix F_numerical, F_analytical;
+    ekf::gMatrix G_numerical, G_analytical;
+    ekf::dxVector dxp, dxm;
+    for (int j = 0; j < iters; ++j)
     {
-      ekf::dxVector delta;
-      delta.setZero();
-      delta(i) = eps;
-      ekf::State xp = x + delta;
-      ekf::State xm = x + -delta;
-      ekf::EKF::f(dxp, xp, gyro, acc);
-      ekf::EKF::f(dxm, xm, gyro, acc);
-      F_numerical.col(i) = (dxp - dxm) / (2.0 * eps);
+      F_numerical.setZero();
+      for (int i = 0; i < ekf::NUM_DOF; ++i)
+      {
+        ekf::dxVector delta;
+        delta.setZero();
+        delta(i) = eps;
+        ekf::State xp = x + delta;
+        ekf::State xm = x + -delta;
+        ekf::EKF::f(dxp, xp, gyro, acc);
+        ekf::EKF::f(dxm, xm, gyro, acc);
+        F_numerical.col(i) = (dxp - dxm) / (2.0 * eps);
+      }
+      G_numerical.setZero();
+      for (int i = 0; i < ekf::NUM_INPUTS; ++i)
+      {
+        ekf::uVector delta;
+        delta.setZero();
+        delta(i) = eps;
+        ekf::uVector np = n + delta;
+        ekf::uVector nm = n - delta;
+        dxp.segment<3>(ekf::DPX) = x.q.inv().rot(x.v);
+        dxp.segment<3>(ekf::DQX) = gyro - x.bg - np.segment<3>(ekf::UWX);
+        dxp.segment<3>(ekf::DVX) = acc - x.ba - np.segment<3>(ekf::UAX) + common::gravity * x.q.rot(common::e3) -
+                                   (gyro - x.bg - np.segment<3>(ekf::UWX)).cross(x.v);
+        dxp.segment<3>(ekf::DGX).setZero();
+        dxp.segment<3>(ekf::DAX).setZero();
+        dxm.segment<3>(ekf::DPX) = x.q.inv().rot(x.v);
+        dxm.segment<3>(ekf::DQX) = gyro - x.bg - nm.segment<3>(ekf::UWX);
+        dxm.segment<3>(ekf::DVX) = acc - x.ba - nm.segment<3>(ekf::UAX) + common::gravity * x.q.rot(common::e3) -
+                                   (gyro - x.bg - nm.segment<3>(ekf::UWX)).cross(x.v);
+        dxm.segment<3>(ekf::DGX).setZero();
+        dxm.segment<3>(ekf::DAX).setZero();
+        G_numerical.col(i) = (dxp - dxm) / (2.0 * eps);
+      }
+      ekf::EKF::getFG(x, gyro, F_analytical, G_analytical);
+      common::TEST("Propagation state Jacobian", tol, F_numerical, F_analytical);
+      common::TEST("Propagation noise Jacobian", tol, G_numerical, G_analytical);
     }
-    ekf::EKF::getF(F_analytical, x, gyro);
-    common::TEST("Propagation Jacobian", tol, F_numerical, F_analytical);
   }
 
-  // Translation Measurement Jacobian
-  common::Quaternion<double> ht, hq; // placeholder
-  Eigen::Matrix<double, 5, ekf::NUM_DOF> H; // placeholder
-  common::Quaternion<double> htp, htm;
-  Eigen::Matrix<double, 2, ekf::NUM_DOF> Ht_numerical, Ht_analytical;
-  for (int j = 0; j < 1000; ++j)
+  // Measurement Jacobian
   {
-    Ht_numerical.setZero();
-    for (int i = 0; i < ekf::NUM_DOF; ++i)
+    common::Quaterniond ht, hq;
+    common::Quaterniond htp, hqp, htm, hqm;
+    Matrix<double,5,ekf::NUM_DOF> H_numerical, H_analytical, H;
+    double dtk = dist(rng);
+    Vector3d integrated_gyro;
+    integrated_gyro.setRandom();
+    for (int j = 0; j < iters; ++j)
     {
-      ekf::dxVector delta;
-      delta.setZero();
-      delta(i) = eps;
-      ekf::State xp = x + delta;
-      ekf::State xm = x + -delta;
-      ekf::EKF::imageH(htp, hq, H, xp, q_bc, p_bc, q_ik, p_ik);
-      ekf::EKF::imageH(htm, hq, H, xm, q_bc, p_bc, q_ik, p_ik);
-      Ht_numerical.col(i) = common::Quaternion<double>::log_uvec(htp, htm) / (2.0 * eps);
+      H_numerical.setZero();
+      for (int i = 0; i < ekf::NUM_DOF; ++i)
+      {
+        ekf::dxVector delta;
+        delta.setZero();
+        delta(i) = eps;
+        ekf::State xp = x + delta;
+        ekf::State xm = x + -delta;
+        ekf::EKF::getH(xp, q_bc, p_bc, integrated_gyro, dtk, htp, hqp, H);
+        ekf::EKF::getH(xm, q_bc, p_bc, integrated_gyro, dtk, htm, hqm, H);
+        H_numerical.block<2,1>(0,i) = common::Quaterniond::log_uvec(htp, htm) / (2.0 * eps);
+        H_numerical.block<3,1>(2,i) = (hqp - hqm) / (2.0 * eps);
+      }
+      ekf::EKF::getH(x, q_bc, p_bc, integrated_gyro, dtk, ht, hq, H_analytical);
+      common::TEST("Measurement Jacobian", tol, H_numerical, H_analytical);
     }
-    ekf::EKF::imageH(ht, hq, H, x, q_bc, p_bc, q_ik, p_ik);
-    Ht_analytical = H.topRows(2);
-    common::TEST("Translation Measurement Jacobian", tol, Ht_numerical, Ht_analytical);
   }
-
-  // Rotation Measurement Jacobian
-  common::Quaternion<double> hqp, hqm;
-  Eigen::Matrix<double, 3, ekf::NUM_DOF> Hq_numerical, Hq_analytical;
-  for (int j = 0; j < 1000; ++j)
-  {
-    Hq_numerical.setZero();
-    for (int i = 0; i < ekf::NUM_DOF; ++i)
-    {
-      ekf::dxVector delta;
-      delta.setZero();
-      delta(i) = eps;
-      ekf::State xp = x + delta;
-      ekf::State xm = x + -delta;
-      ekf::EKF::imageH(ht, hqp, H, xp, q_bc, p_bc, q_ik, p_ik);
-      ekf::EKF::imageH(ht, hqm, H, xm, q_bc, p_bc, q_ik, p_ik);
-      Hq_numerical.col(i) = (hqp - hqm) / (2.0 * eps);
-    }
-    ekf::EKF::imageH(ht, hq, H, x, q_bc, p_bc, q_ik, p_ik);
-    Hq_analytical = H.bottomRows(3);
-    common::TEST("Rotation Measurement Jacobian", tol, Hq_numerical, Hq_analytical);
-  }
-}
+} // main

@@ -18,7 +18,7 @@ State::State()
 State::State(const xVector &x)
 {
   p = x.segment<3>(PX);
-  q = common::Quaternion<double>(Eigen::Vector4d(x.segment<4>(QW)));
+  q = common::Quaternion<double>(Vector4d(x.segment<4>(QW)));
   v = x.segment<3>(VX);
   bg = x.segment<3>(GX);
   ba = x.segment<3>(AX);
@@ -29,7 +29,7 @@ State State::operator+(const dxVector &delta) const
 {
   State x;
   x.p = p + delta.segment<3>(DPX);
-  x.q = q + Eigen::Vector3d(delta.segment<3>(DQX));
+  x.q = q + Vector3d(delta.segment<3>(DQX));
   x.v = v + delta.segment<3>(DVX);
   x.bg = bg + delta.segment<3>(DGX);
   x.ba = ba + delta.segment<3>(DAX);
@@ -43,17 +43,17 @@ void State::operator+=(const dxVector &delta)
 }
 
 
-Eigen::Matrix<double, NUM_STATES, 1> State::toEigen() const
+Matrix<double, NUM_STATES, 1> State::toEigen() const
 {
-  Eigen::Matrix<double, NUM_STATES, 1> x;
+  Matrix<double, NUM_STATES, 1> x;
   x << p, q.toEigen(), v, bg, ba;
   return x;
 }
 
 
-Eigen::Matrix<double, NUM_DOF, 1> State::minimal() const
+Matrix<double, NUM_DOF, 1> State::minimal() const
 {
-  Eigen::Matrix<double, NUM_DOF, 1> x;
+  Matrix<double, NUM_DOF, 1> x;
   x << p, common::Quaternion<double>::log(q), v, bg, ba;
   return x;
 }
@@ -112,9 +112,9 @@ void EKF::load(const std::string &filename)
   // EKF initializations
   xVector x0;
   dxVector P0_diag, Qx_diag;
-  Eigen::Vector4d q_bc, q_bu;
-  Eigen::Matrix<double, NUM_INPUTS, 1> Qu_diag;
-  Eigen::Matrix<double, 5, 1> R_vo_diag;
+  Vector4d q_bc, q_bu;
+  Matrix<double, NUM_INPUTS, 1> Qu_diag;
+  Matrix<double, 5, 1> R_vo_diag;
   common::get_yaml_eigen("xhat0", filename, x0);
   x_ = State(x0);
   common::get_yaml_eigen("P0_diag", filename, P0_diag);
@@ -185,8 +185,8 @@ void EKF::run(const double &t, const sensors::Sensors &sensors)
 
 void EKF::log(const double &t)
 {
-  Eigen::Matrix<double, NUM_STATES, 1> x = x_.toEigen();
-  Eigen::Matrix<double, NUM_DOF, 1> P_diag = P_.diagonal();
+  Matrix<double, NUM_STATES, 1> x = x_.toEigen();
+  Matrix<double, NUM_DOF, 1> P_diag = P_.diagonal();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   cov_log_.write((char*)&t, sizeof(double));
@@ -194,15 +194,15 @@ void EKF::log(const double &t)
 }
 
 
-void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc)
+void EKF::propagate(const double &t, const Vector3d &gyro, const Vector3d &acc)
 {
   // Time step
   double dt = t - t_prev_;
   t_prev_ = t;
 
   // Center the IMU measurement on the body
-  Eigen::Vector3d gyrob = q_bu_.inv().rot(gyro);
-  Eigen::Vector3d accb = q_bu_.inv().rot(acc - gyro.cross(gyro.cross(p_bu_)));
+  Vector3d gyrob = q_bu_.inv().rot(gyro);
+  Vector3d accb = q_bu_.inv().rot(acc - gyro.cross(gyro.cross(p_bu_)));
 
   // Store unbiased IMU for control
   imu_.segment<3>(UAX) = accb - x_.ba;
@@ -213,10 +213,10 @@ void EKF::propagate(const double &t, const Eigen::Vector3d &gyro, const Eigen::V
   x_ += xdot_ * dt;
 
   // Propagate the covariance - guarantee positive-definite P with discrete propagation
-  getF(F_, x_, gyro);
-  getG(G_, x_);
-  F_ = I_num_dof_ + F_ * dt; // Approximate state transition matrix
-  P_ = F_ * P_ * F_.transpose() + G_ * Qu_ * G_.transpose() + Qx_;
+  getFG(x_, gyro, F_, G_);
+  A_ = I_num_dof_ + F_*dt + F_*F_*dt*dt/2.0 + F_*F_*F_*dt*dt*dt/6.0; // Approximate state transition matrix
+  B_ = (dt*(I_num_dof_ + F_*dt/2.0 + F_*F_*dt*dt/6.0 + F_*F_*F_*dt*dt*dt/24.0))*G_;
+  P_ = A_ * P_ * A_.transpose() + B_ * Qu_ * B_.transpose() + Qx_;
 }
 
 
@@ -230,15 +230,15 @@ void EKF::imageUpdate()
   for (int n = 0; n < pts_match_.size(); ++n)
   {
     // Image points without rotation
-    Eigen::Vector3d pt1 = K_ * q_c2ck.rot(K_inv_ * Eigen::Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0));
-    Eigen::Vector3d pt2 = pt1 / pt1(2);
+    Vector3d pt1 = K_ * q_c2ck.rot(K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0));
+    Vector3d pt2 = pt1 / pt1(2);
 
     // Recursive mean of disparity
     mean_disparity = (n * mean_disparity + (pt2.topRows(2) - pts_match_k_[n]).norm()) / (n + 1);
 
     // Convert point matches to direction vectors
-    Eigen::Vector3d dv = K_inv_ * Eigen::Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0);
-    Eigen::Vector3d dv_k = K_inv_ * Eigen::Vector3d(pts_match_k_[n](0), pts_match_k_[n](1), 1.0);
+    Vector3d dv = K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0);
+    Vector3d dv_k = K_inv_ * Vector3d(pts_match_k_[n](0), pts_match_k_[n](1), 1.0);
     dv_.push_back(dv / dv.norm());
     dv_k_.push_back(dv_k / dv_k.norm());
   }
@@ -247,11 +247,11 @@ void EKF::imageUpdate()
   if (mean_disparity > pixel_disparity_threshold_)
   {
     // Compute relative camera pose initial guess from state then optimize it
-    Eigen::Vector3d pt = q_bc_.rot(x_.q.rot(pk_ + qk_.inv().rot(p_bc_) - x_.p) - p_bc_);
-    Eigen::Vector3d t = pt / pt.norm();
+    Vector3d pt = q_bc_.rot(x_.q.rot(pk_ + qk_.inv().rot(p_bc_) - x_.p) - p_bc_);
+    Vector3d t = pt / pt.norm();
     common::Quaternion<double> zt(t);
     common::Quaternion<double> zq = q_c2ck;
-    Eigen::Matrix3d R, Rt, R2, Rt2;
+    Matrix3d R, Rt, R2, Rt2;
     R = zq.R();
     Rt = zt.R();
     R2 = R;
@@ -274,27 +274,27 @@ void EKF::imageUpdate()
 
     // Measurement model and jacobian
     common::Quaternion<double> ht, hq;
-    Eigen::Matrix<double, 5, NUM_DOF> H;
+    Matrix<double, 5, NUM_DOF> H;
     imageH(ht, hq, H, x_, q_bc_, p_bc_, qk_, pk_);
 
     // Error in translation direction and rotation
-    Eigen::Vector2d err_t = common::Quaternion<double>::log_uvec(zt,ht);
-    Eigen::Vector3d err_q = zq - hq;
+    Vector2d err_t = common::Quaternion<double>::log_uvec(zt,ht);
+    Vector3d err_q = zq - hq;
 //    std::cout << "err_t: " << err_t.transpose() << ", err_q: " << err_q.transpose() << std::endl;
 
     // Innovation error
-    Eigen::Matrix<double, 5, 1> err_i;
+    Matrix<double, 5, 1> err_i;
     err_i << err_t, err_q;
 
     // Measurement gating
-    Eigen::Matrix<double, 5, 5> S_inv = (R_vo_ + H * P_ * H.transpose()).inverse();
+    Matrix<double, 5, 5> S_inv = (R_vo_ + H * P_ * H.transpose()).inverse();
     double NEES = err_i.transpose() * S_inv * err_i;
 //    std::cout << NEES << std::endl;
 //    if (NEES < vo_meas_gate_lower_ || NEES > vo_meas_gate_upper_)
 //      return;
 
     // Change in state and covariance
-    Eigen::Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * S_inv;
+    Matrix<double, NUM_DOF, 5> K = P_ * H.transpose() * S_inv;
     dxVector delta_x = lambda_.cwiseProduct(K * err_i);
     dxMatrix delta_P = Lambda_.cwiseProduct((I_num_dof_ - K * H) * P_ * (I_num_dof_ - K * H).transpose() +
                        K * R_vo_ * K.transpose() - P_);
@@ -306,7 +306,7 @@ void EKF::imageUpdate()
 }
 
 
-bool EKF::trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > &pts)
+bool EKF::trackFeatures(const std::vector<Vector3d, aligned_allocator<Vector3d> > &pts)
 {
   // Match current image points to image points tracked in the previous image
   new_tracked_pts_.clear();
@@ -371,7 +371,7 @@ bool EKF::trackFeatures(const std::vector<Eigen::Vector3d, Eigen::aligned_alloca
 }
 
 
-void EKF::f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const Eigen::Vector3d &acc)
+void EKF::f(dxVector &xdot, const State &x, const Vector3d &gyro, const Vector3d &acc)
 {
   xdot.segment<3>(DPX) = x.q.inv().rot(x.v);
   xdot.segment<3>(DQX) = gyro - x.bg;
@@ -381,36 +381,76 @@ void EKF::f(dxVector &xdot, const State &x, const Eigen::Vector3d &gyro, const E
 }
 
 
-void EKF::getF(dxMatrix &F, const State &x, const Eigen::Vector3d &gyro)
+void EKF::getFG(const State &x, const Vector3d &gyro, dxMatrix &F, gMatrix &G)
 {
   F.setZero();
   F.block<3,3>(DPX,DQX) = -x.q.R().transpose() * common::skew(x.v);
   F.block<3,3>(DPX,DVX) = x.q.R().transpose();
   F.block<3,3>(DQX,DGX) = -common::I_3x3;
   F.block<3,3>(DVX,DQX) = common::gravity * common::skew(x.q.rot(common::e3));
-  F.block<3,3>(DVX,DVX) = -common::skew(Eigen::Vector3d(gyro - x.bg));
+  F.block<3,3>(DVX,DVX) = -common::skew(Vector3d(gyro - x.bg));
   F.block<3,3>(DVX,DGX) = -common::skew(x.v);
   F.block<3,3>(DVX,DAX) = -common::I_3x3;
-}
 
-
-void EKF::getG(Eigen::Matrix<double, NUM_DOF, NUM_INPUTS> &G, const State &x)
-{
   G.setZero();
-  G.block<3,3>(DQX,UAX) = -common::I_3x3;
-  G.block<3,3>(DVX,UAX) = -common::skew(x.v);
-  G.block<3,3>(DVX,UWX) = -common::I_3x3;
+  G.block<3,3>(DQX,UWX) = -common::I_3x3;
+  G.block<3,3>(DVX,UWX) = -common::skew(x.v);
+  G.block<3,3>(DVX,UAX) = -common::I_3x3;
 }
 
 
-void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Eigen::Matrix<double, 5, NUM_DOF> &H, const State &x,
-                 const common::Quaternion<double> &q_bc, const Eigen::Vector3d &p_bc, const common::Quaternion<double> &q_ik,
-                 const Eigen::Vector3d &p_ik)
+void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &p_bc,
+               const Vector3d &integrated_gyro, const double &dtk,
+               common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H)
 {
   // Declarations
-  static Eigen::Vector3d pt, t, t_x_k, at;
-  static Eigen::Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq;
-  static Eigen::Matrix<double, 2, 3> dexpat_dat;
+  static Vector3d pt, t, t_x_k, at;
+  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq;
+  static Matrix<double, 2, 3> dexpat_dat;
+
+  // Axis-angle representation of translation direction
+  pt = -q_bc.rot(x.q.rot(x.p) + p_bc);
+  t = pt / pt.norm();
+  t_x_k = t.cross(common::e3);
+  double tT_k = common::saturate<double>(t.transpose() * common::e3, 1.0, -1.0);
+  at = acos(tT_k) * t_x_k / t_x_k.norm();
+
+  Vector3d gyro_integration = q_bc.rot(-integrated_gyro + x.bg * dtk);
+
+  // Create measurement models
+  ht = common::Quaterniond::exp(at);
+  hq = common::Quaterniond::exp(gyro_integration);
+
+  // Sub-derivative calculations
+  Gamma_at = common::Quaterniond::dexp(at);
+  double txk_mag = t_x_k.norm();
+  dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
+  dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
+                           (txk_mag * txk_mag) - common::I_3x3) * common::skew(common::e3) -
+                           (t_x_k * common::e3.transpose()) / (txk_mag * sqrt(1.0 - tT_k * tT_k));
+  double ptmag = pt.norm();
+  dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
+  Matrix3d R_bc = q_bc.R();
+  dpt_dp = -R_bc * x.q.R();
+  dpt_dq = -R_bc * common::skew(x.q.rot(x.p));
+  Matrix<double,2,3> pre_derivatives = dexpat_dat * dat_dt * dt_dpt;
+
+  // Create measurement Jacobian
+  H.setZero();
+  H.block<2,3>(0,DPX) = pre_derivatives * dpt_dp;
+  H.block<2,3>(0,DQX) = pre_derivatives * dpt_dq;
+  H.block<3,3>(2,DGX) = common::Quaterniond::dexp(gyro_integration) * R_bc * dtk;
+}
+
+
+void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
+                 const common::Quaternion<double> &q_bc, const Vector3d &p_bc, const common::Quaternion<double> &q_ik,
+                 const Vector3d &p_ik)
+{
+  // Declarations
+  static Vector3d pt, t, t_x_k, at;
+  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq;
+  static Matrix<double, 2, 3> dexpat_dat;
 
   pt = q_bc.rot(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p) - p_bc);
   t = pt / pt.norm();
@@ -441,8 +481,8 @@ void EKF::imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq,
 
 // Relative camera pose optimizer
 void EKF::optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
-                       const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
-                       const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
+                       const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
+                       const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                        const unsigned &iters)
 {
   // Ensure number of directions vectors from each camera match
@@ -454,16 +494,16 @@ void EKF::optimizePose(common::Quaternion<double>& q, common::Quaternion<double>
 
   // Constants
   const int N = e1.size();
-  static const Eigen::Matrix3d e1x = common::skew(common::e1);
-  static const Eigen::Matrix3d e2x = common::skew(common::e2);
-  static const Eigen::Matrix3d e3x = common::skew(common::e3);
+  static const Matrix3d e1x = common::skew(common::e1);
+  static const Matrix3d e2x = common::skew(common::e2);
+  static const Matrix3d e3x = common::skew(common::e3);
 
   // Declare things that change each loop
-  static Eigen::Matrix3d R, Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
-  static Eigen::Vector3d t, e1tx_t, e2tx_t;
-  static Eigen::Matrix<double,5,1> delta;
-  static Eigen::Matrix<double, 1000, 1> r;
-  static Eigen::Matrix<double, 1000, 5> J;
+  static Matrix3d R, Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
+  static Vector3d t, e1tx_t, e2tx_t;
+  static Matrix<double,5,1> delta;
+  static Matrix<double, 1000, 1> r;
+  static Matrix<double, 1000, 5> J;
 
   // Main optimization loop
   for (int i = 0; i < iters; ++i)
@@ -503,16 +543,16 @@ void EKF::optimizePose(common::Quaternion<double>& q, common::Quaternion<double>
     delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
 
     // Update camera rotation and translation
-    q += Eigen::Vector3d(delta.segment<3>(0));
-    qt += Eigen::Vector3d(qt.proj() * delta.segment<2>(3));
+    q += Vector3d(delta.segment<3>(0));
+    qt += Vector3d(qt.proj() * delta.segment<2>(3));
   }
 }
 
 
 // Relative camera pose optimizer using rotation matrices
-void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
-                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e1,
-                        const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& e2,
+void EKF::optimizePose2(Matrix3d& R, Matrix3d& Rt,
+                        const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
+                        const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                         const unsigned &iters)
 {
   // Ensure number of directions vectors from each camera match
@@ -524,16 +564,16 @@ void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
 
   // Constants
   const int N = e1.size();
-  static const Eigen::Matrix3d e1x = common::skew(common::e1);
-  static const Eigen::Matrix3d e2x = common::skew(common::e2);
-  static const Eigen::Matrix3d e3x = common::skew(common::e3);
+  static const Matrix3d e1x = common::skew(common::e1);
+  static const Matrix3d e2x = common::skew(common::e2);
+  static const Matrix3d e3x = common::skew(common::e3);
 
   // Declare things that change each loop
-  static Eigen::Matrix3d Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
-  static Eigen::Vector3d t, e1tx_t, e2tx_t, Rte1, Rte2, delta2, delta3;
-  static Eigen::Matrix<double,5,1> delta;
-  static Eigen::Matrix<double, 1000, 1> r;
-  static Eigen::Matrix<double, 1000, 5> J;
+  static Matrix3d Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
+  static Vector3d t, e1tx_t, e2tx_t, Rte1, Rte2, delta2, delta3;
+  static Matrix<double,5,1> delta;
+  static Matrix<double, 1000, 1> r;
+  static Matrix<double, 1000, 5> J;
 
   // Main optimization loop
   for (int i = 0; i < iters; ++i)
@@ -574,16 +614,16 @@ void EKF::optimizePose2(Eigen::Matrix3d& R, Eigen::Matrix3d& Rt,
     delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
 
     // Update camera rotation and translation
-    R = common::expR(common::skew(Eigen::Vector3d(-delta.segment<3>(0)))) * R;
-    Rt = common::expR(common::skew(Eigen::Vector3d(-Rt * common::I_2x3.transpose() * delta.segment<2>(3)))) * Rt;
+    R = common::expR(common::skew(Vector3d(-delta.segment<3>(0)))) * R;
+    Rt = common::expR(common::skew(Vector3d(-Rt * common::I_2x3.transpose() * delta.segment<2>(3)))) * Rt;
   }
 }
 
 
 // Sampson's error
-void EKF::se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E)
+void EKF::se(double& err, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E)
 {
-  static Eigen::Vector3d e1T_E, E_e2;
+  static Vector3d e1T_E, E_e2;
   double e1T_E_e2 = e1.transpose() * E * e2;
   if (e1T_E_e2 < 1e-6)
     err = 0;
@@ -597,9 +637,9 @@ void EKF::se(double& err, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, 
 
 
 // Derivative of Sampson's error
-void EKF::dse(double& derr, const Eigen::Vector3d& e1, const Eigen::Vector3d& e2, const Eigen::Matrix3d& E, const Eigen::Matrix3d& dE)
+void EKF::dse(double& derr, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E, const Matrix3d& dE)
 {
-  static Eigen::Vector3d e1T_E, E_e2, e1T_dE, dE_e2;
+  static Vector3d e1T_E, E_e2, e1T_dE, dE_e2;
   double e1T_E_e2 = e1.transpose() * E * e2;
   if (e1T_E_e2 < 1e-6)
     derr = 0;

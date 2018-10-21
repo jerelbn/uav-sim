@@ -5,7 +5,7 @@ project(uav_sim)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
-set(CMAKE_CXX_FLAGS "-std=c++14 -mavx -mfma")
+set(CMAKE_CXX_FLAGS "-std=c++14 -mavx2 -mfma -fopenmp")
 
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
