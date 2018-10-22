@@ -105,8 +105,7 @@ int main()
 
   // Keyframe Reset Jacobian
   {
-    ekf::State x_newp, x_newm;
-    ekf::dxMatrix N_numerical, N_analytical;
+    ekf::dxMatrix N_numerical, N_analytical, P;
     for (int j = 0; j < iters; ++j)
     {
       N_numerical.setZero();
@@ -117,9 +116,9 @@ int main()
         delta(i) = eps;
         ekf::State xp = x + delta;
         ekf::State xm = x + -delta;
-        ekf::EKF::stateReset(xp, x_newp);
-        ekf::EKF::stateReset(xm, x_newm);
-        N_numerical.col(i) = (x_newp - x_newm) / (2.0 * eps);
+        ekf::EKF::keyframeReset(xp, P);
+        ekf::EKF::keyframeReset(xm, P);
+        N_numerical.col(i) = (xp - xm) / (2.0 * eps);
       }
       ekf::EKF::getN(x, N_analytical);
       if(!common::TEST("Keyframe Reset Jacobian", tol, N_numerical, N_analytical)) break;

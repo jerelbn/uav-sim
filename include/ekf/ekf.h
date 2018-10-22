@@ -97,20 +97,17 @@ class EKF
 public:
 
   EKF();
-  EKF(std::string filename);
+  EKF(string filename);
   ~EKF();
 
-  void load(const std::string &filename);
-  void run(const double &t, const sensors::Sensors &sensors);
+  void load(const string &filename);
+  void run(const double &t, const sensors::Sensors &sensors, const vehicle::State &x_true);
   static void f(const State &x, const Vector3d &gyro, const Vector3d &acc, dxVector &xdot);
   static void getFG(const State &x, const Vector3d &gyro, dxMatrix &F, gMatrix &G);
   static void getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &p_bc,
                    common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H);
-  static void stateReset(const State &x, State &x_new);
+  static void keyframeReset(State &x, dxMatrix &P);
   static void getN(const State &x, dxMatrix &N);
-  static void imageH(common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
-                     const common::Quaterniond &q_bc, const Vector3d &p_bc, const common::Quaterniond &q_ik,
-                     const Vector3d &p_ik);
   const xVector getState() const { return x_.toEigen(); }
   vehicle::State getVehicleState() const;
 
@@ -119,17 +116,24 @@ private:
   void log(const double &t);
   void propagate(const double &t, const Vector3d &gyro, const Vector3d &acc);
   void imageUpdate();
-  bool trackFeatures(const std::vector<Vector3d, aligned_allocator<Vector3d> > &pts);
+  bool trackFeatures(const vector<Vector3d, aligned_allocator<Vector3d> > &pts);
   void optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
-                    const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
-                    const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
+                    const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
+                    const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                     const unsigned &iters);
   void optimizePose2(Matrix3d& R, Matrix3d& Rt,
-                     const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
-                     const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
+                     const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
+                     const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                      const unsigned &iters);
   void se(double& err, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E);
   void dse(double& derr, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E, const Matrix3d& dE);
+
+  vehicle::State x_true_;
+  Vector3d pk_true_;
+  common::Quaterniond qk_true_;
+  Vector3d global_node_position_;
+  double global_node_heading_;
+  common::Quaterniond q_global_heading_;
 
   // Primary EKF variables
   double t_prev_;
@@ -153,10 +157,10 @@ private:
   double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
   Vector3d pk_; // Keyframe inertial position
   common::Quaterniond qk_; // Keyframe body attitude
-  std::vector<Vector3d, aligned_allocator<Vector3d> > pts_k_; // Keyframe image points
-  std::vector<Vector2d, aligned_allocator<Vector2d> > pts_match_;
-  std::vector<Vector2d, aligned_allocator<Vector2d> > pts_match_k_;
-  std::vector<Vector3d, aligned_allocator<Vector3d> > dv_, dv_k_; // Landmark direction vectors
+  vector<Vector3d, aligned_allocator<Vector3d> > pts_k_; // Keyframe image points
+  vector<Vector2d, aligned_allocator<Vector2d> > pts_match_;
+  vector<Vector2d, aligned_allocator<Vector2d> > pts_match_k_;
+  vector<Vector3d, aligned_allocator<Vector3d> > dv_, dv_k_; // Landmark direction vectors
 
   // Camera parameters
   common::Quaterniond q_bc_, q_bu_;
@@ -165,12 +169,16 @@ private:
 
   // Feature tracking parameters
   int max_tracked_features_, min_kf_feature_matches_;
-  std::vector<Vector3d, aligned_allocator<Vector3d> > tracked_pts_, new_tracked_pts_;
+  vector<Vector3d, aligned_allocator<Vector3d> > tracked_pts_, new_tracked_pts_;
 
   // Logging
-  std::string directory_;
-  std::ofstream state_log_;
-  std::ofstream cov_log_;
+  string directory_;
+  ofstream state_log_;
+  ofstream cov_log_;
+  ofstream ekf_global_pos_euler_log_;
+  ofstream true_global_euler_log_;
+  ofstream true_pose_b2u_log_;
+
 
   // Ceres
   struct SampsonError

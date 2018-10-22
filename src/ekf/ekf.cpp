@@ -118,6 +118,8 @@ EKF::~EKF()
 {
   state_log_.close();
   cov_log_.close();
+  ekf_global_pos_euler_log_.close();
+  true_global_euler_log_.close();
 }
 
 
@@ -173,19 +175,30 @@ void EKF::load(const std::string &filename)
   common::get_yaml_node("log_directory", filename, directory_);
   state_log_.open(directory_ + "/ekf_state.bin");
   cov_log_.open(directory_ + "/ekf_cov.bin");
+  ekf_global_pos_euler_log_.open(directory_ + "/ekf_global_pos_euler.bin");
+  true_global_euler_log_.open(directory_ + "/true_global_euler.bin");
+
+  // Log b2u pose
+  true_pose_b2u_log_.open(directory_ + "/true_pose_b2u.bin");
+  true_pose_b2u_log_.write((char*)p_bu_.data(), 3 * sizeof(double));
+  true_pose_b2u_log_.write((char*)q_bu_.data(), 4 * sizeof(double));
+  true_pose_b2u_log_.close();
 
   // Initial IMU
   imu_.setZero();
 
-  q_time_avg_ = 0;
-  R_time_avg_ = 0;
-  ceres_time_avg_ = 0;
-  nn_ = 0;
+  // Init global pose estimate
+  global_node_position_ = x_.p;
+  global_node_heading_ = x_.q.yaw();
+  q_global_heading_ = common::Quaterniond(0,0,global_node_heading_);
 }
 
 
-void EKF::run(const double &t, const sensors::Sensors &sensors)
+void EKF::run(const double &t, const sensors::Sensors &sensors, const vehicle::State &x_true)
 {
+  // Store truth
+  x_true_ = x_true;
+
   // Log data
   log(t);
 
@@ -205,12 +218,32 @@ void EKF::run(const double &t, const sensors::Sensors &sensors)
 
 void EKF::log(const double &t)
 {
+  Vector3d pg = global_node_position_ + q_global_heading_.inv().rot(x_.p);
+  double er = x_.q.roll();
+  double ep = x_.q.pitch();
+  double hg = global_node_heading_ + x_.q.yaw();
+  double tr = x_true_.q.roll();
+  double tp = x_true_.q.pitch();
+  double ty = x_true_.q.yaw();
   Matrix<double, NUM_STATES, 1> x = x_.toEigen();
   Matrix<double, NUM_DOF, 1> P_diag = P_.diagonal();
+
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+
   cov_log_.write((char*)&t, sizeof(double));
   cov_log_.write((char*)P_diag.data(), P_diag.rows() * sizeof(double));
+
+  ekf_global_pos_euler_log_.write((char*)&t, sizeof(double));
+  ekf_global_pos_euler_log_.write((char*)pg.data(), 3 * sizeof(double));
+  ekf_global_pos_euler_log_.write((char*)&er, sizeof(double));
+  ekf_global_pos_euler_log_.write((char*)&ep, sizeof(double));
+  ekf_global_pos_euler_log_.write((char*)&hg, sizeof(double));
+
+  true_global_euler_log_.write((char*)&t, sizeof(double));
+  true_global_euler_log_.write((char*)&tr, sizeof(double));
+  true_global_euler_log_.write((char*)&tp, sizeof(double));
+  true_global_euler_log_.write((char*)&ty, sizeof(double));
 }
 
 
@@ -246,15 +279,12 @@ void EKF::imageUpdate()
   dv_.clear();
   dv_k_.clear();
   double mean_disparity = 0;
-  common::Quaterniond q_c2ck = q_bc_.inv() * x_.q.inv() * qk_ * q_bc_;
   for (int n = 0; n < pts_match_.size(); ++n)
   {
-    // Image points without rotation
-    Vector3d pt1 = K_ * q_c2ck.rot(K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0));
-    Vector3d pt2 = pt1 / pt1(2);
-
-    // Recursive mean of disparity
-    mean_disparity = (n * mean_disparity + (pt2.topRows(2) - pts_match_k_[n]).norm()) / (n + 1);
+    // Remove rotation from current image points and compute the average disparity recursively
+    Vector3d pix_derotated = K_ * x_.q.inv().rot(K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0));
+    pix_derotated /= pix_derotated(2);
+    mean_disparity = (n * mean_disparity + (pix_derotated.topRows(2) - pts_match_k_[n]).norm()) / (n + 1);
 
     // Convert point matches to direction vectors
     Vector3d dv = K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0);
@@ -266,36 +296,18 @@ void EKF::imageUpdate()
   // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
   if (mean_disparity > pixel_disparity_threshold_)
   {
-    // Compute relative camera pose initial guess from state then optimize it
-    Vector3d pt = q_bc_.rot(x_.q.rot(pk_ + qk_.inv().rot(p_bc_) - x_.p) - p_bc_);
-    Vector3d t = pt / pt.norm();
-    common::Quaterniond zt(t);
-    common::Quaterniond zq = q_c2ck;
-    Matrix3d R, Rt, R2, Rt2;
-    R = zq.R();
-    Rt = zt.R();
-    R2 = R;
-    Rt2 = Rt;
-    auto t0 = std::chrono::system_clock::now();
-    optimizePose(zq, zt, dv_k_, dv_, 10);
-    auto t1 = std::chrono::system_clock::now();
-    optimizePose2(R, Rt, dv_k_, dv_, 10);
-    auto t2 = std::chrono::system_clock::now();
-    auto q_time = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-    auto R_time = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    q_time_avg_ = (nn_ * q_time_avg_ + q_time) / (nn_ + 1);
-    R_time_avg_ = (nn_ * R_time_avg_ + R_time) / (nn_ + 1);
-    ++nn_;
-//    std::cout << tracked_pts_.size() << ", " << q_time_avg_ << ", " << R_time_avg_ << ", "
-//              << (zq.rot(common::e1) - R * common::e1).norm() << ", "
-//              << (zt.rot(common::e1) - Rt * common::e1).norm() << ", "
-//              << (zq.rot(common::e1) - R2 * common::e1).norm() << ", "
-//              << (zt.rot(common::e1) - Rt2 * common::e1).norm() << std::endl;
-
     // Measurement model and jacobian
     common::Quaterniond ht, hq;
     Matrix<double, 5, NUM_DOF> H;
-    imageH(ht, hq, H, x_, q_bc_, p_bc_, qk_, pk_);
+    getH(x_, q_bc_, p_bc_, ht, hq, H);
+
+    // Compute relative camera pose initial guess from state then optimize it
+//    common::Quaterniond zt(x_.p);
+//    common::Quaterniond zq = x_.q;
+//    optimizePose(zq, zt, dv_k_, dv_, 10);
+    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p)).normalized();
+    common::Quaterniond zt = common::Quaterniond(t_dir);
+    common::Quaterniond zq = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
 
     // Error in translation direction and rotation
     Vector2d err_t = common::Quaterniond::log_uvec(zt,ht);
@@ -380,10 +392,14 @@ bool EKF::trackFeatures(const std::vector<Vector3d, aligned_allocator<Vector3d> 
       ++count;
     }
 
-    // Establish new keyframe
-    pk_ = x_.p;
-    qk_ = x_.q;
+    // Save keyframe image points and reset the keyframe
+    global_node_position_ += q_global_heading_.inv().rot(x_.p);
+    global_node_heading_ += x_.q.yaw();
+    q_global_heading_ = common::Quaterniond(0,0,global_node_heading_);
+    keyframeReset(x_, P_);
     pts_k_ = tracked_pts_;
+    pk_true_ = x_true_.p;
+    qk_true_ = x_true_.q;
     return false;
   }
   else
@@ -423,11 +439,11 @@ void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &
 {
   // Declarations
   static Vector3d pt, t, t_x_k, at;
-  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq, dpt_dpk;
+  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq, dpt_dpk, dpt_dqk;
   static Matrix<double, 2, 3> dexpat_dat;
 
   // Axis-angle representation of translation direction
-  pt = q_bc.rot(x.q.rot(x.pk - x.p));
+  pt = q_bc.rot(x.q.rot(x.pk - x.p) + (x.q.R() * x.qk.inv().R() - common::I_3x3) * p_bc);
   t = pt / pt.norm();
   t_x_k = t.cross(common::e3);
   double tT_k = common::saturate<double>(t.transpose() * common::e3, 1.0, -1.0);
@@ -448,8 +464,9 @@ void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &
   dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
   Matrix3d R_bc = q_bc.R();
   dpt_dp = -R_bc * x.q.R();
-  dpt_dq = R_bc * common::skew(x.q.rot(x.pk - x.p));
+  dpt_dq = R_bc * common::skew(x.q.rot(x.pk - x.p + x.qk.inv().rot(p_bc)));
   dpt_dpk = R_bc * x.q.R();
+  dpt_dqk = -R_bc * x.q.R() * x.qk.inv().R() * common::skew(p_bc);
   Matrix<double,2,3> dexpat_dpt = dexpat_dat * dat_dt * dt_dpt;
 
   // Create measurement Jacobian
@@ -457,19 +474,24 @@ void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &
   H.block<2,3>(0,DPX) = dexpat_dpt * dpt_dp;
   H.block<2,3>(0,DQX) = dexpat_dpt * dpt_dq;
   H.block<2,3>(0,DKPX) = dexpat_dpt * dpt_dpk;
+  H.block<2,3>(0,DKQX) = dexpat_dpt * dpt_dqk;
   H.block<3,3>(2,DQX) = -R_bc * x.qk.R() * x.q.inv().R();
   H.block<3,3>(2,DKQX) = R_bc;
 }
 
 
-void EKF::stateReset(const State &x, State &x_new)
+void EKF::keyframeReset(State &x, dxMatrix& P)
 {
-  x_new = x;
-  x_new.p.setZero();
-  x_new.pk.setZero();
-  common::Quaterniond q_yaw = common::Quaterniond(0,0,x.q.yaw());
-  x_new.q = q_yaw.inv() * x.q;
-  x_new.qk = x_new.q;
+  // State reset
+  x.p.setZero();
+  x.q = common::Quaterniond(0,0,x.q.yaw()).inv() * x.q;
+  x.pk.setZero();
+  x.qk = x.q;
+
+  // Covariance reset
+  dxMatrix N;
+  getN(x, N);
+  P = N * P * N.transpose();
 }
 
 
@@ -489,42 +511,6 @@ void EKF::getN(const State &x, dxMatrix &N)
              0.0, -cp * sp,  sp * sp;
   N.block<3,3>(ekf::DQX,ekf::DQX) = N_theta;
   N.block<3,3>(ekf::DKQX,ekf::DQX) = N_theta;
-}
-
-
-void EKF::imageH(common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H, const State &x,
-                 const common::Quaterniond &q_bc, const Vector3d &p_bc, const common::Quaterniond &q_ik,
-                 const Vector3d &p_ik)
-{
-  // Declarations
-  static Vector3d pt, t, t_x_k, at;
-  static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq;
-  static Matrix<double, 2, 3> dexpat_dat;
-
-  pt = q_bc.rot(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p) - p_bc);
-  t = pt / pt.norm();
-  t_x_k = t.cross(common::e3);
-  double tT_k = t.transpose() * common::e3;
-  at = acos(tT_k) * t_x_k / t_x_k.norm();
-
-  ht = common::Quaterniond::exp(at);
-  hq = q_bc.inv() * x.q.inv() * q_ik * q_bc;
-
-  Gamma_at = common::Quaterniond::dexp(at);
-  double txk_mag = t_x_k.norm();
-  dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
-  dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
-                           (txk_mag * txk_mag) - common::I_3x3) * common::skew(common::e3) -
-                           (t_x_k * common::e3.transpose()) / (txk_mag * sqrt(1.0 - tT_k * tT_k));
-  double ptmag = pt.norm();
-  dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
-  dpt_dp = -q_bc.R() * x.q.R();
-  dpt_dq = q_bc.R() * common::skew(x.q.rot(p_ik + q_ik.inv().rot(p_bc) - x.p));
-
-  H.setZero();
-  H.block<2,3>(0,DPX) = dexpat_dat * dat_dt * dt_dpt * dpt_dp;
-  H.block<2,3>(0,DQX) = dexpat_dat * dat_dt * dt_dpt * dpt_dq;
-  H.block<3,3>(2,DQX) = -q_bc.R() * q_ik.R() * x.q.R().transpose();
 }
 
 
@@ -593,78 +579,7 @@ void EKF::optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
 
     // Update camera rotation and translation
     q += Vector3d(delta.segment<3>(0));
-    qt += Vector3d(qt.proj() * delta.segment<2>(3));
-  }
-}
-
-
-// Relative camera pose optimizer using rotation matrices
-void EKF::optimizePose2(Matrix3d& R, Matrix3d& Rt,
-                        const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
-                        const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
-                        const unsigned &iters)
-{
-  // Ensure number of directions vectors from each camera match
-  if (e1.size() != e2.size())
-  {
-    std::cout << "\nError in optimizePose. Direction vector arrays must be the same size.\n\n";
-    return;
-  }
-
-  // Constants
-  const int N = e1.size();
-  static const Matrix3d e1x = common::skew(common::e1);
-  static const Matrix3d e2x = common::skew(common::e2);
-  static const Matrix3d e3x = common::skew(common::e3);
-
-  // Declare things that change each loop
-  static Matrix3d Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
-  static Vector3d t, e1tx_t, e2tx_t, Rte1, Rte2, delta2, delta3;
-  static Matrix<double,5,1> delta;
-  static Matrix<double, 1000, 1> r;
-  static Matrix<double, 1000, 5> J;
-
-  // Main optimization loop
-  for (int i = 0; i < iters; ++i)
-  {
-    // Pre-compute a few things
-    t = Rt * common::e3;
-    Rtx = R * common::skew(t);
-    e1x_Rtx = e1x * Rtx;
-    e2x_Rtx = e2x * Rtx;
-    e3x_Rtx = e3x * Rtx;
-    Rte1 = Rt * common::e1;
-    Rte2 = Rt * common::e2;
-    e1tx = common::skew(Rte1);
-    e2tx = common::skew(Rte2);
-    e1tx_t = e1tx * t;
-    e2tx_t = e2tx * t;
-    R_e1tx_tx = R * common::skew(e1tx_t);
-    R_e2tx_tx = R * common::skew(e2tx_t);
-
-    // Vector of residual errors
-    for (int j = 0; j < N; ++j)
-      se(r(j), e1[j], e2[j], Rtx);
-
-    // Stop if error is small enough
-    if (r.topRows(N).sum() < 1e-1) break;
-
-    // Jacobian of residual errors
-    for (int j = 0; j < N; ++j)
-    {
-      dse(J(j,0), e1[j], e2[j], Rtx, -e1x_Rtx);
-      dse(J(j,1), e1[j], e2[j], Rtx, -e2x_Rtx);
-      dse(J(j,2), e1[j], e2[j], Rtx, -e3x_Rtx);
-      dse(J(j,3), e1[j], e2[j], Rtx, -R_e1tx_tx);
-      dse(J(j,4), e1[j], e2[j], Rtx, -R_e2tx_tx);
-    }
-
-    // Innovation
-    delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
-
-    // Update camera rotation and translation
-    R = common::expR(common::skew(Vector3d(-delta.segment<3>(0)))) * R;
-    Rt = common::expR(common::skew(Vector3d(-Rt * common::I_2x3.transpose() * delta.segment<2>(3)))) * Rt;
+    qt = common::Quaterniond::exp(qt.proj() * delta.segment<2>(3)) * qt;
   }
 }
 
