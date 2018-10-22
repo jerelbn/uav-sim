@@ -8,10 +8,10 @@ control_using_estimates: false
 save_pixel_measurements: false
 
 # Truth Configuration
-use_accel_truth: true
-use_gyro_truth: true
-use_camera_truth: true
-use_mocap_truth: true
+use_accel_truth: false
+use_gyro_truth: false
+use_camera_truth: false
+use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
      0, 0, 0,    # VEL
@@ -26,8 +26,8 @@ throttle_eq: 0.5
 mass: 10.0
 max_thrust: 196.133
 inertia: [0.6271, 0.6271, 1.25]
-linear_drag: [0.0, 0.0, 0.0]
-angular_drag: [0.0, 0.0, 0.0]
+linear_drag: [0.1, 0.1, 0.001]
+angular_drag: [0.001, 0.001, 0.001]
 
 Kp: [1, 1, 1]
 Kd: [0.0, 0.0, 0.0]
@@ -147,19 +147,19 @@ xhat0: [0, 0, 0,   # POS
         0, 0, 0,    # KF POS
         1, 0, 0, 0] # KF ATT
 
-P0_diag: [0.001, 0.001, 0.001, # POS
-          0.001, 0.001, 0.001, # ATT
-          0.001, 0.001, 0.001, # VEL
+P0_diag: [0.01, 0.01, 0.01, # POS
+          0.01, 0.01, 0.01, # ATT
+          0.01, 0.01, 0.01, # VEL
           0.1, 0.1, 0.1, # OMEGA
           0.2, 0.2, 0.2, # ACC
-          0.001, 0.001, 0.001, # KF POS
-          0.001, 0.001, 0.001] # KF ATT
+          0.01, 0.01, 0.01, # KF POS
+          0.01, 0.01, 0.01] # KF ATT
 
 Qx_diag: [0.0, 0.0, 0.0, # POS
           0.0, 0.0, 0.0, # ATT
           0.0, 0.0, 0.0, # VEL
-          0.0, 0.0, 0.0, # OMEGA
-          0.0, 0.0, 0.0, # ACC
+          0.000001, 0.000001, 0.000001, # OMEGA
+          0.000001, 0.000001, 0.000001, # ACC
           0.0, 0.0, 0.0, # KF POS
           0.0, 0.0, 0.0] # KF ATT
 
