@@ -1,4 +1,4 @@
-function animate_img(speed)
+function animate_img(directory, speed)
     
     % Load pixel measurements
     file = fopen(strcat(directory,'camera.bin'), 'r');

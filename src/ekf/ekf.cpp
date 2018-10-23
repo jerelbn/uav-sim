@@ -289,8 +289,8 @@ void EKF::imageUpdate()
     // Convert point matches to direction vectors
     Vector3d dv = K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0);
     Vector3d dv_k = K_inv_ * Vector3d(pts_match_k_[n](0), pts_match_k_[n](1), 1.0);
-    dv_.push_back(dv / dv.norm());
-    dv_k_.push_back(dv_k / dv_k.norm());
+    dv_.push_back(dv.normalized());
+    dv_k_.push_back(dv_k.normalized());
   }
 
   // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
@@ -302,12 +302,44 @@ void EKF::imageUpdate()
     getH(x_, q_bc_, p_bc_, ht, hq, H);
 
     // Compute relative camera pose initial guess from state then optimize it
-//    common::Quaterniond zt(x_.p);
-//    common::Quaterniond zq = x_.q;
-//    optimizePose(zq, zt, dv_k_, dv_, 10);
-    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p)).normalized();
-    common::Quaterniond zt = common::Quaterniond(t_dir);
-    common::Quaterniond zq = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
+    common::Quaterniond zt = ht;
+    common::Quaterniond zq = hq;
+    optimizePose(zq, zt, dv_k_, dv_, 30);
+    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p) +
+                     (x_true_.q.R() * qk_true_.inv().R() - common::I_3x3) * p_bc_).normalized();
+    common::Quaterniond zt_ = common::Quaterniond(t_dir);
+    common::Quaterniond zq_ = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
+    cout << "\nht: " << ht.uvec().transpose() << endl;
+    cout << "t_meas: " << zt.uvec().transpose() << endl;
+    cout << "t_true: " << zt_.uvec().transpose() << endl;
+    cout << "q_meas: " << zq.toEigen().transpose() << endl;
+    cout << "q_true: " << zq_.toEigen().transpose() << endl;
+
+//    Vector3d t = zt.uvec();
+//    Vector3d t_ = zt_.uvec();
+//    for (int i = 0; i < dv_.size(); ++i)
+//    {
+//      double e1T_E_e2, sampson_error;
+//      Vector3d lm1, lm2, E_e2;
+//      Matrix3d E;
+//      RowVector3d e1T_E;
+//      lm1 = dv_[i];
+//      lm2 = dv_[i];
+
+//      E = zq_.R() * common::skew(t);
+//      e1T_E = lm1.transpose() * E;
+//      E_e2 = E * lm2;
+//      e1T_E_e2 = lm1.transpose() * E_e2;
+//      sampson_error = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+//      cout << "Sampson Error 1: " << sampson_error << endl;
+
+//      E = zq_.R() * common::skew(t_);
+//      e1T_E = lm1.transpose() * E;
+//      E_e2 = E * lm2;
+//      e1T_E_e2 = lm1.transpose() * E_e2;
+//      sampson_error = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
+//      cout << "Sampson Error 2: " << sampson_error << endl;
+//    }
 
     // Error in translation direction and rotation
     Vector2d err_t = common::Quaterniond::log_uvec(zt,ht);
@@ -438,28 +470,28 @@ void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &
                common::Quaterniond &ht, common::Quaterniond &hq, Matrix<double, 5, NUM_DOF> &H)
 {
   // Declarations
-  static Vector3d pt, t, t_x_k, at;
+  static Vector3d pt, t, e3_x_t, at;
   static Matrix3d Gamma_at, dat_dt, dt_dpt, dpt_dp, dpt_dq, dpt_dpk, dpt_dqk;
   static Matrix<double, 2, 3> dexpat_dat;
 
   // Axis-angle representation of translation direction
   pt = q_bc.rot(x.q.rot(x.pk - x.p) + (x.q.R() * x.qk.inv().R() - common::I_3x3) * p_bc);
   t = pt / pt.norm();
-  t_x_k = t.cross(common::e3);
-  double tT_k = common::saturate<double>(t.transpose() * common::e3, 1.0, -1.0);
-  at = acos(tT_k) * t_x_k / t_x_k.norm();
+  e3_x_t = common::e3.cross(t);
+  double e3T_t = common::saturate<double>(common::e3.transpose() * t, 1.0, -1.0);
+  at = acos(e3T_t) * e3_x_t.normalized();
 
   // Create measurement models
-  ht = common::Quaterniond::exp(at);
+  ht = common::Quaterniond(pt);
   hq = q_bc.inv() * x.q.inv() * x.qk * q_bc;
 
   // Sub-derivative calculations
   Gamma_at = common::Quaterniond::dexp(at);
-  double txk_mag = t_x_k.norm();
+  double e3_x_t_mag = e3_x_t.norm();
   dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
-  dat_dt = acos(tT_k) / txk_mag * ((t_x_k * t_x_k.transpose()) /
-                           (txk_mag * txk_mag) - common::I_3x3) * common::skew(common::e3) -
-                           (t_x_k * common::e3.transpose()) / (txk_mag * sqrt(1.0 - tT_k * tT_k));
+  dat_dt = acos(e3T_t) / e3_x_t_mag * ((e3_x_t * e3_x_t.transpose()) /
+                           (e3_x_t_mag * e3_x_t_mag) - common::I_3x3) * common::skew(common::e3) -
+                           (e3_x_t * common::e3.transpose()) / (e3_x_t_mag * sqrt(1.0 - e3T_t * e3T_t));
   double ptmag = pt.norm();
   dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
   Matrix3d R_bc = q_bc.R();
@@ -514,10 +546,10 @@ void EKF::getN(const State &x, dxMatrix &N)
 }
 
 
-// Relative camera pose optimizer
+// Relative pose optimizer using the Ceres Solver
 void EKF::optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
-                       const std::vector<Vector3d, aligned_allocator<Vector3d> >& e1,
-                       const std::vector<Vector3d, aligned_allocator<Vector3d> >& e2,
+                       const vector<Vector3d,aligned_allocator<Vector3d>>& e1,
+                       const vector<Vector3d,aligned_allocator<Vector3d>>& e2,
                        const unsigned &iters)
 {
   // Ensure number of directions vectors from each camera match
@@ -527,98 +559,27 @@ void EKF::optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
     return;
   }
 
-  // Constants
-  const int N = e1.size();
-  static const Matrix3d e1x = common::skew(common::e1);
-  static const Matrix3d e2x = common::skew(common::e2);
-  static const Matrix3d e3x = common::skew(common::e3);
+  // Build optimization problem with Ceres-Solver
+  ceres::Problem problem;
 
-  // Declare things that change each loop
-  static Matrix3d R, Rtx, e1x_Rtx, e2x_Rtx, e3x_Rtx, e1tx, e2tx, R_e1tx_tx, R_e2tx_tx;
-  static Vector3d t, e1tx_t, e2tx_t;
-  static Matrix<double,5,1> delta;
-  static Matrix<double, 1000, 1> r;
-  static Matrix<double, 1000, 5> J;
+  // Does passing a dynamic rvalue result in a memory leak?
+  problem.AddParameterBlock(q.data(), 4, new ceres::AutoDiffLocalParameterization<EKF::S3Plus,4,3>);
+  problem.AddParameterBlock(qt.data(), 4, new ceres::AutoDiffLocalParameterization<EKF::S2Plus,4,2>);
 
-  // Main optimization loop
-  for (int i = 0; i < iters; ++i)
-  {
-    // Pre-compute a few things
-    R = q.R();
-    t = qt.uvec();
-    Rtx = R * common::skew(t);
-    e1x_Rtx = e1x * Rtx;
-    e2x_Rtx = e2x * Rtx;
-    e3x_Rtx = e3x * Rtx;
-    e1tx = common::skew(qt.rot(common::e1));
-    e2tx = common::skew(qt.rot(common::e2));
-    e1tx_t = e1tx * t;
-    e2tx_t = e2tx * t;
-    R_e1tx_tx = R * common::skew(e1tx_t);
-    R_e2tx_tx = R * common::skew(e2tx_t);
+  for (int i = 0; i < e1.size(); ++i)
+    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<EKF::SampsonError, 1, 4, 4>
+    (new EKF::SampsonError(e1[i], e2[i])), NULL, q.data(), qt.data());
 
-    // Vector of residual errors
-    for (int j = 0; j < N; ++j)
-      se(r(j), e1[j], e2[j], Rtx);
-
-    // Stop if error is small enough
-    if (r.topRows(N).sum() < 1e-6) break;
-
-    // Jacobian of residual errors
-    for (int j = 0; j < N; ++j)
-    {
-      dse(J(j,0), e1[j], e2[j], Rtx, -e1x_Rtx);
-      dse(J(j,1), e1[j], e2[j], Rtx, -e2x_Rtx);
-      dse(J(j,2), e1[j], e2[j], Rtx, -e3x_Rtx);
-      dse(J(j,3), e1[j], e2[j], Rtx, -R_e1tx_tx);
-      dse(J(j,4), e1[j], e2[j], Rtx, -R_e2tx_tx);
-    }
-
-    // Innovation
-    delta = -(J.topRows(N).transpose() * J.topRows(N)).inverse() * J.topRows(N).transpose() * r.topRows(N);
-
-    // Update camera rotation and translation
-    q += Vector3d(delta.segment<3>(0));
-    qt = common::Quaterniond::exp(qt.proj() * delta.segment<2>(3)) * qt;
-  }
+  // Solve for the optimal rotation and translation direciton
+  ceres::Solver::Options options;
+  options.linear_solver_type = ceres::DENSE_QR;
+  options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+  options.max_num_iterations = iters;
+  options.minimizer_progress_to_stdout = false;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+//  std::cout << summary.FullReport() << "\n\n";
 }
 
 
-// Sampson's error
-void EKF::se(double& err, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E)
-{
-  static Vector3d e1T_E, E_e2;
-  double e1T_E_e2 = e1.transpose() * E * e2;
-  if (e1T_E_e2 < 1e-6)
-    err = 0;
-  else
-  {
-    e1T_E = (e1.transpose() * E).transpose();
-    E_e2 = E * e2;
-    err = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
-  }
-}
-
-
-// Derivative of Sampson's error
-void EKF::dse(double& derr, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E, const Matrix3d& dE)
-{
-  static Vector3d e1T_E, E_e2, e1T_dE, dE_e2;
-  double e1T_E_e2 = e1.transpose() * E * e2;
-  if (e1T_E_e2 < 1e-6)
-    derr = 0;
-  else
-  {
-    e1T_E = (e1.transpose() * E).transpose();
-    E_e2 = E * e2;
-    e1T_dE = (e1.transpose() * dE).transpose();
-    dE_e2 = dE * e2;
-    double val1 = sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
-    double val2 = e1T_E(0) * e1T_dE(0) + e1T_E(1) * e1T_dE(1) + E_e2(0) * dE_e2(0) + E_e2(1) * dE_e2(1);
-    double e1T_dE_e2 = e1.transpose() * dE * e2;
-    derr = (e1T_dE_e2 * val1 - e1T_E_e2 * val2) / (val1 * val1);
-  }
-}
-
-
-}
+} // namespace ekf

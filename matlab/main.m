@@ -38,4 +38,4 @@ plot_states;
 % animate_3d(5,env, true_state, ekf_state, command, bicycle_state);
 
 %% Plot image animation
-% animate_img(1);
+% animate_img(directory, 1);

@@ -121,12 +121,6 @@ private:
                     const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
                     const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                     const unsigned &iters);
-  void optimizePose2(Matrix3d& R, Matrix3d& Rt,
-                     const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
-                     const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
-                     const unsigned &iters);
-  void se(double& err, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E);
-  void dse(double& derr, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E, const Matrix3d& dE);
 
   vehicle::State x_true_;
   Vector3d pk_true_;
@@ -181,63 +175,62 @@ private:
 
 
   // Ceres
+  struct S3Plus
+  {
+    template<typename T>
+    bool operator()(const T* _q1, const T* _delta, T* _q2) const
+    {
+      common::Quaternion<T> q1(_q1);
+      Map<const Matrix<T,3,1>> delta(_delta);
+      Map<Matrix<T,4,1>> q2(_q2);
+      q2 = (q1 + delta).toEigen();
+      return true;
+    }
+  };
+
+
+  struct S2Plus
+  {
+    template<typename T>
+    bool operator()(const T* _q1, const T* _delta, T* _q2) const
+    {
+      common::Quaternion<T> q1(_q1);
+      Map<const Matrix<T,2,1>> delta(_delta);
+      Map<Matrix<T,4,1>> q2(_q2);
+      q2 = (common::Quaternion<T>::exp(q1.proj() * delta) * q1).toEigen();
+      return true;
+    }
+  };
+
+
   struct SampsonError
   {
-    SampsonError(const Vector3d _ek, const Vector3d _ec)
-        : ek(_ek), ec(_ec) {}
+    SampsonError(const Vector3d& _e1, const Vector3d& _e2)
+        : e1(_e1), e2(_e2) {}
 
     template <typename T>
-    bool operator()(const T* const _R, const T* const _Rt, T* residual) const
+    bool operator()(const T* const _q, const T* _qt, T* residuals) const
     {
-      // Map inputs to Eigen matrices
-      Matrix<T,3,3> R = Map<const Matrix<T,3,3>>(_R);
-      Matrix<T,3,3> Rt = Map<const Matrix<T,3,3>>(_Rt);
+      // Map data
+      common::Quaternion<T> q(_q);
+      common::Quaternion<T> qt(_qt);
 
       // Construct residual
-      const Matrix<T,3,1> t = Rt * common::e3.cast<T>();
-      const Matrix<T,3,3> E = R * common::skew(t);
-      const Matrix<T,1,3> ekT_E = ek.cast<T>().transpose() * E;
-      const Matrix<T,3,1> E_ec = E * ec.cast<T>();
-      const T ekT_E_ec = ek.cast<T>().transpose() * E_ec;
-      residual[0] = ekT_E_ec / sqrt(ekT_E(0) * ekT_E(0) + ekT_E(1) * ekT_E(1) + E_ec(0) * E_ec(0) + E_ec(1) * E_ec(1));
+      Matrix<T,3,3> E = q.R() * common::skew(qt.uvec());
+      Matrix<T,1,3> e1T_E = e1.cast<T>().transpose() * E;
+      Matrix<T,3,1> E_e2 = E * e2.cast<T>();
+      T e1T_E_e2 = e1.cast<T>().transpose() * E_e2;
+      residuals[0] = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
       return true;
     }
 
   private:
 
-    const Vector3d ek, ec;
+    const Vector3d e1, e2;
 
   };
 
-  struct SO3Plus
-  {
-    template<typename T>
-    bool operator()(const T *x, const T *delta, T *x_plus_delta) const
-    {
-      Map<const Matrix<T,3,3>> _R(x);
-      Map<const Matrix<T,3,1>> dR(delta);
-
-      Map<Matrix<T,3,3>> R(x_plus_delta);
-      R = common::expR(common::skew(Matrix<T,3,1>(-dR))) * _R;
-      return true;
-    }
-  };
-
-  struct S2Plus
-  {
-    template<typename T>
-    bool operator()(const T *x, const T *delta, T *x_plus_delta) const
-    {
-      Map<const Matrix<T,3,3>> _R(x);
-      Map<const Matrix<T,2,1>> dR(delta);
-
-      Map<Matrix<T,3,3>> R(x_plus_delta);
-      R = common::expR(common::skew(Matrix<T,3,1>(-_R * common::I_2x3.cast<T>().transpose() * dR))) * _R;
-      return true;
-    }
-  };
-
-};
+}; // EKF
 
 
 }
