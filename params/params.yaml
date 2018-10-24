@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 30.0
+tf: 3.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -10,7 +10,7 @@ save_pixel_measurements: false
 # Truth Configuration
 use_accel_truth: true
 use_gyro_truth: true
-use_camera_truth: false
+use_camera_truth: true
 use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
@@ -54,7 +54,7 @@ max_tau_z: 50.0
 # 0: waypoints
 # 1: trajectory
 # 2: circumnavigation
-path_type: 0
+path_type: 1
 
 waypoints: [0, 0, -4, 0,
             10, 0, -4, 0,
@@ -104,8 +104,8 @@ wall_height: 10 # Total room height
 
 ## IMU
 imu_update_rate: 250
-p_bu: [0.05, 0.01, 0.02] # translation from body to IMU in body frame
-q_bu: [0.5, 0.5, 0.5, 0.5] # rotation from body to IMU frame
+p_bu: [0.0, 0.0, 0.0] # translation from body to IMU in body frame
+q_bu: [1.0, 0.0, 0.0, 0.0] # rotation from body to IMU frame
 
 accel_noise_stdev: 0.5
 accel_bias_init_bound: 0.5
@@ -143,22 +143,29 @@ xhat0: [0, 0, 0,   # POS
         1, 0, 0, 0, # ATT
         0, 0, 0,    # VEL
         0, 0, 0,    # OMEGA
-        0, 0, 0]    # ACC
+        0, 0, 0,    # ACC
+        0, 0, 0,    # KF POS
+        1, 0, 0, 0] # KF ATT
 
-P0_diag: [0.001, 0.001, 0.001, # POS
-          0.001, 0.001, 0.001, # ATT
-          0.001, 0.001, 0.001, # VEL
+P0_diag: [0.01, 0.01, 0.01, # POS
+          0.01, 0.01, 0.01, # ATT
+          0.01, 0.01, 0.01, # VEL
           0.1, 0.1, 0.1, # OMEGA
-          0.2, 0.2, 0.2] # ACC
+          0.2, 0.2, 0.2, # ACC
+          0.01, 0.01, 0.01, # KF POS
+          0.01, 0.01, 0.01] # KF ATT
 
-Qx_diag: [0.001, 0.001, 0.001, # POS
+Qx_diag: [0.0, 0.0, 0.0, # POS
           0.0, 0.0, 0.0, # ATT
-          0.0001, 0.0001, 0.0001, # VEL
-          0.000000000016, 0.000000000016, 0.000000000016, # OMEGA
-          0.0000000016, 0.0000000016, 0.0000000016] # ACC
+          0.0, 0.0, 0.0, # VEL
+          0.000001, 0.000001, 0.000001, # OMEGA
+          0.000001, 0.000001, 0.000001, # ACC
+          0.0, 0.0, 0.0, # KF POS
+          0.0, 0.0, 0.0] # KF ATT
 
-Qu_diag: [0.00000016, 0.00000016, 0.00000016, # OMEGA
-          0.000004, 0.000004, 0.000004] # ACC
+Qu_diag: [0.25, 0.25, 0.25, # OMEGA
+          0.01, 0.01, 0.01] # ACC
+
 
 R_vo_diag: [0.01, 0.01, # Translation Direction
             0.001, 0.001, 0.001] # Rotation
@@ -170,9 +177,11 @@ lambda: [1, 1, 1, # POS
          1, 1, 1, # ATT
          1, 1, 1, # VEL
          1, 1, 1, # OMEGA
-         1, 1, 1] # ACC
+         1, 1, 1, # ACC
+         1, 1, 1, # KF POS
+         1, 1, 1] # KF ATT
 
-pixel_disparity_threshold: 20
+pixel_disparity_threshold: 30
 max_tracked_features: 200
 min_kf_feature_matches: 100
 

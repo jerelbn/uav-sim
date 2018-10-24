@@ -19,55 +19,35 @@ namespace ekf
 // State Indices
 enum
 {
-  PX,
-  PY,
-  PZ,
-  QW,
-  QX,
-  QY,
-  QZ,
-  VX,
-  VY,
-  VZ,
-  AX,
-  AY,
-  AZ,
-  GX,
-  GY,
-  GZ,
+  PX, PY, PZ,
+  QW, QX, QY, QZ,
+  VX, VY, VZ,
+  AX, AY, AZ,
+  GX, GY, GZ,
+  KPX, KPY, KPZ,
+  KQW, KQX, KQY, KQZ,
   NUM_STATES
 };
 
 // Derivative indices
 enum
 {
-  DPX,
-  DPY,
-  DPZ,
-  DQX,
-  DQY,
-  DQZ,
-  DVX,
-  DVY,
-  DVZ,
-  DAX,
-  DAY,
-  DAZ,
-  DGX,
-  DGY,
-  DGZ,
+
+  DPX, DPY, DPZ,
+  DQX, DQY, DQZ,
+  DVX, DVY, DVZ,
+  DAX, DAY, DAZ,
+  DGX, DGY, DGZ,
+  DKPX, DKPY, DKPZ,
+  DKQX, DKQY, DKQZ,
   NUM_DOF
 };
 
 // Input indices
 enum
 {
-  UAX,
-  UAY,
-  UAZ,
-  UGX,
-  UGY,
-  UGZ,
+  UAX, UAY, UAZ,
+  UGX, UGY, UGZ,
   NUM_INPUTS
 };
 
@@ -88,6 +68,7 @@ struct State
     v.setZero();
     ba.setZero();
     bg.setZero();
+    tk = common::Transform<T>();
   }
 
   State(const State<T>& x)
@@ -96,6 +77,7 @@ struct State
     v = x.v;
     ba = x.ba;
     bg = x.bg;
+    tk = x.tk;
   }
 
   State(const Matrix<T,NUM_STATES,1> &x)
@@ -104,6 +86,7 @@ struct State
     v = x.template segment<3>(VX);
     ba = x.template segment<3>(AX);
     bg = x.template segment<3>(GX);
+    tk = common::Transform<T>(x.template segment<3>(KPX), x.template segment<4>(KQW));
   }
 
   State(const T* ptr)
@@ -112,6 +95,7 @@ struct State
     v = Matrix<T,3,1>(ptr[VX], ptr[VY], ptr[VZ]);
     ba = Matrix<T,3,1>(ptr[AX], ptr[AY], ptr[AZ]);
     bg = Matrix<T,3,1>(ptr[GX], ptr[GY], ptr[GZ]);
+    tk = common::Transform<T>(ptr+KPX);
   }
 
   State<T> operator+(const Matrix<T,NUM_DOF,1> &delta) const
@@ -121,9 +105,20 @@ struct State
     x.v = v + delta.template segment<3>(DVX);
     x.ba = ba + delta.template segment<3>(DAX);
     x.bg = bg + delta.template segment<3>(DGX);
+    x.tk = tk + delta.template segment<6>(DKPX);
     return x;
   }
 
+  Matrix<T,NUM_DOF,1> operator-(const State<T> &x2) const
+  {
+    Matrix<T,NUM_DOF,1> dx;
+    dx.template segment<6>(DPX) = t - x2.t;
+    dx.template segment<3>(DVX) = v - x2.v;
+    dx.template segment<3>(DAX) = ba - x2.ba;
+    dx.template segment<3>(DGX) = bg - x2.bg;
+    dx.template segment<6>(DKPX) = tk - x2.tk;
+    return dx;
+  }
 
   void operator+=(const Matrix<T,NUM_DOF,1> &delta)
   {
@@ -134,7 +129,7 @@ struct State
   Matrix<T, NUM_STATES, 1> toEigen() const
   {
     Matrix<T, NUM_STATES, 1> x;
-    x << t.p(), t.q().toEigen(), v, ba, bg;
+    x << t.p(), t.q().toEigen(), v, ba, bg, tk.p(), tk.q().toEigen();
     return x;
   }
 
@@ -142,6 +137,7 @@ struct State
   Matrix<T,3,1> v;
   Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
+  common::Transform<T> tk;
 
 };
 
@@ -149,12 +145,11 @@ struct State
 template<typename T>
 void dynamics(const State<T> &x, const Matrix<T,NUM_INPUTS,1> &imu, Matrix<T,NUM_DOF,1> &xdot)
 {
+  xdot.setZero();
   xdot.template segment<3>(DPX) = x.v;
   xdot.template segment<3>(DQX) = imu.template segment<3>(UGX) - x.bg;
   xdot.template segment<3>(DVX) = imu.template segment<3>(UAX) - x.ba + T(common::gravity) * x.t.q().rot(common::e3.cast<T>()) -
                                  (imu.template segment<3>(UGX) - x.bg).cross(x.v);
-  xdot.template segment<3>(DGX).setZero();
-  xdot.template segment<3>(DAX).setZero();
 }
 
 
@@ -162,32 +157,25 @@ void dynamics(const State<T> &x, const Matrix<T,NUM_INPUTS,1> &imu, Matrix<T,NUM
 template<typename T>
 void dynamics(const State<T> &x, const Matrix<T,NUM_INPUTS,1> &imu, const Matrix<T,NUM_INPUTS,1> &noise, Matrix<T,NUM_DOF,1> &xdot)
 {
+  xdot.setZero();
   xdot.template segment<3>(DPX) = x.v;
   xdot.template segment<3>(DQX) = imu.template segment<3>(UGX) - x.bg - noise.template segment<3>(UGX);
   xdot.template segment<3>(DVX) = imu.template segment<3>(UAX) - x.ba - noise.template segment<3>(UAX) + T(common::gravity) * x.t.q().rot(common::e3.cast<T>()) -
                                  (imu.template segment<3>(UGX) - x.bg - noise.template segment<3>(UGX)).cross(x.v);
-  xdot.template segment<3>(DGX).setZero();
-  xdot.template segment<3>(DAX).setZero();
 }
 
 
 // Model for relative translation direction and rotation
 template<typename T>
-void rel_pose_model(const State<T> &x, const Matrix<T,3,1>& omega_sum, const T& dt,
-                    const common::Quaternion<T>& q_bc, const Matrix<T,3,1>& p_bc,
+void rel_pose_model(const State<T> &x, const common::Quaternion<T>& q_bc, const Matrix<T,3,1>& p_bc,
                     common::Quaternion<T>& ht, common::Quaternion<T>& hq)
 {
   // Compute translation direction model
-  static Matrix<T,3,1> pt, t, t_x_e3, at;
-  pt = -q_bc.rot(x.t.q().rot(x.t.p()) + p_bc);
-  t = pt / pt.norm();
-  t_x_e3 = t.cross(common::e3);
-  T tT_e3 = common::saturate<T>(t.dot(common::e3.cast<T>()), T(1.0), T(-1.0));
-  at = acos(tT_e3) * t_x_e3 / t_x_e3.norm();
-  ht = common::Quaternion<T>::exp(at);
+  Matrix<T,3,1> pt = q_bc.rot(x.t.q().rot(x.tk.p() - x.t.p()) + (x.t.q().R() * x.tk.q().inv().R() - common::I_3x3) * p_bc);;
+  ht = common::Quaternion<T>(pt);
 
   // Compute rotation model
-  hq = q_bc.inv() * x.t.q().inv() * (x.t.q() + Matrix<T,3,1>(-omega_sum + x.bg * dt)) * q_bc;
+  hq = q_bc.inv() * x.t.q().inv() * x.tk.q() * q_bc;
 }
 
 
@@ -252,6 +240,7 @@ Matrix<T,NUM_STATES,NUM_DOF> dxpd_dd(const Matrix<T,NUM_STATES,1>& x)
   dx.template block<3,3>(VX,DVX).setIdentity();
   dx.template block<3,3>(AX,DAX).setIdentity();
   dx.template block<3,3>(GX,DGX).setIdentity();
+  dx.template block<7,6>(KPX,DKPX) = dTpd_dd<T>(x.template segment<7>(KPX));
   return dx;
 }
 
@@ -285,35 +274,62 @@ private:
 };
 
 
-// Struct for calculation of Jacobian of the camera translation model w.r.t. the state
+// Struct for calculation of the error measurement Jacobian w.r.t. the state
 struct RelPoseModel
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  RelPoseModel(const Vector3d& _omega_sum, const double& _dt,
+  RelPoseModel(const common::Quaterniond& _zt, const common::Quaterniond& _zq,
                const common::Quaterniond& _q_bc, const Vector3d& _p_bc)
-    : omega_sum(_omega_sum), dt(_dt), q_bc(_q_bc), p_bc(_p_bc) {}
+    : zt(_zt), zq(_zq), q_bc(_q_bc), p_bc(_p_bc) {}
 
   template <typename T>
-  bool operator()(const T* const _x, T* residual) const
+  bool operator()(const T* const _x, T* _residual) const
   {
     // Map state
     const State<T> x(_x);
+    Map<Matrix<T,5,1>> r(_residual);
 
-    // Compute output
-    Map<Matrix<T,2,1>> h(residual);
     common::Quaternion<T> ht, hq;
-    rel_pose_model(x, omega_sum.cast<T>(), T(dt), q_bc.cast<T>(), p_bc.cast<T>(), ht, hq);
-    h.template segment<4>(0) = ht;
-    h.template segment<4>(4) = hq;
+    rel_pose_model<T>(x, q_bc.cast<T>(), p_bc.cast<T>(), ht, hq);
+
+    r.template segment<2>(0) = common::Quaternion<T>::log_uvec(zt.cast<T>(),ht);
+    r.template segment<3>(2) = zq.cast<T>() - hq;
+
     return true;
   }
 
 private:
 
-  const double dt;
-  const Vector3d omega_sum, p_bc;
-  const common::Quaterniond q_bc;
+  const Vector3d p_bc;
+  const common::Quaterniond q_bc, zt, zq;
 
+};
+
+
+// Struct for calculation of the error measurement Jacobian w.r.t. the state
+struct KeyframeResetModel
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  KeyframeResetModel() {}
+
+  template <typename T>
+  bool operator()(const T* const _x, T* _residual) const
+  {
+    // Map state
+    const State<T> x(_x);
+
+    // Create reset state
+    State<T> xp = x;
+    xp.t.setP(Matrix<T,3,1>(T(0),T(0),T(0)));
+    xp.t.setQ(common::Quaternion<T>(T(0),T(0),x.t.q().yaw()).inv() * x.t.q());
+    xp.tk.setP(Matrix<T,3,1>(T(0),T(0),T(0)));
+    xp.tk.setQ(x.t.q());
+
+    Map<Matrix<T,NUM_DOF,1>> r(_residual);
+    r = x - xp;
+
+    return true;
+  }
 };
 
 
@@ -344,22 +360,40 @@ void getFG(const Matrix<T,NUM_STATES,1>& x, const Matrix<T,6,1>& imu,
 
 // Use automatic differentiation to calculate the Jacobian of relative pose model w.r.t. minimal state
 template<typename T>
-void getH_vo(const Matrix<T,NUM_STATES,1>& x, const Matrix<T,6,1>& imu,
-                 Matrix<T,5,NUM_DOF>& H)
+void getH_vo(const Matrix<T,NUM_STATES,1>& x, const common::Quaternion<T>& zt, const common::Quaternion<T>& zq,
+             const common::Quaternion<T>& q_bc, const Matrix<T,3,1>& p_bc, Matrix<T,5,NUM_DOF>& H)
 {
   // Calculate autodiff Jacobian
   T const* parameters[1];
   parameters[0] = x.data();
-  Matrix<T,8,1> r;
-  Matrix<T,8,NUM_STATES,RowMajor> J;
-  T* J_autodiff_ptr_ptr[2];
+  Matrix<T,5,1> r;
+  Matrix<T,5,NUM_STATES,RowMajor> J_autodiff_wrt_x;
+  T* J_autodiff_ptr_ptr[1];
   J_autodiff_ptr_ptr[0] = J_autodiff_wrt_x.data();
-  J_autodiff_ptr_ptr[1] = J_autodiff_wrt_noise.data();
-  ceres::AutoDiffCostFunction<StateDot, NUM_DOF, NUM_STATES, NUM_INPUTS> cost_function(new StateDot(imu));
+  ceres::AutoDiffCostFunction<RelPoseModel, 5, NUM_STATES> cost_function(new RelPoseModel(zt, zq, q_bc, p_bc));
   cost_function.Evaluate(parameters, r.data(), J_autodiff_ptr_ptr);
 
   // Convert autodiff Jacobian to minimal Jacobian
   H = J_autodiff_wrt_x * dxpd_dd<T>(x);
+}
+
+
+// Use automatic differentiation to calculate the Jacobian of the reset state w.r.t. minimal state
+template<typename T>
+void getN(const Matrix<T,NUM_STATES,1>& x, Matrix<T,NUM_DOF,NUM_DOF>& N)
+{
+  // Calculate autodiff Jacobian
+  T const* parameters[1];
+  parameters[0] = x.data();
+  Matrix<T,NUM_DOF,1> r;
+  Matrix<T,NUM_DOF,NUM_STATES,RowMajor> J_autodiff_wrt_x;
+  T* J_autodiff_ptr_ptr[1];
+  J_autodiff_ptr_ptr[0] = J_autodiff_wrt_x.data();
+  ceres::AutoDiffCostFunction<KeyframeResetModel, NUM_DOF, NUM_STATES> cost_function(new KeyframeResetModel());
+  cost_function.Evaluate(parameters, r.data(), J_autodiff_ptr_ptr);
+
+  // Convert autodiff Jacobian to minimal Jacobian
+  N = J_autodiff_wrt_x * dxpd_dd<T>(x);
 }
 
 
@@ -387,10 +421,7 @@ public:
   ~EKF();
 
   void load(const string &filename);
-  void run(const double &t, const sensors::Sensors &sensors);
-  static void imageH(common::Quaternion<double> &ht, common::Quaternion<double> &hq, Matrix<double, 5, NUM_DOF> &H, const State<double> &x,
-                     const common::Quaternion<double> &q_bc, const Vector3d &p_bc, const common::Quaternion<double> &q_ik,
-                     const Vector3d &p_ik);
+  void run(const double &t, const sensors::Sensors &sensors, const vehicle::State &x_true);
   const xVector getState() const { return x_.toEigen(); }
   vehicle::State getVehicleState() const;
 
@@ -399,17 +430,19 @@ private:
   void log(const double &t);
   void propagate(const double &t, const Vector3d &gyro, const Vector3d &acc);
   void imageUpdate();
+  void keyframeReset(State<double> &x, dxMatrix& P);
   bool trackFeatures(const vector<Vector3d, aligned_allocator<Vector3d> > &pts);
   void optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
                     const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
                     const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                     const unsigned &iters);
-  void optimizePose2(Matrix3d& R, Matrix3d& Rt,
-                     const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
-                     const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
-                     const unsigned &iters);
-  void se(double& err, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E);
-  void dse(double& derr, const Vector3d& e1, const Vector3d& e2, const Matrix3d& E, const Matrix3d& dE);
+
+  vehicle::State x_true_;
+  Vector3d pk_true_;
+  common::Quaterniond qk_true_;
+  Vector3d global_node_position_;
+  double global_node_heading_;
+  common::Quaterniond q_global_heading_;
 
   // Primary EKF variables
   double t_prev_;
@@ -431,8 +464,6 @@ private:
 
   // Keyframe and image update data
   double pixel_disparity_threshold_; // Threshold to allow relative pose optimization
-  Vector3d pk_; // Keyframe inertial position
-  common::Quaternion<double> qk_; // Keyframe body attitude
   vector<Vector3d, aligned_allocator<Vector3d> > pts_k_; // Keyframe image points
   vector<Vector2d, aligned_allocator<Vector2d> > pts_match_;
   vector<Vector2d, aligned_allocator<Vector2d> > pts_match_k_;
@@ -451,63 +482,67 @@ private:
   string directory_;
   ofstream state_log_;
   ofstream cov_log_;
+  ofstream ekf_global_pos_euler_log_;
+  ofstream true_global_euler_log_;
+  ofstream true_pose_b2u_log_;
+
 
   // Ceres
+  struct S3Plus
+  {
+    template<typename T>
+    bool operator()(const T* _q1, const T* _delta, T* _q2) const
+    {
+      common::Quaternion<T> q1(_q1);
+      Map<const Matrix<T,3,1>> delta(_delta);
+      Map<Matrix<T,4,1>> q2(_q2);
+      q2 = (q1 + delta).toEigen();
+      return true;
+    }
+  };
+
+
+  struct S2Plus
+  {
+    template<typename T>
+    bool operator()(const T* _q1, const T* _delta, T* _q2) const
+    {
+      common::Quaternion<T> q1(_q1);
+      Map<const Matrix<T,2,1>> delta(_delta);
+      Map<Matrix<T,4,1>> q2(_q2);
+      q2 = (common::Quaternion<T>::exp(q1.proj() * delta) * q1).toEigen();
+      return true;
+    }
+  };
+
+
   struct SampsonError
   {
-    SampsonError(const Vector3d _ek, const Vector3d _ec)
-        : ek(_ek), ec(_ec) {}
+    SampsonError(const Vector3d& _e1, const Vector3d& _e2)
+        : e1(_e1), e2(_e2) {}
 
     template <typename T>
-    bool operator()(const T* const _R, const T* const _Rt, T* residual) const
+    bool operator()(const T* const _q, const T* _qt, T* residuals) const
     {
-      // Map inputs to Eigen matrices
-      Matrix<T,3,3> R = Map<const Matrix<T,3,3>>(_R);
-      Matrix<T,3,3> Rt = Map<const Matrix<T,3,3>>(_Rt);
+      // Map data
+      common::Quaternion<T> q(_q);
+      common::Quaternion<T> qt(_qt);
 
       // Construct residual
-      const Matrix<T,3,1> t = Rt * common::e3.cast<T>();
-      const Matrix<T,3,3> E = R * common::skew(t);
-      const Matrix<T,1,3> ekT_E = ek.cast<T>().transpose() * E;
-      const Matrix<T,3,1> E_ec = E * ec.cast<T>();
-      const T ekT_E_ec = ek.cast<T>().transpose() * E_ec;
-      residual[0] = ekT_E_ec / sqrt(ekT_E(0) * ekT_E(0) + ekT_E(1) * ekT_E(1) + E_ec(0) * E_ec(0) + E_ec(1) * E_ec(1));
+      Matrix<T,3,3> E = q.R() * common::skew(qt.uvec());
+      Matrix<T,1,3> e1T_E = e1.cast<T>().transpose() * E;
+      Matrix<T,3,1> E_e2 = E * e2.cast<T>();
+      T e1T_E_e2 = e1.cast<T>().transpose() * E_e2;
+      residuals[0] = e1T_E_e2 / sqrt(e1T_E(0) * e1T_E(0) + e1T_E(1) * e1T_E(1) + E_e2(0) * E_e2(0) + E_e2(1) * E_e2(1));
       return true;
     }
 
   private:
 
-    const Vector3d ek, ec;
+    const Vector3d e1, e2;
 
   };
 
-  struct SO3Plus
-  {
-    template<typename T>
-    bool operator()(const T *x, const T *delta, T *x_plus_delta) const
-    {
-      Map<const Matrix<T,3,3>> _R(x);
-      Map<const Matrix<T,3,1>> dR(delta);
-
-      Map<Matrix<T,3,3>> R(x_plus_delta);
-      R = common::expR(common::skew(Matrix<T,3,1>(-dR))) * _R;
-      return true;
-    }
-  };
-
-  struct S2Plus
-  {
-    template<typename T>
-    bool operator()(const T *x, const T *delta, T *x_plus_delta) const
-    {
-      Map<const Matrix<T,3,3>> _R(x);
-      Map<const Matrix<T,2,1>> dR(delta);
-
-      Map<Matrix<T,3,3>> R(x_plus_delta);
-      R = common::expR(common::skew(Matrix<T,3,1>(-_R * common::I_2x3.cast<T>().transpose() * dR))) * _R;
-      return true;
-    }
-  };
 
 };
 
