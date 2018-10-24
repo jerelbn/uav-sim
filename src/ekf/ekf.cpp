@@ -226,12 +226,13 @@ void EKF::imageUpdate()
   if (mean_disparity > pixel_disparity_threshold_)
   {
     // Compute relative camera pose initial guess from state then optimize it
-    common::Quaterniond zt, zq;
-    rel_pose_model<double>(x_, q_bc_, p_bc_, zt, zq);
+    common::Quaterniond zt, zq, ht, hq;
+    rel_pose_model<double>(x_, q_bc_, p_bc_, ht, hq);
+    zt = ht;
+    zq = hq;
     optimizePose(zq, zt, dv_k_, dv_, 30);
 
     // Measurement model and jacobian
-    common::Quaterniond ht, hq;
     Matrix<double, 5, NUM_DOF> H;
     getH_vo<double>(x_.toEigen(), zt, zq, q_bc_, p_bc_, H);
 
@@ -355,6 +356,7 @@ void EKF::keyframeReset(State<double> &x, dxMatrix& P)
   // Covariance reset
   dxMatrix N;
   getN<double>(x.toEigen(), N);
+  cout << "\nN=\n" << N << "\n\n";
   P = N * P * N.transpose();
 }
 
