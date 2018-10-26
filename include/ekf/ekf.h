@@ -22,8 +22,8 @@ enum
   PX, PY, PZ,
   QW, QX, QY, QZ,
   VX, VY, VZ,
-  AX, AY, AZ,
   GX, GY, GZ,
+  AX, AY, AZ,
   KPX, KPY, KPZ,
   KQW, KQX, KQY, KQZ,
   NUM_STATES
@@ -36,8 +36,8 @@ enum
   DPX, DPY, DPZ,
   DQX, DQY, DQZ,
   DVX, DVY, DVZ,
-  DAX, DAY, DAZ,
   DGX, DGY, DGZ,
+  DAX, DAY, DAZ,
   DKPX, DKPY, DKPZ,
   DKQX, DKQY, DKQZ,
   NUM_DOF
@@ -46,8 +46,8 @@ enum
 // Input indices
 enum
 {
-  UAX, UAY, UAZ,
   UGX, UGY, UGZ,
+  UAX, UAY, UAZ,
   NUM_INPUTS
 };
 
@@ -67,8 +67,8 @@ struct State
   {
     t = common::Transform<T>();
     v.setZero();
-    ba.setZero();
     bg.setZero();
+    ba.setZero();
     tk = common::Transform<T>();
   }
 
@@ -76,8 +76,8 @@ struct State
   {
     t = x.t;
     v = x.v;
-    ba = x.ba;
     bg = x.bg;
+    ba = x.ba;
     tk = x.tk;
   }
 
@@ -85,8 +85,8 @@ struct State
   {
     t = common::Transform<T>(x.template segment<3>(PX), x.template segment<4>(QW));
     v = x.template segment<3>(VX);
-    ba = x.template segment<3>(AX);
     bg = x.template segment<3>(GX);
+    ba = x.template segment<3>(AX);
     tk = common::Transform<T>(x.template segment<3>(KPX), x.template segment<4>(KQW));
   }
 
@@ -94,8 +94,8 @@ struct State
   {
     t = common::Transform<T>(ptr);
     v = Matrix<T,3,1>(ptr[VX], ptr[VY], ptr[VZ]);
-    ba = Matrix<T,3,1>(ptr[AX], ptr[AY], ptr[AZ]);
     bg = Matrix<T,3,1>(ptr[GX], ptr[GY], ptr[GZ]);
+    ba = Matrix<T,3,1>(ptr[AX], ptr[AY], ptr[AZ]);
     tk = common::Transform<T>(ptr+KPX);
   }
 
@@ -104,8 +104,8 @@ struct State
     State<T> x;
     x.t = t + delta.template segment<6>(DPX);
     x.v = v + delta.template segment<3>(DVX);
-    x.ba = ba + delta.template segment<3>(DAX);
     x.bg = bg + delta.template segment<3>(DGX);
+    x.ba = ba + delta.template segment<3>(DAX);
     x.tk = tk + delta.template segment<6>(DKPX);
     return x;
   }
@@ -115,8 +115,8 @@ struct State
     Matrix<T,NUM_DOF,1> dx;
     dx.template segment<6>(DPX) = t - x2.t;
     dx.template segment<3>(DVX) = v - x2.v;
-    dx.template segment<3>(DAX) = ba - x2.ba;
     dx.template segment<3>(DGX) = bg - x2.bg;
+    dx.template segment<3>(DAX) = ba - x2.ba;
     dx.template segment<6>(DKPX) = tk - x2.tk;
     return dx;
   }
@@ -130,14 +130,14 @@ struct State
   Matrix<T, NUM_STATES, 1> toEigen() const
   {
     Matrix<T, NUM_STATES, 1> x;
-    x << t.p(), t.q().toEigen(), v, ba, bg, tk.p(), tk.q().toEigen();
+    x << t.p(), t.q().toEigen(), v, bg, ba, tk.p(), tk.q().toEigen();
     return x;
   }
 
   common::Transform<T> t;
   Matrix<T,3,1> v;
-  Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
+  Matrix<T,3,1> ba;
   common::Transform<T> tk;
 
 };

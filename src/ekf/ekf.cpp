@@ -241,11 +241,10 @@ void EKF::imageUpdate()
     Matrix<double, 5, NUM_DOF> H;
     getH(x_.toEigen(), ht, hq, q_bc_, p_bc_, H);
 
-    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p) +
-                     (x_true_.q.R() * qk_true_.inv().R() - common::I_3x3) * p_bc_).normalized();
-    common::Quaterniond zt_ = common::Quaterniond(t_dir);
-    common::Quaterniond zq_ = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
-//    cout << "\nht: " << ht.uvec().transpose() << endl;
+//    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p) +
+//                     (x_true_.q.R() * qk_true_.inv().R() - common::I_3x3) * p_bc_).normalized();
+//    common::Quaterniond zt_ = common::Quaterniond(t_dir);
+//    common::Quaterniond zq_ = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
 //    cout << "t_meas: " << zt.uvec().transpose() << endl;
 //    cout << "t_true: " << zt_.uvec().transpose() << endl;
 //    cout << "q_meas: " << zq.toEigen().transpose() << endl;
