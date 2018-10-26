@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 2.0
+tf: 30.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -8,9 +8,9 @@ control_using_estimates: false
 save_pixel_measurements: false
 
 # Truth Configuration
-use_accel_truth: true
-use_gyro_truth: true
-use_camera_truth: true
+use_accel_truth: false
+use_gyro_truth: false
+use_camera_truth: false
 use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
@@ -181,7 +181,7 @@ lambda: [1, 1, 1, # POS
          1, 1, 1, # KF POS
          1, 1, 1] # KF ATT
 
-pixel_disparity_threshold: 30
+pixel_disparity_threshold: 60
 max_tracked_features: 200
 min_kf_feature_matches: 100
 

@@ -55,6 +55,7 @@ typedef Matrix<double, NUM_STATES, 1> xVector;
 typedef Matrix<double, NUM_DOF, 1> dxVector;
 typedef Matrix<double, NUM_DOF, NUM_DOF> dxMatrix;
 typedef Matrix<double, NUM_INPUTS, 1> uVector;
+typedef Matrix<double, NUM_DOF, NUM_INPUTS> uMatrix;
 
 
 template<typename T>
@@ -179,6 +180,17 @@ void rel_pose_model(const State<T> &x, const common::Quaternion<T>& q_bc, const 
 }
 
 
+// Model for state reset
+template<typename T>
+void state_reset_model(State<T>& x)
+{
+  x.t.setP(Matrix<T,3,1>::Zero());
+  x.t.setQ(common::Quaternion<T>(T(0),T(0),x.t.q().yaw()).inv() * x.t.q());
+  x.tk.setP(Matrix<T,3,1>::Zero());
+  x.tk.setQ(x.t.q());
+}
+
+
 // Derivative of q + delta w.r.t. delta
 template<typename T>
 Matrix<T,4,3> dqpd_dd(const Matrix<T,4,1>& q)
@@ -193,22 +205,22 @@ Matrix<T,4,3> dqpd_dd(const Matrix<T,4,1>& q)
 }
 
 
-// Derivative of transform + delta w.r.t. delta
+// Derivative of dq w.r.t. q
 template<typename T>
-Matrix<T,7,6> dTpd_dd(const Matrix<T,7,1>& t)
+Matrix<T,3,4> ddq_dq(const Matrix<T,4,1>& q)
 {
-  common::Transform<T> T_(t);
-  Matrix<T,7,6> m;
-  m.setZero();
-  m.template block<3,3>(0,0) = T_.q().inv().R();
-  m.template block<4,3>(3,3) = dqpd_dd(Matrix<T,4,1>(t.template segment<4>(3)));
+  Matrix<T,3,4> m;
+  m << -q(1),  q(0),  q(3), -q(2),
+       -q(2), -q(3),  q(0),  q(1),
+       -q(3),  q(2), -q(1),  q(0);
+  m *= 2.0;
   return m;
 }
 
 
 // Derivative of qz + delta w.r.t. delta
 template<typename T>
-Matrix<T,4,2> dqzpd_dd(const Matrix<T,4,1>& q)
+Matrix<T,4,2> dqtpd_dd(const Matrix<T,4,1>& q)
 {
   // Unpacking and precalcs
   T w = q(0);
@@ -230,6 +242,40 @@ Matrix<T,4,2> dqzpd_dd(const Matrix<T,4,1>& q)
 }
 
 
+// Derivative of dqt w.r.t. q
+template<typename T>
+Matrix<T,2,4> ddqt_dq(const Matrix<T,4,1>& q)
+{
+  return T(4.0) * dqtpd_dd(q).transpose();
+}
+
+
+// Derivative of transform + delta w.r.t. delta
+template<typename T>
+Matrix<T,7,6> dTpd_dd(const Matrix<T,7,1>& t)
+{
+  common::Transform<T> T_(t);
+  Matrix<T,7,6> m;
+  m.setZero();
+  m.template block<3,3>(0,0) = T_.q().inv().R();
+  m.template block<4,3>(3,3) = dqpd_dd(Matrix<T,4,1>(t.template segment<4>(3)));
+  return m;
+}
+
+
+// Derivative of dT w.r.t. T
+template<typename T>
+Matrix<T,6,7> ddT_dT(const Matrix<T,7,1>& t)
+{
+  common::Transform<T> T_(t);
+  Matrix<T,6,7> m;
+  m.setZero();
+  m.template block<3,3>(0,0) = -T_.q().R();
+  m.template block<3,4>(3,3) = ddq_dq(Matrix<T,4,1>(t.template segment<4>(3)));
+  return m;
+}
+
+
 // Derivative of state + state_delta w.r.t. state_delta
 template<typename T>
 Matrix<T,NUM_STATES,NUM_DOF> dxpd_dd(const Matrix<T,NUM_STATES,1>& x)
@@ -241,6 +287,21 @@ Matrix<T,NUM_STATES,NUM_DOF> dxpd_dd(const Matrix<T,NUM_STATES,1>& x)
   dx.template block<3,3>(AX,DAX).setIdentity();
   dx.template block<3,3>(GX,DGX).setIdentity();
   dx.template block<7,6>(KPX,DKPX) = dTpd_dd<T>(x.template segment<7>(KPX));
+  return dx;
+}
+
+
+// Derivative of dstate w.r.t. state
+template<typename T>
+Matrix<T,NUM_DOF,NUM_STATES> ddx_dx(const Matrix<T,NUM_STATES,1>& x)
+{
+  Matrix<T,NUM_DOF,NUM_STATES> dx;
+  dx.setZero();
+  dx.template block<6,7>(DPX,PX) = ddT_dT<T>(x.template segment<7>(PX));
+  dx.template block<3,3>(DVX,VX).setIdentity();
+  dx.template block<3,3>(DAX,AX).setIdentity();
+  dx.template block<3,3>(DGX,GX).setIdentity();
+  dx.template block<6,7>(DKPX,KPX) = ddT_dT<T>(x.template segment<7>(KPX));
   return dx;
 }
 
@@ -278,22 +339,23 @@ private:
 struct RelPoseModel
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  RelPoseModel(const common::Quaterniond& _zt, const common::Quaterniond& _zq,
-               const common::Quaterniond& _q_bc, const Vector3d& _p_bc)
-    : zt(_zt), zq(_zq), q_bc(_q_bc), p_bc(_p_bc) {}
+  RelPoseModel(const common::Quaterniond& _q_bc, const Vector3d& _p_bc)
+    : q_bc(_q_bc), p_bc(_p_bc) {}
 
   template <typename T>
   bool operator()(const T* const _x, T* _residual) const
   {
     // Map state
     const State<T> x(_x);
-    Map<Matrix<T,5,1>> r(_residual);
 
+    // Compute models
     common::Quaternion<T> ht, hq;
     rel_pose_model<T>(x, q_bc.cast<T>(), p_bc.cast<T>(), ht, hq);
 
-    r.template segment<2>(0) = common::Quaternion<T>::log_uvec(zt.cast<T>(),ht);
-    r.template segment<3>(2) = zq.cast<T>() - hq;
+    // Output
+    Map<Matrix<T,8,1>> r(_residual);
+    r.template segment<4>(0) = ht.toEigen();
+    r.template segment<4>(4) = hq.toEigen();
 
     return true;
   }
@@ -301,7 +363,7 @@ struct RelPoseModel
 private:
 
   const Vector3d p_bc;
-  const common::Quaterniond q_bc, zt, zq;
+  const common::Quaterniond q_bc;
 
 };
 
@@ -315,18 +377,12 @@ struct KeyframeResetModel
   template <typename T>
   bool operator()(const T* const _x, T* _residual) const
   {
-    // Map state
-    const State<T> x(_x);
+    // Copy and reset the state
+    State<T> x(_x);
+    state_reset_model(x);
 
-    // Create reset state
-    State<T> xp = x;
-    xp.t.setP(Matrix<T,3,1>(T(0),T(0),T(0)));
-    xp.t.setQ(common::Quaternion<T>(T(0),T(0),x.t.q().yaw()).inv() * x.t.q());
-    xp.tk.setP(Matrix<T,3,1>(T(0),T(0),T(0)));
-    xp.tk.setQ(x.t.q());
-
-    Map<Matrix<T,NUM_DOF,1>> r(_residual);
-    r = x - xp;
+    Map<Matrix<T,NUM_STATES,1>> r(_residual);
+    r = x.toEigen();
 
     return true;
   }
@@ -360,21 +416,26 @@ void getFG(const Matrix<T,NUM_STATES,1>& x, const Matrix<T,6,1>& imu,
 
 // Use automatic differentiation to calculate the Jacobian of relative pose model w.r.t. minimal state
 template<typename T>
-void getH_vo(const Matrix<T,NUM_STATES,1>& x, const common::Quaternion<T>& zt, const common::Quaternion<T>& zq,
-             const common::Quaternion<T>& q_bc, const Matrix<T,3,1>& p_bc, Matrix<T,5,NUM_DOF>& H)
+void getH(const Matrix<T,NUM_STATES,1>& x, const common::Quaternion<T>& ht,
+          const common::Quaternion<T>& hq, const common::Quaternion<T>& q_bc,
+          const Matrix<T,3,1>& p_bc, Matrix<T,5,NUM_DOF>& H)
 {
   // Calculate autodiff Jacobian
   T const* parameters[1];
   parameters[0] = x.data();
-  Matrix<T,5,1> r;
-  Matrix<T,5,NUM_STATES,RowMajor> J_autodiff_wrt_x;
+  Matrix<T,8,1> r;
+  Matrix<T,8,NUM_STATES,RowMajor> J_autodiff_wrt_x;
   T* J_autodiff_ptr_ptr[1];
   J_autodiff_ptr_ptr[0] = J_autodiff_wrt_x.data();
-  ceres::AutoDiffCostFunction<RelPoseModel, 5, NUM_STATES> cost_function(new RelPoseModel(zt, zq, q_bc, p_bc));
+  ceres::AutoDiffCostFunction<RelPoseModel, 8, NUM_STATES> cost_function(new RelPoseModel(q_bc, p_bc));
   cost_function.Evaluate(parameters, r.data(), J_autodiff_ptr_ptr);
 
   // Convert autodiff Jacobian to minimal Jacobian
-  H = J_autodiff_wrt_x * dxpd_dd<T>(x);
+  Matrix<T,5,8> ddqt;
+  ddqt.setZero();
+  ddqt.template block<2,4>(0,0) = ddqt_dq<T>(ht.toEigen());
+  ddqt.template block<3,4>(2,4) = ddq_dq<T>(hq.toEigen());
+  H = ddqt * J_autodiff_wrt_x * dxpd_dd<T>(x);
 }
 
 
@@ -385,16 +446,19 @@ void getN(const Matrix<T,NUM_STATES,1>& x, Matrix<T,NUM_DOF,NUM_DOF>& N)
   // Calculate autodiff Jacobian
   T const* parameters[1];
   parameters[0] = x.data();
-  Matrix<T,NUM_DOF,1> r;
-  Matrix<T,NUM_DOF,NUM_STATES,RowMajor> J_autodiff_wrt_x;
+  Matrix<T,NUM_STATES,1> r;
+  Matrix<T,NUM_STATES,NUM_STATES,RowMajor> J_autodiff_wrt_x;
   T* J_autodiff_ptr_ptr[1];
   J_autodiff_ptr_ptr[0] = J_autodiff_wrt_x.data();
-  ceres::AutoDiffCostFunction<KeyframeResetModel, NUM_DOF, NUM_STATES> cost_function(new KeyframeResetModel());
+  ceres::AutoDiffCostFunction<KeyframeResetModel, NUM_STATES, NUM_STATES> cost_function(new KeyframeResetModel());
   cost_function.Evaluate(parameters, r.data(), J_autodiff_ptr_ptr);
 
   // Convert autodiff Jacobian to minimal Jacobian
-  N = J_autodiff_wrt_x * dxpd_dd<T>(x);
+  N = ddx_dx<T>(x) * J_autodiff_wrt_x * dxpd_dd<T>(x);
 }
+
+
+void getN_analytical(State<double> &x, dxMatrix &N);
 
 
 // Constants
@@ -432,7 +496,7 @@ private:
   void imageUpdate();
   void keyframeReset(State<double> &x, dxMatrix& P);
   bool trackFeatures(const vector<Vector3d, aligned_allocator<Vector3d> > &pts);
-  void optimizePose(common::Quaternion<double>& q, common::Quaternion<double>& qt,
+  void optimizePose(common::Quaterniond& q, common::Quaterniond& qt,
                     const vector<Vector3d, aligned_allocator<Vector3d> >& e1,
                     const vector<Vector3d, aligned_allocator<Vector3d> >& e2,
                     const unsigned &iters);

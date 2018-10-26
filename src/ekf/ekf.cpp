@@ -84,9 +84,9 @@ void EKF::load(const string &filename)
   K_inv_ = K_.inverse();
   common::get_yaml_eigen("q_bc", filename, q_bc);
   common::get_yaml_eigen("q_bu", filename, q_bu);
-  q_bc_ = common::Quaternion<double>(q_bc);
+  q_bc_ = common::Quaterniond(q_bc);
   q_bc_.normalize();
-  q_bu_ = common::Quaternion<double>(q_bu);
+  q_bu_ = common::Quaterniond(q_bu);
   q_bu_.normalize();
   common::get_yaml_eigen("p_bc", filename, p_bc_);
   common::get_yaml_eigen("p_bu", filename, p_bu_);
@@ -155,6 +155,7 @@ void EKF::log(const double &t)
 
 void EKF::run(const double &t, const sensors::Sensors &sensors, const vehicle::State &x_true)
 {
+//  cout << "t = " << t << endl;
   // Store truth
   x_true_ = x_true;
 
@@ -164,6 +165,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const vehicle::S
   // Apply updates then predict
   if (t > 0 && sensors.new_camera_meas_)
   {
+//    cout << "** New Image **" << endl;
     // Track features by mimicking KLT Optical Flow then apply update
     if (trackFeatures(sensors.cam_))
       imageUpdate();
@@ -195,7 +197,7 @@ void EKF::propagate(const double &t, const Vector3d &gyro, const Vector3d &acc)
 
 
   // Propagate the covariance - guarantee positive-definite P with discrete propagation
-  getFG<double>(x_.toEigen(), imu_, F_, G_);
+  getFG(x_.toEigen(), imu_, F_, G_);
   A_ = I_num_dof_ + F_*dt + F_*F_*dt*dt/2.0 + F_*F_*F_*dt*dt*dt/6.0; // Approximate state transition matrix
   B_ = (dt*(I_num_dof_ + F_*dt/2.0 + F_*F_*dt*dt/6.0 + F_*F_*F_*dt*dt*dt/24.0))*G_;
   P_ = A_ * P_ * A_.transpose() + B_ * Qu_ * B_.transpose() + Qx_;
@@ -207,44 +209,47 @@ void EKF::imageUpdate()
   // Remove camera rotation and compute mean image point disparity
   dv_.clear();
   dv_k_.clear();
-  double mean_disparity = 0;
+//  double mean_disparity = 0;
+//  common::Quaterniond q_c2kc = q_bc_.inv() * x_.t.q().inv() * x_.tk.q() * q_bc_;
   for (int n = 0; n < pts_match_.size(); ++n)
   {
-    // Remove rotation from current image points and compute the average disparity recursively
-    Vector3d pix_derotated = K_ * x_.t.q().inv().rot(K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0));
-    pix_derotated /= pix_derotated(2);
-    mean_disparity = (n * mean_disparity + (pix_derotated.topRows(2) - pts_match_k_[n]).norm()) / (n + 1);
+//    // Remove rotation from current image points and compute the average disparity recursively
+//    Vector3d pix_derotated = K_ * q_c2kc.inv().rot(K_inv_ * Vector3d{pts_match_[n](0), pts_match_[n](1), 1.0});
+//    pix_derotated /= pix_derotated(2);
+//    mean_disparity = (n * mean_disparity + (pix_derotated.topRows(2) - pts_match_k_[n]).norm()) / (n + 1);
 
     // Convert point matches to direction vectors
-    Vector3d dv = K_inv_ * Vector3d(pts_match_[n](0), pts_match_[n](1), 1.0);
-    Vector3d dv_k = K_inv_ * Vector3d(pts_match_k_[n](0), pts_match_k_[n](1), 1.0);
+    Vector3d dv = K_inv_ * Vector3d{pts_match_[n](0), pts_match_[n](1), 1.0};
+    Vector3d dv_k = K_inv_ * Vector3d{pts_match_k_[n](0), pts_match_k_[n](1), 1.0};
     dv_.push_back(dv.normalized());
     dv_k_.push_back(dv_k.normalized());
   }
 
   // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
-  if (mean_disparity > pixel_disparity_threshold_)
+//  if (mean_disparity > pixel_disparity_threshold_)
+  if (x_.t.p().norm() > 0.25)
   {
+//    cout << "* State Update *" << endl;
     // Compute relative camera pose initial guess from state then optimize it
     common::Quaterniond zt, zq, ht, hq;
-    rel_pose_model<double>(x_, q_bc_, p_bc_, ht, hq);
+    rel_pose_model(x_, q_bc_, p_bc_, ht, hq);
     zt = ht;
     zq = hq;
     optimizePose(zq, zt, dv_k_, dv_, 30);
 
     // Measurement model and jacobian
     Matrix<double, 5, NUM_DOF> H;
-    getH_vo<double>(x_.toEigen(), zt, zq, q_bc_, p_bc_, H);
+    getH(x_.toEigen(), ht, hq, q_bc_, p_bc_, H);
 
     Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p) +
                      (x_true_.q.R() * qk_true_.inv().R() - common::I_3x3) * p_bc_).normalized();
     common::Quaterniond zt_ = common::Quaterniond(t_dir);
     common::Quaterniond zq_ = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
-    cout << "\nht: " << ht.uvec().transpose() << endl;
-    cout << "t_meas: " << zt.uvec().transpose() << endl;
-    cout << "t_true: " << zt_.uvec().transpose() << endl;
-    cout << "q_meas: " << zq.toEigen().transpose() << endl;
-    cout << "q_true: " << zq_.toEigen().transpose() << endl;
+//    cout << "\nht: " << ht.uvec().transpose() << endl;
+//    cout << "t_meas: " << zt.uvec().transpose() << endl;
+//    cout << "t_true: " << zt_.uvec().transpose() << endl;
+//    cout << "q_meas: " << zq.toEigen().transpose() << endl;
+//    cout << "q_true: " << zq_.toEigen().transpose() << endl;
 
     // Error in translation direction and rotation
     Vector2d err_t = common::Quaterniond::log_uvec(zt,ht);
@@ -347,17 +352,34 @@ bool EKF::trackFeatures(const vector<Vector3d, aligned_allocator<Vector3d> > &pt
 
 void EKF::keyframeReset(State<double> &x, dxMatrix& P)
 {
+//  cout << "\n\n** Keyframe Reset **\n\n" << endl;
   // State reset
-  x.t.p().setZero();
-  x.t.q() = common::Quaterniond(0,0,x.t.q().yaw()).inv() * x.t.q();
-  x.tk.p().setZero();
-  x.tk.q() = x.t.q();
+  state_reset_model(x);
 
   // Covariance reset
   dxMatrix N;
-  getN<double>(x.toEigen(), N);
-  cout << "\nN=\n" << N << "\n\n";
+  getN(x.toEigen(), N);
+//  cout << "\nN=\n" << N << "\n\n";
   P = N * P * N.transpose();
+}
+
+
+void getN_analytical(State<double> &x, dxMatrix &N)
+{
+  double sp = sin(x.t.q().roll());
+  double cp = cos(x.t.q().roll());
+  double st = sin(x.t.q().pitch());
+  double ct = cos(x.t.q().pitch());
+  double tt = st / ct;
+  N.setIdentity();
+  N.topLeftCorner(3,3).setZero();
+  N.bottomRightCorner(6,6).setZero();
+  Matrix3d N_theta;
+  N_theta << 1.0,  sp * tt,  cp * tt,
+             0.0,  cp * cp, -cp * sp,
+             0.0, -cp * sp,  sp * sp;
+  N.block<3,3>(ekf::DQX,ekf::DQX) = N_theta;
+  N.block<3,3>(ekf::DKQX,ekf::DQX) = N_theta;
 }
 
 
