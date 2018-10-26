@@ -1,7 +1,7 @@
 # simulation final time and time step
-tf: 120.0
+tf: 30.0
 dt: 0.004
-use_random_seed: true
+use_random_seed: false
 accurate_integration: true
 log_directory: "../logs"
 control_using_estimates: false
