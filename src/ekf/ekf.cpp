@@ -12,9 +12,9 @@ vehicle::State EKF::getVehicleState() const
   vehicle::State x;
   x.p = x_.t.p();
   x.v = x_.v;
-  x.lin_accel = imu_.segment<3>(UAX);
+  x.lin_accel = imu_.segment<3>(UAX) - x_.ba;
   x.q = x_.t.q();
-  x.omega = imu_.segment<3>(UGX);
+  x.omega = imu_.segment<3>(UGX) - x_.bg;
   return x;
 }
 
@@ -187,9 +187,9 @@ void EKF::propagate(const double &t, const Vector3d &gyro, const Vector3d &acc)
   Vector3d gyrob = q_bu_.inv().rot(gyro);
   Vector3d accb = q_bu_.inv().rot(acc - gyro.cross(gyro.cross(q_bu_.rot(p_bu_))));
 
-  // Store unbiased IMU for control
-  imu_.segment<3>(UAX) = accb - x_.ba;
-  imu_.segment<3>(UGX) = gyrob - x_.bg;
+  // Store body IMU
+  imu_.segment<3>(UGX) = gyrob;
+  imu_.segment<3>(UAX) = accb;
 
   // Propagate the state
   dynamics<double>(x_, imu_, xdot_);
