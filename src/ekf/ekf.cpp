@@ -294,7 +294,8 @@ void EKF::imageUpdate()
   }
 
   // Estimate camera pose relative to keyframe via nonlinear optimization and apply update
-  if (mean_disparity > pixel_disparity_threshold_)
+//  if (mean_disparity > pixel_disparity_threshold_)
+  if (x_.p.norm() > 0.25)
   {
     // Measurement model and jacobian
     common::Quaterniond ht, hq;
@@ -305,15 +306,15 @@ void EKF::imageUpdate()
     common::Quaterniond zt = ht;
     common::Quaterniond zq = hq;
     optimizePose(zq, zt, dv_k_, dv_, 30);
-    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p) +
-                     (x_true_.q.R() * qk_true_.inv().R() - common::I_3x3) * p_bc_).normalized();
-    common::Quaterniond zt_ = common::Quaterniond(t_dir);
-    common::Quaterniond zq_ = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
-    cout << "\nht: " << ht.uvec().transpose() << endl;
-    cout << "t_meas: " << zt.uvec().transpose() << endl;
-    cout << "t_true: " << zt_.uvec().transpose() << endl;
-    cout << "q_meas: " << zq.toEigen().transpose() << endl;
-    cout << "q_true: " << zq_.toEigen().transpose() << endl;
+//    Vector3d t_dir = q_bc_.rot(x_true_.q.rot(pk_true_ - x_true_.p) +
+//                     (x_true_.q.R() * qk_true_.inv().R() - common::I_3x3) * p_bc_).normalized();
+//    common::Quaterniond zt_ = common::Quaterniond(t_dir);
+//    common::Quaterniond zq_ = q_bc_.inv() * x_true_.q.inv() * qk_true_ * q_bc_;
+//    cout << "\nht: " << ht.uvec().transpose() << endl;
+//    cout << "t_meas: " << zt.uvec().transpose() << endl;
+//    cout << "t_true: " << zt_.uvec().transpose() << endl;
+//    cout << "q_meas: " << zq.toEigen().transpose() << endl;
+//    cout << "q_true: " << zq_.toEigen().transpose() << endl;
 
 //    Vector3d t = zt.uvec();
 //    Vector3d t_ = zt_.uvec();
@@ -476,22 +477,22 @@ void EKF::getH(const State &x, const common::Quaterniond &q_bc, const Vector3d &
 
   // Axis-angle representation of translation direction
   pt = q_bc.rot(x.q.rot(x.pk - x.p) + (x.q.R() * x.qk.inv().R() - common::I_3x3) * p_bc);
-  t = pt / pt.norm();
+  t = pt.normalized();
   e3_x_t = common::e3.cross(t);
   double e3T_t = common::saturate<double>(common::e3.transpose() * t, 1.0, -1.0);
   at = acos(e3T_t) * e3_x_t.normalized();
 
   // Create measurement models
-  ht = common::Quaterniond(pt);
+  ht = common::Quaterniond::exp(at);
   hq = q_bc.inv() * x.q.inv() * x.qk * q_bc;
 
   // Sub-derivative calculations
   Gamma_at = common::Quaterniond::dexp(at);
   double e3_x_t_mag = e3_x_t.norm();
-  dexpat_dat = common::I_2x3 * ht.R().transpose() * Gamma_at;
-  dat_dt = acos(e3T_t) / e3_x_t_mag * ((e3_x_t * e3_x_t.transpose()) /
-                           (e3_x_t_mag * e3_x_t_mag) - common::I_3x3) * common::skew(common::e3) -
-                           (e3_x_t * common::e3.transpose()) / (e3_x_t_mag * sqrt(1.0 - e3T_t * e3T_t));
+  dexpat_dat = common::I_2x3 * ht.R() * Gamma_at.transpose();
+  dat_dt = acos(e3T_t) / e3_x_t_mag * (common::I_3x3 - (e3_x_t * e3_x_t.transpose()) /
+           (e3_x_t_mag * e3_x_t_mag)) * common::skew(common::e3) -
+           (e3_x_t * common::e3.transpose()) / (e3_x_t_mag * sqrt(1.0 - e3T_t * e3T_t));
   double ptmag = pt.norm();
   dt_dpt = (1.0 / ptmag) * (common::I_3x3 - pt * pt.transpose() / (ptmag * ptmag));
   Matrix3d R_bc = q_bc.R();

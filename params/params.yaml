@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 5.0
+tf: 120.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -10,7 +10,7 @@ save_pixel_measurements: false
 # Truth Configuration
 use_accel_truth: false
 use_gyro_truth: false
-use_camera_truth: true
+use_camera_truth: false
 use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
@@ -157,7 +157,7 @@ P0_diag: [0.01, 0.01, 0.01, # POS
 
 Qx_diag: [0.0, 0.0, 0.0, # POS
           0.0, 0.0, 0.0, # ATT
-          0.0, 0.0, 0.0, # VEL
+          0.000001, 0.000001, 0.000001, # VEL
           0.000001, 0.000001, 0.000001, # OMEGA
           0.000001, 0.000001, 0.000001, # ACC
           0.0, 0.0, 0.0, # KF POS
@@ -166,8 +166,8 @@ Qx_diag: [0.0, 0.0, 0.0, # POS
 Qu_diag: [0.25, 0.25, 0.25, # OMEGA
           0.01, 0.01, 0.01] # ACC
 
-R_vo_diag: [0.01, 0.01, # Translation Direction
-            0.001, 0.001, 0.001] # Rotation
+R_vo_diag: [0.05, 0.05, # Translation Direction
+            0.005, 0.005, 0.005] # Rotation
 
 vo_meas_gate_upper: 16.75 # bounds for 99% chi^2 test
 vo_meas_gate_lower: 0.412

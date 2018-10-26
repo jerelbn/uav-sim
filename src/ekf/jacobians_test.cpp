@@ -31,13 +31,13 @@ int main()
   common::randomNormalMatrix(p_bc, dist, rng);
   common::randomNormalMatrix(p_ik, dist, rng);
 
-  // Propagation Jacobians
+  for (int j = 0; j < iters; ++j)
   {
-    ekf::dxMatrix F_numerical, F_analytical;
-    ekf::gMatrix G_numerical, G_analytical;
-    ekf::dxVector dxp, dxm;
-    for (int j = 0; j < iters; ++j)
+    // Propagation Jacobians
     {
+      ekf::dxMatrix F_numerical, F_analytical;
+      ekf::gMatrix G_numerical, G_analytical;
+      ekf::dxVector dxp, dxm;
       F_numerical.setZero();
       for (int i = 0; i < ekf::NUM_DOF; ++i)
       {
@@ -76,15 +76,11 @@ int main()
       if(!common::TEST("Propagation state Jacobian", tol, F_numerical, F_analytical)) break;
       if(!common::TEST("Propagation noise Jacobian", tol, G_numerical, G_analytical)) break;
     }
-  }
 
-  // Measurement Jacobian
-  {
-    common::Quaterniond ht, hq;
-    common::Quaterniond htp, hqp, htm, hqm;
-    Matrix<double,5,ekf::NUM_DOF> H_numerical, H_analytical, H;
-    for (int j = 0; j < iters; ++j)
+    // Measurement Jacobian
     {
+      common::Quaterniond ht, hq, htp, hqp, htm, hqm;
+      Matrix<double,5,ekf::NUM_DOF> H_numerical, H_analytical, H;
       H_numerical.setZero();
       for (int i = 0; i < ekf::NUM_DOF; ++i)
       {
@@ -101,13 +97,10 @@ int main()
       ekf::EKF::getH(x, q_bc, p_bc, ht, hq, H_analytical);
       if (!common::TEST("Measurement Jacobian", tol, H_numerical, H_analytical)) break;
     }
-  }
 
-  // Keyframe Reset Jacobian
-  {
-    ekf::dxMatrix N_numerical, N_analytical, P;
-    for (int j = 0; j < iters; ++j)
+    // Keyframe Reset Jacobian
     {
+      ekf::dxMatrix N_numerical, N_analytical, P;
       N_numerical.setZero();
       for (int i = 0; i < ekf::NUM_DOF; ++i)
       {
