@@ -10,10 +10,10 @@ vehicle::State EKF::getVehicleState() const
   // Copy state but then substitute angular rate and linear acceleration
   // for the gyro bias and accel bias positions
   vehicle::State x;
-  x.p = x_.t.p();
+  x.p = global_node_position_ + q_global_heading_.inv().rot(x_.t.p());
   x.v = x_.v;
   x.lin_accel = imu_.segment<3>(UAX) - x_.ba;
-  x.q = x_.t.q();
+  x.q = q_global_heading_ * x_.t.q();
   x.omega = imu_.segment<3>(UGX) - x_.bg;
   return x;
 }

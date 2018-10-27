@@ -1,10 +1,10 @@
 # simulation final time and time step
-tf: 300.0
+tf: 120.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
 log_directory: "../logs"
-control_using_estimates: false
+control_using_estimates: true
 save_pixel_measurements: false
 
 # Truth Configuration
@@ -157,7 +157,7 @@ P0_diag: [0.01, 0.01, 0.01, # POS
 
 Qx_diag: [0.0, 0.0, 0.0, # POS
           0.0, 0.0, 0.0, # ATT
-          0.0, 0.0, 0.0, # VEL
+          0.000001, 0.000001, 0.000001, # VEL
           0.000001, 0.000001, 0.000001, # OMEGA
           0.000001, 0.000001, 0.000001, # ACC
           0.0, 0.0, 0.0, # KF POS
@@ -165,7 +165,6 @@ Qx_diag: [0.0, 0.0, 0.0, # POS
 
 Qu_diag: [0.25, 0.25, 0.25, # OMEGA
           0.01, 0.01, 0.01] # ACC
-
 
 R_vo_diag: [0.01, 0.01, # Translation Direction
             0.001, 0.001, 0.001] # Rotation
@@ -181,7 +180,7 @@ lambda: [1, 1, 1, # POS
          1, 1, 1, # KF POS
          1, 1, 1] # KF ATT
 
-pixel_disparity_threshold: 60
+pixel_disparity_threshold: 30
 max_tracked_features: 200
 min_kf_feature_matches: 100
 
