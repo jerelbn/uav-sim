@@ -11,18 +11,32 @@ enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ,
 typedef Matrix<double, STATE_SIZE, 1> State;
 typedef Matrix<double, DELTA_STATE_SIZE, 1> DeltaState;
 typedef vector<State,aligned_allocator<State>> state_vector;
+typedef vector<Vector4d, aligned_allocator<Vector4d>> cam_pts_vector;
 
-// Print vector of eigen vectors
-void print_state(const string& name, const state_vector& v,
-                 const int& start, const int& end)
+
+vector<cam_pts_vector> load_camera_data(const string& filename)
 {
-  cout << name << " = \n";
-  MatrixXd x_print(v[0].rows(),end-start);
-  for (int i = 0; i < end-start; ++i)
+  // Load and organize image points
+  MatrixXd camera = common::load_binary_to_matrix<double>(filename, 15001);
+
+  // Put into vector with variable size per time step
+  vector<cam_pts_vector> cam;
+  for (int i = 0; i < camera.cols(); ++i)
   {
-    x_print.col(i) = v[i+start];
+    cam_pts_vector pts;
+    for (int j = 1; j < camera.rows(); j += 3)
+    {
+      if (camera(j,i) >= 0)
+      {
+        Vector4d pt;
+        pt.segment<3>(0) = camera.block<3,1>(j,i);
+        pt(3) = camera(0,i);
+        pts.push_back(pt);
+      }
+    }
+    cam.push_back(pts);
   }
-  cout << x_print << endl;
+  return cam;
 }
 
 
@@ -257,10 +271,12 @@ int main()
   // gyro: [t,gyro,bias,noise]
   // mocap: [t,pose,transform,noise]
   // truth: [t,pos,vel,acc,att,avel,acc]
+  // cam: vector<vector[pix_x;pix_y;label;time]>
   MatrixXd acc = common::load_binary_to_matrix<double>("../logs/accel.bin", 10);
   MatrixXd gyro = common::load_binary_to_matrix<double>("../logs/gyro.bin", 10);
   MatrixXd mocap = common::load_binary_to_matrix<double>("../logs/mocap.bin", 21);
   MatrixXd truth = common::load_binary_to_matrix<double>("../logs/true_state.bin", 20);
+  vector<cam_pts_vector> cam = load_camera_data("../logs/camera.bin");
 
   // Compute truth
   int j = 0;
@@ -284,24 +300,8 @@ int main()
   double tm_t = 0.01; // Motion capture time offset from IMU
   log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, cd_t, T_bm_t.toEigen(), q_bu_t.toEigen(), tm_t);
 
-  // Corrupt mocap measurements time stamps
-  for (int i = 0; i < mocap.cols(); ++i)
-    mocap(0,i) += tm_t;
-
   // Parameters
   const int N = mocap.cols();
-  const int print_start = mocap.cols()-5;
-  const int print_end = mocap.cols();
-  Matrix<double,6,6> Qu;
-  Qu << 2.5e-1, 0, 0, 0, 0, 0,
-        0, 2.5e-1, 0, 0, 0, 0,
-        0, 0, 2.5e-1, 0, 0, 0,
-        0, 0, 0,   1e-2, 0, 0,
-        0, 0, 0, 0,   1e-2, 0,
-        0, 0, 0, 0, 0,   1e-2;
-  Matrix<double,6,6> R_mocap;
-  R_mocap.setIdentity();
-  R_mocap *= 1e-6;
 
   // Initialize the states with mocap
   state_vector x(N);
@@ -330,12 +330,9 @@ int main()
   }
   double cd = 0.2;
   common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
-  common::Quaterniond q_bu(Vector4d(0.8536, 0.3536, 0.1464, 0.3536));
+  common::Quaterniond q_bu;
   double tm = 0.0;
   log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
-
-//  // Print initial state
-//  print_state("x0", x, print_start, print_end);
 
   // Build optimization problem with Ceres-Solver
   ceres::Problem problem;
@@ -451,14 +448,6 @@ int main()
   cout << summary.BriefReport() << "\n\n";
 
   log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
-
-//  // Print solution and truth
-//  print_state("xf", x, print_start, print_end);
-//  print_state("xt", xt, print_start, print_end);
-
-//  cout << "\nF = \n" << getF<double>(x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
-//  cout << "\nG = \n" << getG<double>(n, x[999], acc.block<3,1>(1,999), gyro.block<3,1>(1,999)) << endl;
-//  cout << "\nP[N] = \n" << P[N-1] << endl;
 
   return 0;
 }

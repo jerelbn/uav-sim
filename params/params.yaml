@@ -5,7 +5,7 @@ use_random_seed: true
 accurate_integration: true
 log_directory: "../logs"
 control_using_estimates: false
-save_pixel_measurements: false
+save_pixel_measurements: true
 
 # Truth Configuration
 use_accel_truth: false
