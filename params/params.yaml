@@ -4,7 +4,7 @@ dt: 0.004
 use_random_seed: true
 accurate_integration: true
 log_directory: "../logs"
-control_using_estimates: true
+control_using_estimates: false
 save_pixel_measurements: false
 
 # Truth Configuration
@@ -54,7 +54,7 @@ max_tau_z: 50.0
 # 0: waypoints
 # 1: trajectory
 # 2: circumnavigation
-path_type: 1
+path_type: 0
 
 waypoints: [0, 0, -4, 0,
             10, 0, -4, 0,
@@ -105,7 +105,7 @@ wall_height: 10 # Total room height
 ## IMU
 imu_update_rate: 250
 p_bu: [0.0, 0.0, 0.0] # translation from body to IMU in body frame
-q_bu: [1.0, 0.0, 0.0, 0.0] # rotation from body to IMU frame
+q_bu: [0.5, 0.5, 0.5, 0.5] # rotation from body to IMU frame
 
 accel_noise_stdev: 0.5
 accel_bias_init_bound: 0.5

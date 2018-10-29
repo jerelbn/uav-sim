@@ -10,9 +10,7 @@ enum {PX, PY, PZ, VX, VY, VZ, QW, QX, QY, QZ, AX, AY, AZ, GX, GY, GZ, STATE_SIZE
 enum {DPX, DPY, DPZ, DVX, DVY, DVZ, DQX, DQY, DQZ, DAX, DAY, DAZ, DGX, DGY, DGZ, DELTA_STATE_SIZE};
 typedef Matrix<double, STATE_SIZE, 1> State;
 typedef Matrix<double, DELTA_STATE_SIZE, 1> DeltaState;
-typedef Matrix<double, DELTA_STATE_SIZE, DELTA_STATE_SIZE> CovMatrix;
 typedef vector<State,aligned_allocator<State>> state_vector;
-typedef vector<CovMatrix,aligned_allocator<CovMatrix>> cov_vector;
 
 // Print vector of eigen vectors
 void print_state(const string& name, const state_vector& v,
@@ -31,7 +29,7 @@ void print_state(const string& name, const state_vector& v,
 // Logger to save initial, final, and true states for plotting in MATLAB
 void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
               const state_vector& states, const double& cd,
-              const Matrix<double,7,1>& T_bm, const Matrix<double,7,1>& T_bu,
+              const Matrix<double,7,1>& T_bm, const Matrix<double,4,1>& q_bu,
               const double& tm)
 {
   ofstream logger;
@@ -42,7 +40,7 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
     logger.write((char*)states[i].data(), states[i].rows() * sizeof(double));
     logger.write((char*)&cd, sizeof(double));
     logger.write((char*)T_bm.data(), T_bm.rows() * sizeof(double));
-    logger.write((char*)T_bu.data(), T_bu.rows() * sizeof(double));
+    logger.write((char*)q_bu.data(), q_bu.rows() * sizeof(double));
     logger.write((char*)&tm, sizeof(double));
   }
   logger.close();
@@ -54,7 +52,7 @@ void log_data(const string& filename, const Matrix<double, 1, Dynamic>& t,
 template<typename T>
 void dynamics(const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
               const Matrix<T,3,1>& ba, const Matrix<T,3,1>& bg, const T& cd,
-              const common::Transform<T>& T_bu,
+              const common::Quaternion<T>& q_bu,
               const Matrix<T,3,1>& acc, const Matrix<T,3,1>& omega,
               const Matrix<T,3,1>& na, const Matrix<T,3,1>& ng,
               Matrix<T,DELTA_STATE_SIZE,1>& dx)
@@ -67,170 +65,14 @@ void dynamics(const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
 
   // Compute body acceleration and angular rate
   Matrix<T,3,1> omega_u = omega - bg - ng;
-  Matrix<T,3,1> p_bu_u = T_bu.q().rot(T_bu.p());
-  Matrix<T,3,1> omega_b = T_bu.q().inv().rot(omega_u);
-  Matrix<T,3,1> acc_b = T_bu.q().inv().rot(acc - ba - na - omega_u.cross(omega_u.cross(p_bu_u)));
+  Matrix<T,3,1> omega_b = q_bu.inv().rot(omega_u);
+  Matrix<T,3,1> acc_b = q_bu.inv().rot(acc - ba - na);
 
   // Pack output
   dx.setZero();
   dx.template segment<3>(DPX) = q.inv().rot(v);
   dx.template segment<3>(DVX) = E3 * acc_b + g * q.rot(e3) - cd * IE3 * v.cwiseProduct(v) - omega_b.cross(v);
   dx.template segment<3>(DQX) = omega_b;
-}
-
-
-// Derivative of q + delta w.r.t. delta
-template<typename T>
-Matrix<T,4,3> dqpd_dd(const Matrix<T,4,1>& q)
-{
-  Matrix<T,4,3> m;
-  m << -q(1), -q(2), -q(3),
-        q(0), -q(3),  q(2),
-        q(3),  q(0), -q(1),
-       -q(2),  q(1),  q(0);
-  m *= 0.5;
-  return m;
-}
-
-
-// Derivative of state + state_delta w.r.t. state_delta
-template<typename T>
-Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dxpd_dd(const Matrix<T,STATE_SIZE,1>& x)
-{
-  Matrix<T,STATE_SIZE,DELTA_STATE_SIZE> dx;
-  dx.setZero();
-  dx.template block<3,3>(PX,DPX).setIdentity();
-  dx.template block<3,3>(VX,DVX).setIdentity();
-  dx.template block<4,3>(QW,DQX) = dqpd_dd<T>(x.template segment<4>(QW));
-  dx.template block<3,3>(AX,DAX).setIdentity();
-  dx.template block<3,3>(GX,DGX).setIdentity();
-  return dx;
-}
-
-
-// Struct for calculation of Jacobian of dynamics w.r.t. the state
-struct StateDot
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  StateDot(const Vector3d& _acc, const Vector3d& _omega,
-           const double& _cd, const common::Transformd& _T_bu)
-    : acc(_acc), omega(_omega), cd(_cd), T_bu(_T_bu) {}
-
-  template <typename T>
-  bool operator()(const T* const x, T* residual) const
-  {
-    // Constants
-    static const Matrix<T,3,1> z3(T(0), T(0), T(0));
-
-    // Map states
-    Map<const Matrix<T,3,1>> v(x+VX);
-    const common::Quaternion<T> q(x+QW);
-    Map<const Matrix<T,3,1>> ba(x+AX);
-    Map<const Matrix<T,3,1>> bg(x+GX);
-
-    // Compute output
-    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
-    dynamics<T>(v, q, ba, bg, T(cd), T_bu.cast<T>(), acc.cast<T>(), omega.cast<T>(), z3, z3, dx);
-    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
-    dx_ = dx;
-    return true;
-  }
-
-private:
-
-  const double cd;
-  const Vector3d acc, omega;
-  const common::Transformd T_bu;
-
-};
-
-
-// Struct for calculation of Jacobian of dynamics w.r.t. the input noise
-struct StateDot2
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  StateDot2(const State& _x, const Vector3d& _acc, const Vector3d& _omega,
-            const double& _cd, const common::Transformd& _T_bu)
-    : x(_x), cd(_cd), acc(_acc), omega(_omega), T_bu(_T_bu) {}
-
-  template <typename T>
-  bool operator()(const T* const noise, T* residual) const
-  {
-    // Containers
-    static Matrix<T,3,1> v, ba, bg;
-
-    // Copy states for easy reading
-    v = x.segment<3>(VX).cast<T>();
-    common::Quaternion<T> q(x.segment<4>(QW).cast<T>());
-    ba = x.segment<3>(AX).cast<T>();
-    bg = x.segment<3>(GX).cast<T>();
-
-    // Map noise
-    Map<const Matrix<T,3,1>> na(noise);
-    Map<const Matrix<T,3,1>> ng(noise+3);
-
-    // Compute output
-    Matrix<T,DELTA_STATE_SIZE,1> dx(residual);
-    dynamics<T>(v, q, ba, bg, T(cd), T_bu.cast<T>(), acc.cast<T>(), omega.cast<T>(), na, ng, dx);
-    Map<Matrix<T,DELTA_STATE_SIZE,1>> dx_(residual);
-    dx_ = dx;
-    return true;
-  }
-
-private:
-
-  const double cd;
-  const State x;
-  const Vector3d acc, omega;
-  const common::Transformd T_bu;
-
-};
-
-
-// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. minimal state
-template<typename T>
-Matrix<T,DELTA_STATE_SIZE,DELTA_STATE_SIZE> getF(const Matrix<T,STATE_SIZE,1>& x,
-                                                 const Matrix<T,3,1>& acc,
-                                                 const Matrix<T,3,1>& omega,
-                                                 const double& cd,
-                                                 const common::Transformd& T_bu)
-{
-  // Calculate autodiff Jacobian
-  T const* x_ptr = x.data();
-  T const* const* x_ptr_ptr = &x_ptr;
-  Matrix<T,DELTA_STATE_SIZE,1> r;
-  Matrix<T,DELTA_STATE_SIZE,STATE_SIZE,RowMajor> J_autodiff;
-  T* J_autodiff_ptr_ptr[1];
-  J_autodiff_ptr_ptr[0] = J_autodiff.data();
-  ceres::AutoDiffCostFunction<StateDot, DELTA_STATE_SIZE, STATE_SIZE> cost_function(new StateDot(acc, omega, cd, T_bu));
-  cost_function.Evaluate(x_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
-
-  // Convert autodiff Jacobian to minimal Jacobian
-  return J_autodiff * dxpd_dd<T>(x);
-}
-
-
-// Use automatic differentiation to calculate the Jacobian of state dynamics w.r.t. input noise
-template<typename T>
-Matrix<T,DELTA_STATE_SIZE,6> getG(const Matrix<T,6,1>& n,
-                                  const Matrix<T,STATE_SIZE,1>& x,
-                                  const Matrix<T,3,1>& acc,
-                                  const Matrix<T,3,1>& omega,
-                                  const double& cd,
-                                  const common::Transformd& T_bu)
-{
-  // Calculate autodiff Jacobian
-  T const* n_ptr = n.data();
-  T const* const* n_ptr_ptr = &n_ptr;
-  Matrix<T,DELTA_STATE_SIZE,1> r;
-  Matrix<T,DELTA_STATE_SIZE,6,RowMajor> J_autodiff;
-  T* J_autodiff_ptr_ptr[1];
-  J_autodiff_ptr_ptr[0] = J_autodiff.data();
-  ceres::AutoDiffCostFunction<StateDot2, DELTA_STATE_SIZE, 6> cost_function(new StateDot2(x, acc, omega, cd, T_bu));
-  cost_function.Evaluate(n_ptr_ptr, r.data(), J_autodiff_ptr_ptr);
-
-  // Convert autodiff Jacobian to minimal Jacobian
-  return J_autodiff;
 }
 
 
@@ -274,15 +116,29 @@ struct PosePlus
 };
 
 
+// Local parameterization for quaternions
+struct QuaternionPlus
+{
+  template<typename T>
+  bool operator()(const T* _q1, const T* _delta, T* _q2) const
+  {
+    const common::Quaternion<T> q1(_q1);
+    Map<const Matrix<T,3,1>> delta(_delta);
+    Map<Matrix<T,4,1>> q2(_q2);
+    q2 = (q1 + delta).toEigen();
+    return true;
+  }
+};
+
+
 struct PropagationFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  PropagationFactor(const vector<double>& _dts, const vector<Vector3d>& _accs,
-                    const vector<Vector3d>& _gyros, CovMatrix& _P)
-      : dts(_dts), accs(_accs), gyros(_gyros), P(_P) {}
+  PropagationFactor(const vector<double>& _dts, const vector<Vector3d>& _accs, const vector<Vector3d>& _gyros)
+      : dts(_dts), accs(_accs), gyros(_gyros) {}
 
   template <typename T>
-  bool operator()(const T* const x1, const T* const x2, const T* const cd, const T* const _T_bu, T* residuals) const
+  bool operator()(const T* const x1, const T* const x2, const T* const cd, const T* const _q_bu, T* residuals) const
   {
     // Constants
     static const Matrix<T,3,1> z3(T(0), T(0), T(0));
@@ -301,14 +157,14 @@ struct PropagationFactor
     Map<const Matrix<T,3,1>> ba2(x2+AX);
     Map<const Matrix<T,3,1>> bg2(x2+GX);
 
-    // Map body to IMU transform
-    const common::Transform<T> T_bu(_T_bu);
+    // Map body to IMU rotation
+    const common::Quaternion<T> q_bu(_q_bu);
 
     // Predict current state with IMU measurements
     Matrix<T,DELTA_STATE_SIZE,1> dx;
     for (int i = 0; i < dts.size(); ++i)
     {
-      dynamics<T>(v2hat, q2hat, ba2hat, bg2hat, cd[0], T_bu, accs[i].cast<T>(), gyros[i].cast<T>(), z3, z3, dx);
+      dynamics<T>(v2hat, q2hat, ba2hat, bg2hat, cd[0], q_bu, accs[i].cast<T>(), gyros[i].cast<T>(), z3, z3, dx);
       p2hat += dx.template segment<3>(DPX) * T(dts[i]);
       v2hat += dx.template segment<3>(DVX) * T(dts[i]);
       q2hat += dx.template segment<3>(DQX) * T(dts[i]);
@@ -322,9 +178,6 @@ struct PropagationFactor
     residuals_.template segment<3>(DAX) = ba2 - ba2hat;
     residuals_.template segment<3>(DGX) = bg2 - bg2hat;
 
-    // Weight residuals by information matrix
-//    residuals_ = LLT<CovMatrix>(P.inverse()).matrixL().transpose() * residuals_;
-
     return true;
   }
 
@@ -332,7 +185,6 @@ private:
 
   const vector<double> dts;
   const vector<Vector3d> accs, gyros;
-  const CovMatrix P;
 
 };
 
@@ -340,8 +192,8 @@ private:
 struct MocapFactor
 {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas, const Vector3d& _V, const Vector3d& _Omega, const Matrix<double,6,6>& _R)
-      : T_meas_(p_meas, q_meas), V(_V), Omega(_Omega), R(_R) {}
+  MocapFactor(const Vector3d& p_meas, const Vector4d& q_meas, const Vector3d& _V, const Vector3d& _Omega)
+      : T_meas_(p_meas, q_meas), V(_V), Omega(_Omega) {}
 
   template <typename T>
   bool operator()(const T* const x, const T* const _T_bm, const T* const tm, T* residuals) const
@@ -358,48 +210,44 @@ struct MocapFactor
     common::Transform<T> T_meas_tm = T_meas_.cast<T>() + delta;
 
     residuals_ = Matrix<T,6,1>(T_meas_tm - T_hat);
-//    residuals_ = LLT<Matrix<double,6,6>>(R.inverse()).matrixL().transpose() * residuals_;
     return true;
   }
 
 private:
 
   const common::Transformd T_meas_;
-  const Matrix<double,6,6> R;
   const Vector3d V, Omega;
 
 };
 
 
-struct DragFactor
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  DragFactor(const Vector3d& _acc_meas, const Vector3d& _omega_meas, const Matrix2d& _R_acc_xy)
-      : acc_meas(_acc_meas), omega_meas(_omega_meas), R_acc_xy(_R_acc_xy) {}
+//struct DragFactor
+//{
+//  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//  DragFactor(const Vector3d& _acc_meas, const Vector3d& _omega_meas)
+//      : acc_meas(_acc_meas), omega_meas(_omega_meas) {}
 
-  template <typename T>
-  bool operator()(const T* const x, const T* const cd, const T* const _T_bu, T* residuals) const
-  {
-    static Matrix<T,3,3> IE3(common::I_3x3.cast<T>() -
-                             common::e3.cast<T>() * common::e3.transpose().cast<T>());
-    Map<const Matrix<T,3,1>> v(x+VX);
-    Map<const Matrix<T,3,1>> ba(x+AX);
-    Map<const Matrix<T,3,1>> bg(x+GX);
-    const common::Transform<T> T_bu(_T_bu);
-    Map<Matrix<T,2,1>> residuals_(residuals);
-    Matrix<T,3,1> omega_b = T_bu.q().inv().rot(omega_meas - bg);
-    residuals_ = common::I_2x3.cast<T>() * (T_bu.q().inv().rot(acc_meas.cast<T>() - ba) -
-                 (omega_b.cross(omega_b.cross(T_bu.p())) - cd[0] * IE3 * v.cwiseProduct(v)));
-    residuals_ = LLT<Matrix2d>(R_acc_xy.inverse()).matrixL().transpose() * residuals_;
-    return true;
-  }
+//  template <typename T>
+//  bool operator()(const T* const x, const T* const cd, const T* const _T_bu, T* residuals) const
+//  {
+//    static Matrix<T,3,3> IE3(common::I_3x3.cast<T>() -
+//                             common::e3.cast<T>() * common::e3.transpose().cast<T>());
+//    Map<const Matrix<T,3,1>> v(x+VX);
+//    Map<const Matrix<T,3,1>> ba(x+AX);
+//    Map<const Matrix<T,3,1>> bg(x+GX);
+//    const common::Transform<T> T_bu(_T_bu);
+//    Map<Matrix<T,2,1>> residuals_(residuals);
+//    Matrix<T,3,1> omega_b = T_bu.q().inv().rot(omega_meas - bg);
+//    residuals_ = common::I_2x3.cast<T>() * (T_bu.q().inv().rot(acc_meas.cast<T>() - ba) -
+//                 (omega_b.cross(omega_b.cross(T_bu.p())) - cd[0] * IE3 * v.cwiseProduct(v)));
+//    return true;
+//  }
 
-private:
+//private:
 
-  const Vector3d acc_meas, omega_meas;
-  const Matrix2d R_acc_xy;
+//  const Vector3d acc_meas, omega_meas;
 
-};
+//};
 
 
 int main()
@@ -432,9 +280,9 @@ int main()
   }
   double cd_t = 0.1;
   common::Transformd T_bm_t(Vector3d(0.1, 0.1, 0.1),Vector4d(0.9928, 0.0447, 0.0547, 0.0971));
-  common::Transformd T_bu_t(Vector3d(0.05, 0.01, 0.02),Vector4d(0.5, 0.5, 0.5, 0.5));
+  common::Quaterniond q_bu_t(Vector4d(0.5, 0.5, 0.5, 0.5));
   double tm_t = 0.01; // Motion capture time offset from IMU
-  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, cd_t, T_bm_t.toEigen(), T_bu_t.toEigen(), tm_t);
+  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, cd_t, T_bm_t.toEigen(), q_bu_t.toEigen(), tm_t);
 
   // Corrupt mocap measurements time stamps
   for (int i = 0; i < mocap.cols(); ++i)
@@ -482,43 +330,9 @@ int main()
   }
   double cd = 0.2;
   common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
-  common::Transformd T_bu(Vector3d(0.0, 0.0, 0.0),Vector4d(0.8536, 0.3536, 0.1464, 0.3536));
+  common::Quaterniond q_bu(Vector4d(0.8536, 0.3536, 0.1464, 0.3536));
   double tm = 0.0;
-  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen(), tm);
-
-  // Initialize covariance of each state
-  Matrix<double,DELTA_STATE_SIZE,1> cov0_vec;
-  cov0_vec << 0.01, 0.01, 0.01, // POS
-              0.5, 0.5, 0.5, // VEL
-              0.01, 0.01, 0.01, // ATT
-              0.2, 0.2, 0.2, // BIAS ACC
-              0.1, 0.1, 0.1; // BIAS GYRO
-  cov_vector P(N);
-  P[0] = cov0_vec.asDiagonal();
-  j = 0;
-  Matrix<double,6,1> n; n.setOnes();
-  CovMatrix I; I.setIdentity();
-  for (int i = 0; i < N-1; ++i)
-  {
-//    double dt = mocap(0,i+1) - mocap(0,i);
-//    Vector3d acc_, gyro_;
-//    for (int j = 0; j < acc.cols(); ++j)
-//    {
-//      // Accelerometer and gyro usually run on same time steps in an IMU
-//      if (acc(0,j) == mocap(0,i) && gyro(0,j) == mocap(0,i))
-//      {
-//        acc_ = acc.block<3,1>(1,j);
-//        gyro_ = gyro.block<3,1>(1,j);
-//        break;
-//      }
-//    }
-//    CovMatrix F = getF<double>(x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
-//    Matrix<double,DELTA_STATE_SIZE,6> G = getG<double>(n, x[j], acc.block<3,1>(1,i), gyro.block<3,1>(1,i), cd, T_bu);
-//    CovMatrix A = I + F*dt + F*F*dt*dt/2.0 + F*F*F*dt*dt*dt/6.0;
-//    Matrix<double,DELTA_STATE_SIZE,6> B = (dt*(I + F*dt/2.0 + F*F*dt*dt/6.0 + F*F*F*dt*dt*dt/24.0))*G;
-//    P[i+1] = A * P[i] * A.transpose() + B * Qu * B.transpose();
-    P[i+1] = I;
-  }
+  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
 
 //  // Print initial state
 //  print_state("x0", x, print_start, print_end);
@@ -531,11 +345,13 @@ int main()
       new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
   ceres::LocalParameterization *transform_local_parameterization =
       new ceres::AutoDiffLocalParameterization<PosePlus,7,6>;
+  ceres::LocalParameterization *quaternion_local_parameterization =
+      new ceres::AutoDiffLocalParameterization<QuaternionPlus,4,3>;
   for (int i = 0; i < N; ++i)
     problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
   problem.AddParameterBlock(&cd, 1);
   problem.AddParameterBlock(T_bm.data(), 7, transform_local_parameterization);
-  problem.AddParameterBlock(T_bu.data(), 7, transform_local_parameterization);
+  problem.AddParameterBlock(q_bu.data(), 4, quaternion_local_parameterization);
 
   // Add IMU factors
   for (int i = 0; i < N-1; ++i)
@@ -554,9 +370,9 @@ int main()
       }
     }
     ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE, 1, 7>(
-      new PropagationFactor(dts, accs, gyros, P[i]));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data(), &cd, T_bu.data());
+      new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE, 1, 4>(
+      new PropagationFactor(dts, accs, gyros));
+    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data(), &cd, q_bu.data());
   }
 
   // Add Mocap factors
@@ -586,7 +402,7 @@ int main()
     // Add factor block
     ceres::CostFunction* cost_function =
       new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7, 1>(
-      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), V, Omega, R_mocap));
+      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), V, Omega));
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data(), &tm);
   }
 
@@ -615,7 +431,7 @@ int main()
 //        }
 //        ceres::CostFunction* cost_function =
 //          new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1, 7>(
-//          new DragFactor(acc_mean, gyro_mean, Qu.block<2,2>(0,0)));
+//          new DragFactor(acc_mean, gyro_mean));
 //        problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd, T_bu.data());
 //        break;
 //      }
@@ -634,7 +450,7 @@ int main()
   ceres::Solve(options, &problem, &summary);
   cout << summary.BriefReport() << "\n\n";
 
-  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen(), T_bu.toEigen(), tm);
+  log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
 
 //  // Print solution and truth
 //  print_state("xf", x, print_start, print_end);
