@@ -68,6 +68,7 @@ private:
 
   // Motion Capture
   bool use_mocap_truth_;
+  double t_mocap_bias_;
   double last_mocap_update_;
   double mocap_update_rate_;
   std::normal_distribution<double> mocap_noise_dist_;

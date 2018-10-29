@@ -94,6 +94,7 @@ void Sensors::load(const std::string filename)
   // Motion Capture
   double mocap_noise_stdev;
   Eigen::Vector4d q_bm;
+  common::get_yaml_node("mocap_time_bias", filename, t_mocap_bias_);
   common::get_yaml_node("use_mocap_truth", filename, use_mocap_truth_);
   common::get_yaml_node("mocap_update_rate", filename, mocap_update_rate_);
   common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
@@ -231,7 +232,8 @@ void Sensors::mocap(const double t, const vehicle::State &x)
     mocap_.tail<4>() = (x.q * q_bm_ + Eigen::Vector3d(mocap_noise_.tail<3>())).toEigen();
 
     // Log Mocap data
-    mocap_log_.write((char*)&t, sizeof(double));
+    double t_biased = t + t_mocap_bias_;
+    mocap_log_.write((char*)&t_biased, sizeof(double));
     mocap_log_.write((char*)mocap_.data(), mocap_.rows() * sizeof(double));
     mocap_log_.write((char*)p_bm_.data(), 3 * sizeof(double));
     mocap_log_.write((char*)q_bm_.data(), 4 * sizeof(double));
