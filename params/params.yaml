@@ -128,7 +128,7 @@ q_bc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
 ## Motion Capture
 mocap_time_bias: 0.01 # time bias added to mocap time stamps
 mocap_update_rate: 50
-mocap_noise_stdev: 0.0001
+mocap_noise_stdev: 0.001
 p_bm: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
 q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 

@@ -90,6 +90,69 @@ void dynamics(const Matrix<T,3,1>& v, const common::Quaternion<T>& q,
 }
 
 
+// Derivative of dq w.r.t. q
+template<typename T>
+Matrix<T,3,4> ddq_dq(const Matrix<T,4,1>& q)
+{
+  Matrix<T,3,4> m;
+  m << -q(1),  q(0),  q(3), -q(2),
+       -q(2), -q(3),  q(0),  q(1),
+       -q(3),  q(2), -q(1),  q(0);
+  m *= 2.0;
+  return m;
+}
+
+
+// Numerically differentiate mocap data
+void mocap_numerical_diff(const MatrixXd& mocap,
+                          vector<Vector3d, aligned_allocator<Vector3d>>& vs,
+                          vector<Vector3d, aligned_allocator<Vector3d>>& ws)
+{
+  vs.clear();
+  ws.clear();
+  static const int N = mocap.cols();
+  for (int i = 0; i < N; ++i)
+  {
+//    cout << "t: " << mocap(0,i) << endl;
+    Vector3d V, Omega;
+    Vector4d Omega2;
+    if (i < 2)
+    {
+      double dt = mocap(0,i+1) - mocap(0,i);
+      V = -(25.0 * mocap.block<3,1>(1,i) - 48.0 * mocap.block<3,1>(1,i+1) + 36.0 * mocap.block<3,1>(1,i+2) -
+            16.0 * mocap.block<3,1>(1,i+3) + 3.0 * mocap.block<3,1>(1,i+4)) / (12.0 * dt);
+      Omega2 = -(25.0 * mocap.block<4,1>(4,i) - 48.0 * mocap.block<4,1>(4,i+1) + 36.0 * mocap.block<4,1>(4,i+2) -
+                 16.0 * mocap.block<4,1>(4,i+3) + 3.0 * mocap.block<4,1>(4,i+4)) / (12.0 * dt);
+//      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) / dt;
+//      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i))) / dt;
+    }
+    else if (i > N-3)
+    {
+      double dt = mocap(0,i) - mocap(0,i-1);
+      V = (25.0 * mocap.block<3,1>(1,i) - 48.0 * mocap.block<3,1>(1,i-1) + 36.0 * mocap.block<3,1>(1,i-2) -
+           16.0 * mocap.block<3,1>(1,i-3) + 3.0 * mocap.block<3,1>(1,i-4)) / (12.0 * dt);
+      Omega2 = (25.0 * mocap.block<4,1>(4,i) - 48.0 * mocap.block<4,1>(4,i-1) + 36.0 * mocap.block<4,1>(4,i-2) -
+                16.0 * mocap.block<4,1>(4,i-3) + 3.0 * mocap.block<4,1>(4,i-4)) / (12.0 * dt);
+//      V = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) / dt;
+//      Omega = (common::Quaterniond(mocap.block<4,1>(4,i)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
+    }
+    else
+    {
+      double dt = mocap(0,i+1) - mocap(0,i);
+      V = (8.0 * mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i+2) - 8.0 * mocap.block<3,1>(1,i-1) + mocap.block<3,1>(1,i-2)) / (12.0 * dt);
+      Omega2 = (8.0 * mocap.block<4,1>(4,i+1) - mocap.block<4,1>(4,i+2) - 8.0 * mocap.block<4,1>(4,i-1) + mocap.block<4,1>(4,i-2)) / (12.0 * dt);
+//      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / (mocap(0,i+1) - mocap(0,i-1));
+//      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / (mocap(0,i+1) - mocap(0,i-1));
+    }
+    Omega = ddq_dq<double>(mocap.block<4,1>(4,i)) * Omega2;
+
+    // Save data
+    vs.push_back(V);
+    ws.push_back(Omega);
+  }
+}
+
+
 // Local parameterization for the state
 struct StatePlus
 {
@@ -219,7 +282,7 @@ struct MocapFactor
     Map<Matrix<T,6,1>> residuals_(residuals);
 
     Matrix<T,6,1> delta;
-    delta.template segment<3>(0) = V.cast<T>() * tm[0];
+    delta.template segment<3>(0) = T_meas_.cast<T>().q().rot(V.cast<T>()) * tm[0];
     delta.template segment<3>(3) = Omega.cast<T>() * tm[0];
     common::Transform<T> T_meas_tm = T_meas_.cast<T>() + delta;
 
@@ -278,6 +341,18 @@ int main()
   MatrixXd truth = common::load_binary_to_matrix<double>("../logs/true_state.bin", 20);
   vector<cam_pts_vector> cam = load_camera_data("../logs/camera.bin");
 
+  // Parameters
+  const int N = mocap.cols();
+
+  // Numericall differentiate mocap data
+  vector<Vector3d, aligned_allocator<Vector3d>> v_mocap, omega_mocap;
+  mocap_numerical_diff(mocap, v_mocap, omega_mocap);
+
+//  cout << "\n\n";
+//  for (int i = v_mocap.size()-100; i < v_mocap.size(); ++i)
+//    cout << "i: " << i << ", vec: " << v_mocap[i].transpose() << endl;
+//  cout << "\n\n";
+
   // Compute and log truth data
   double cd_t = 0.1;
   common::Transformd T_bm_t(Vector3d(0.1, 0.1, 0.1),Vector4d(0.9928, 0.0447, 0.0547, 0.0971));
@@ -303,12 +378,6 @@ int main()
 //    Vector3d p = mocap.block<3,1>(1,i);
 //    if ((p - p_prev).norm() > 0.25)
 //  }
-
-
-
-
-  // Parameters
-  const int N = mocap.cols();
 
   // Initialize the states with mocap
   double cd = 0.2;
@@ -382,33 +451,9 @@ int main()
   // Add Mocap factors
   for (int i = 0; i < N; ++i)
   {
-    // Compute body linear/angular velocity from mocap measurements
-    common::Quaterniond q_i2m(mocap.block<4,1>(4,i));
-    Vector3d V, V_inertial, Omega;
-    if (i == 0)
-    {
-      double dt = mocap(0,i+1) - mocap(0,i);
-      V_inertial = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) / dt;
-      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i))) / dt;
-    }
-    else if (i == N-1)
-    {
-      double dt = mocap(0,i) - mocap(0,i-1);
-      V_inertial = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) / dt;
-      Omega = (common::Quaterniond(mocap.block<4,1>(4,i)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
-    }
-    else
-    {
-      double dt = mocap(0,i+1) - mocap(0,i-1);
-      V_inertial = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / dt;
-      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
-    }
-    V = q_i2m.rot(V_inertial);
-
-    // Add factor block
     ceres::CostFunction* cost_function =
       new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7, 1>(
-      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), V, Omega));
+      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), v_mocap[i], omega_mocap[i]));
     problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data(), &tm);
   }
 
