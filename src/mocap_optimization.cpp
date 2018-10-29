@@ -219,7 +219,7 @@ struct MocapFactor
     Map<Matrix<T,6,1>> residuals_(residuals);
 
     Matrix<T,6,1> delta;
-    delta.template segment<3>(0) = T_bm.q().rot(V.cast<T>()) * tm[0];
+    delta.template segment<3>(0) = V.cast<T>() * tm[0];
     delta.template segment<3>(3) = Omega.cast<T>() * tm[0];
     common::Transform<T> T_meas_tm = T_meas_.cast<T>() + delta;
 
@@ -269,7 +269,7 @@ int main()
   // Load Mocap and IMU data
   // acc: [t,acc,bias,noise]
   // gyro: [t,gyro,bias,noise]
-  // mocap: [t,pose,transform,noise]
+  // mocap: [t,pose_i2b,pose_b2m,noise]
   // truth: [t,pos,vel,acc,att,avel,acc]
   // cam: vector<vector[pix_x;pix_y;label;time]>
   MatrixXd acc = common::load_binary_to_matrix<double>("../logs/accel.bin", 10);
@@ -278,32 +278,43 @@ int main()
   MatrixXd truth = common::load_binary_to_matrix<double>("../logs/true_state.bin", 20);
   vector<cam_pts_vector> cam = load_camera_data("../logs/camera.bin");
 
-  // Compute truth
-  int j = 0;
-  state_vector xt(mocap.cols());
-  for (int i = 0; i < truth.cols(); ++i)
-  {
-    if (truth(0,i) == mocap(0,j)) // times happen to line up for now
-    {
-      xt[j].segment<3>(PX) = truth.block<3,1>(1,i);
-      xt[j].segment<3>(VX) = truth.block<3,1>(4,i);
-      xt[j].segment<4>(QW) = truth.block<4,1>(10,i);
-      xt[j].segment<3>(AX) = acc.block<3,1>(4,i);
-      xt[j].segment<3>(GX) = gyro.block<3,1>(4,i);
-      ++j;
-    }
-    if (j > mocap.cols()-1) break;
-  }
+  // Compute and log truth data
   double cd_t = 0.1;
   common::Transformd T_bm_t(Vector3d(0.1, 0.1, 0.1),Vector4d(0.9928, 0.0447, 0.0547, 0.0971));
   common::Quaterniond q_bu_t(Vector4d(0.5, 0.5, 0.5, 0.5));
   double tm_t = 0.01; // Motion capture time offset from IMU
-  log_data("../logs/mocap_opt_truth.bin", mocap.row(0), xt, cd_t, T_bm_t.toEigen(), q_bu_t.toEigen(), tm_t);
+  state_vector xt(truth.cols());
+  for (int i = 0; i < xt.size(); ++i)
+  {
+    xt[i].segment<3>(PX) = truth.block<3,1>(1,i);
+    xt[i].segment<3>(VX) = truth.block<3,1>(4,i);
+    xt[i].segment<4>(QW) = truth.block<4,1>(10,i);
+    xt[i].segment<3>(AX) = acc.block<3,1>(4,i);
+    xt[i].segment<3>(GX) = gyro.block<3,1>(4,i);
+  }
+  log_data("../logs/mocap_opt_truth.bin", truth.row(0), xt, cd_t, T_bm_t.toEigen(), q_bu_t.toEigen(), tm_t);
+
+  // Establish factor graph nodes at keyframes
+  // For now, keyframe based on position change. Later, derotate image points and base
+  // keyframes on pixel diparity because that accounts for feature distance.
+//  Vector3d p_prev = mocap.block<3,1>(1,0);
+//  for (int i = 1; i < mocap.cols(); ++i)
+//  {
+//    Vector3d p = mocap.block<3,1>(1,i);
+//    if ((p - p_prev).norm() > 0.25)
+//  }
+
+
+
 
   // Parameters
   const int N = mocap.cols();
 
   // Initialize the states with mocap
+  double cd = 0.2;
+  common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
+  common::Quaterniond q_bu;
+  double tm = 0.0;
   state_vector x(N);
   for (int i = 0; i < N; ++i)
   {
@@ -328,10 +339,6 @@ int main()
     common::Quaterniond q_i2b(mocap.block<4,1>(4,i));
     x[i].segment<3>(VX) = q_i2b.rot(x[i].segment<3>(VX));
   }
-  double cd = 0.2;
-  common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
-  common::Quaterniond q_bu;
-  double tm = 0.0;
   log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
 
   // Build optimization problem with Ceres-Solver
@@ -376,25 +383,27 @@ int main()
   for (int i = 0; i < N; ++i)
   {
     // Compute body linear/angular velocity from mocap measurements
-    Vector3d V, Omega;
+    common::Quaterniond q_i2m(mocap.block<4,1>(4,i));
+    Vector3d V, V_inertial, Omega;
     if (i == 0)
     {
       double dt = mocap(0,i+1) - mocap(0,i);
-      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) / dt;
+      V_inertial = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) / dt;
       Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i))) / dt;
     }
     else if (i == N-1)
     {
       double dt = mocap(0,i) - mocap(0,i-1);
-      V = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) / dt;
+      V_inertial = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) / dt;
       Omega = (common::Quaterniond(mocap.block<4,1>(4,i)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
     }
     else
     {
       double dt = mocap(0,i+1) - mocap(0,i-1);
-      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / dt;
+      V_inertial = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / dt;
       Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
     }
+    V = q_i2m.rot(V_inertial);
 
     // Add factor block
     ceres::CostFunction* cost_function =
