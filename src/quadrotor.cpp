@@ -117,7 +117,7 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
   getOtherVehicles(env.getVehiclePositions());
   sensors_.updateMeasurements(t, x_, env.get_points().matrix()); // Update sensor measurements
   log(t); // Log current data
-  ekf_.run(t, sensors_);
+  ekf_.run(t, sensors_, x_);
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
   if (control_using_estimates_)
     controller_.computeControl(ekf_.getVehicleState(), t, u_, other_vehicle_positions[0]); // Update control input with estimates
