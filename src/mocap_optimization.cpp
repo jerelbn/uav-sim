@@ -111,6 +111,7 @@ void mocap_numerical_diff(const MatrixXd& mocap,
   vs.clear();
   ws.clear();
   static const int N = mocap.cols();
+  static const int type = 1; // 0 = 2nd Order, 1 = 4th Order
   for (int i = 0; i < N; ++i)
   {
 //    cout << "t: " << mocap(0,i) << endl;
@@ -119,30 +120,48 @@ void mocap_numerical_diff(const MatrixXd& mocap,
     if (i < 2)
     {
       double dt = mocap(0,i+1) - mocap(0,i);
-      V = -(25.0 * mocap.block<3,1>(1,i) - 48.0 * mocap.block<3,1>(1,i+1) + 36.0 * mocap.block<3,1>(1,i+2) -
-            16.0 * mocap.block<3,1>(1,i+3) + 3.0 * mocap.block<3,1>(1,i+4)) / (12.0 * dt);
-      Omega2 = -(25.0 * mocap.block<4,1>(4,i) - 48.0 * mocap.block<4,1>(4,i+1) + 36.0 * mocap.block<4,1>(4,i+2) -
-                 16.0 * mocap.block<4,1>(4,i+3) + 3.0 * mocap.block<4,1>(4,i+4)) / (12.0 * dt);
-//      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) / dt;
-//      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i))) / dt;
+      if (type == 0) // 2nd Order
+      {
+        V = -(3.0 * mocap.block<3,1>(1,i) - 4.0 * mocap.block<3,1>(1,i+1) + mocap.block<3,1>(1,i+2)) / (2.0 * dt);
+        Omega2 = -(3.0 * mocap.block<4,1>(4,i) - 4.0 * mocap.block<4,1>(4,i+1) + mocap.block<4,1>(4,i+2)) / (2.0 * dt);
+      }
+      else // 4th Order
+      {
+        V = -(25.0 * mocap.block<3,1>(1,i) - 48.0 * mocap.block<3,1>(1,i+1) + 36.0 * mocap.block<3,1>(1,i+2) -
+              16.0 * mocap.block<3,1>(1,i+3) + 3.0 * mocap.block<3,1>(1,i+4)) / (12.0 * dt);
+        Omega2 = -(25.0 * mocap.block<4,1>(4,i) - 48.0 * mocap.block<4,1>(4,i+1) + 36.0 * mocap.block<4,1>(4,i+2) -
+                   16.0 * mocap.block<4,1>(4,i+3) + 3.0 * mocap.block<4,1>(4,i+4)) / (12.0 * dt);
+      }
     }
     else if (i > N-3)
     {
       double dt = mocap(0,i) - mocap(0,i-1);
-      V = (25.0 * mocap.block<3,1>(1,i) - 48.0 * mocap.block<3,1>(1,i-1) + 36.0 * mocap.block<3,1>(1,i-2) -
+      if (type == 0) // 2nd Order
+      {
+        V = -(3.0 * mocap.block<3,1>(1,i) - 4.0 * mocap.block<3,1>(1,i+1) + mocap.block<3,1>(1,i+2)) / (2.0 * dt);
+        Omega2 = (3.0 * mocap.block<4,1>(4,i) - 4.0 * mocap.block<4,1>(4,i+1) + mocap.block<4,1>(4,i+2)) / (2.0 * dt);
+      }
+      else // 4th Order
+      {
+        V = (25.0 * mocap.block<3,1>(1,i) - 48.0 * mocap.block<3,1>(1,i-1) + 36.0 * mocap.block<3,1>(1,i-2) -
            16.0 * mocap.block<3,1>(1,i-3) + 3.0 * mocap.block<3,1>(1,i-4)) / (12.0 * dt);
-      Omega2 = (25.0 * mocap.block<4,1>(4,i) - 48.0 * mocap.block<4,1>(4,i-1) + 36.0 * mocap.block<4,1>(4,i-2) -
-                16.0 * mocap.block<4,1>(4,i-3) + 3.0 * mocap.block<4,1>(4,i-4)) / (12.0 * dt);
-//      V = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) / dt;
-//      Omega = (common::Quaterniond(mocap.block<4,1>(4,i)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / dt;
+        Omega2 = (25.0 * mocap.block<4,1>(4,i) - 48.0 * mocap.block<4,1>(4,i-1) + 36.0 * mocap.block<4,1>(4,i-2) -
+                  16.0 * mocap.block<4,1>(4,i-3) + 3.0 * mocap.block<4,1>(4,i-4)) / (12.0 * dt);
+      }
     }
     else
     {
       double dt = mocap(0,i+1) - mocap(0,i);
-      V = (8.0 * mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i+2) - 8.0 * mocap.block<3,1>(1,i-1) + mocap.block<3,1>(1,i-2)) / (12.0 * dt);
-      Omega2 = (8.0 * mocap.block<4,1>(4,i+1) - mocap.block<4,1>(4,i+2) - 8.0 * mocap.block<4,1>(4,i-1) + mocap.block<4,1>(4,i-2)) / (12.0 * dt);
-//      V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / (mocap(0,i+1) - mocap(0,i-1));
-//      Omega = (common::Quaterniond(mocap.block<4,1>(4,i+1)) - common::Quaterniond(mocap.block<4,1>(4,i-1))) / (mocap(0,i+1) - mocap(0,i-1));
+      if (type == 0) // 2nd Order
+      {
+        V = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) / (2.0 * dt);
+        Omega2 = (mocap.block<4,1>(4,i+1) - mocap.block<4,1>(4,i-1)) / (2.0 * dt);
+      }
+      else // 4th Order
+      {
+        V = (8.0 * mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i+2) - 8.0 * mocap.block<3,1>(1,i-1) + mocap.block<3,1>(1,i-2)) / (12.0 * dt);
+        Omega2 = (8.0 * mocap.block<4,1>(4,i+1) - mocap.block<4,1>(4,i+2) - 8.0 * mocap.block<4,1>(4,i-1) + mocap.block<4,1>(4,i-2)) / (12.0 * dt);
+      }
     }
     Omega = ddq_dq<double>(mocap.block<4,1>(4,i)) * Omega2;
 
@@ -355,9 +374,9 @@ int main()
 
   // Compute and log truth data
   double cd_t = 0.1;
+  double tm_t = 0.05; // Motion capture time offset from IMU
   common::Transformd T_bm_t(Vector3d(0.1, 0.1, 0.1),Vector4d(0.9928, 0.0447, 0.0547, 0.0971));
   common::Quaterniond q_bu_t(Vector4d(0.5, 0.5, 0.5, 0.5));
-  double tm_t = 0.01; // Motion capture time offset from IMU
   state_vector xt(truth.cols());
   for (int i = 0; i < xt.size(); ++i)
   {
@@ -381,125 +400,134 @@ int main()
 
   // Initialize the states with mocap
   double cd = 0.2;
-  common::Transformd T_bm(Vector3d(0.0, 0.0, 0.0),Vector4d(1.0, 0.0, 0.0, 0.0));
-  common::Quaterniond q_bu;
   double tm = 0.0;
+  double delta_tm = 0.0;
+  common::Transformd T_bm;
+  common::Quaterniond q_bu;
   state_vector x(N);
-  for (int i = 0; i < N; ++i)
+
+  for (int ii = 0; ii < 20; ++ii)
   {
-    // Mocap for position/attitude
-    x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
-    x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
-    x[i].segment<3>(AX) = Vector3d(0,0,0);//acc.block<3,1>(4,0); // TODO: Initialize biases assuming constant between mocap measurements
-    x[i].segment<3>(GX) = Vector3d(0,0,0);//gyro.block<3,1>(4,0);
-
-    // Compute velocity by numerical differentiation
-    if (i == 0) // forward difference
-      x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i)) /
-                            (mocap(0,i+1) - mocap(0,i));
-    else if (i == N-1) // backward difference
-      x[i].segment<3>(VX) = (mocap.block<3,1>(1,i) - mocap.block<3,1>(1,i-1)) /
-                            (mocap(0,i) - mocap(0,i-1));
-    else // central difference
-      x[i].segment<3>(VX) = (mocap.block<3,1>(1,i+1) - mocap.block<3,1>(1,i-1)) /
-                            (mocap(0,i+1) - mocap(0,i-1));
-
-    // Rotate velocity into body frame
-    common::Quaterniond q_i2b(mocap.block<4,1>(4,i));
-    x[i].segment<3>(VX) = q_i2b.rot(x[i].segment<3>(VX));
-  }
-  log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
-
-  // Build optimization problem with Ceres-Solver
-  ceres::Problem problem;
-
-  // Add parameter blocks
-  ceres::LocalParameterization *state_local_parameterization =
-      new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
-  ceres::LocalParameterization *transform_local_parameterization =
-      new ceres::AutoDiffLocalParameterization<PosePlus,7,6>;
-  ceres::LocalParameterization *quaternion_local_parameterization =
-      new ceres::AutoDiffLocalParameterization<QuaternionPlus,4,3>;
-  for (int i = 0; i < N; ++i)
-    problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
-  problem.AddParameterBlock(&cd, 1);
-  problem.AddParameterBlock(T_bm.data(), 7, transform_local_parameterization);
-  problem.AddParameterBlock(q_bu.data(), 4, quaternion_local_parameterization);
-
-  // Add IMU factors
-  for (int i = 0; i < N-1; ++i)
-  {
-    // create vector of delta times and measurements from current to next node
-    vector<double> dts;
-    vector<Vector3d> accs, gyros;
-    for (int j = 0; j < acc.cols(); ++j)
+    cout << "Optimization iteration #" << ii+1 << "\n\n";
+    delta_tm = 0;
+    if (ii == 0)
     {
-      // Accelerometer and gyro usually run on same time steps in an IMU
-      if (acc(0,j) >= mocap(0,i) && acc(0,j) < mocap(0,i+1))
+      for (int i = 0; i < N; ++i)
       {
-        dts.push_back(acc(0,j+1) - acc(0,j));
-        accs.push_back(acc.block<3,1>(1,j));
-        gyros.push_back(gyro.block<3,1>(1,j));
+        // Mocap for position/attitude
+        common::Quaterniond q_i2b(mocap.block<4,1>(4,i));
+        x[i].segment<3>(PX) = mocap.block<3,1>(1,i);
+        x[i].segment<3>(VX) = q_i2b.rot(v_mocap[i]); // body frame velocity
+        x[i].segment<4>(QW) = mocap.block<4,1>(4,i);
+        x[i].segment<3>(AX) = Vector3d(0,0,0);
+        x[i].segment<3>(GX) = Vector3d(0,0,0);
+      }
+      log_data("../logs/mocap_opt_initial.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
+    }
+    else
+    {
+      // Always init biases to zero
+      for (int i = 0; i < N; ++i)
+      {
+        x[i].segment<3>(AX) = Vector3d(0,0,0);
+        x[i].segment<3>(GX) = Vector3d(0,0,0);
       }
     }
-    ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE, 1, 4>(
-      new PropagationFactor(dts, accs, gyros));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data(), &cd, q_bu.data());
+
+    // Build optimization problem with Ceres-Solver
+    ceres::Problem problem;
+
+    // Add parameter blocks
+    ceres::LocalParameterization *state_local_parameterization =
+        new ceres::AutoDiffLocalParameterization<StatePlus,STATE_SIZE,DELTA_STATE_SIZE>;
+    ceres::LocalParameterization *transform_local_parameterization =
+        new ceres::AutoDiffLocalParameterization<PosePlus,7,6>;
+    ceres::LocalParameterization *quaternion_local_parameterization =
+        new ceres::AutoDiffLocalParameterization<QuaternionPlus,4,3>;
+    for (int i = 0; i < N; ++i)
+      problem.AddParameterBlock(x[i].data(), STATE_SIZE, state_local_parameterization);
+    problem.AddParameterBlock(&cd, 1);
+    problem.AddParameterBlock(T_bm.data(), 7, transform_local_parameterization);
+    problem.AddParameterBlock(q_bu.data(), 4, quaternion_local_parameterization);
+
+    // Add IMU factors
+    for (int i = 0; i < N-1; ++i)
+    {
+      // create vector of delta times and measurements from current to next node
+      vector<double> dts;
+      vector<Vector3d> accs, gyros;
+      for (int j = 0; j < acc.cols(); ++j)
+      {
+        // Accelerometer and gyro usually run on same time steps in an IMU
+        if (acc(0,j) >= (mocap(0,i) - tm) && acc(0,j) < (mocap(0,i+1) - tm))
+        {
+          dts.push_back(acc(0,j+1) - acc(0,j));
+          accs.push_back(acc.block<3,1>(1,j));
+          gyros.push_back(gyro.block<3,1>(1,j));
+        }
+      }
+      ceres::CostFunction* cost_function =
+        new ceres::AutoDiffCostFunction<PropagationFactor, DELTA_STATE_SIZE, STATE_SIZE, STATE_SIZE, 1, 4>(
+        new PropagationFactor(dts, accs, gyros));
+      problem.AddResidualBlock(cost_function, NULL, x[i].data(), x[i+1].data(), &cd, q_bu.data());
+    }
+
+    // Add Mocap factors
+    for (int i = 0; i < N; ++i)
+    {
+      ceres::CostFunction* cost_function =
+        new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7, 1>(
+        new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), v_mocap[i], omega_mocap[i]));
+      problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data(), &delta_tm);
+    }
+
+  //  // Add drag factors
+  //  for (int i = 0; i < N; ++i)
+  //  {
+  //    for (int j = 0; j < acc.cols(); ++j)
+  //    {
+  //      if (mocap(0,i) == acc(0,j))
+  //      {
+  //        Vector3d acc_mean, gyro_mean;
+  //        if (j < 4)
+  //        {
+  //          acc_mean = acc.block<3,5>(1,j).rowwise().mean();
+  //          gyro_mean = gyro.block<3,5>(1,j).rowwise().mean();
+  //        }
+  //        else if (j > acc.cols()-4)
+  //        {
+  //          acc_mean = acc.block<3,5>(1,j-4).rowwise().mean();
+  //          gyro_mean = gyro.block<3,5>(1,j-4).rowwise().mean();
+  //        }
+  //        else
+  //        {
+  //          acc_mean = acc.block<3,9>(1,j-4).rowwise().mean();
+  //          gyro_mean = gyro.block<3,9>(1,j-4).rowwise().mean();
+  //        }
+  //        ceres::CostFunction* cost_function =
+  //          new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1, 7>(
+  //          new DragFactor(acc_mean, gyro_mean));
+  //        problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd, T_bu.data());
+  //        break;
+  //      }
+  //    }
+  //  }
+
+    // Solve for the optimal rotation and translation direction
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::SPARSE_SCHUR;
+    options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+    options.max_num_iterations = 10;
+    options.num_threads = 8;
+    options.num_linear_solver_threads = 8;
+    options.minimizer_progress_to_stdout = true;
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+    cout << summary.BriefReport() << "\n\n";
+
+    // Update time offset
+    tm += delta_tm;
   }
-
-  // Add Mocap factors
-  for (int i = 0; i < N; ++i)
-  {
-    ceres::CostFunction* cost_function =
-      new ceres::AutoDiffCostFunction<MocapFactor, 6, STATE_SIZE, 7, 1>(
-      new MocapFactor(mocap.block<3,1>(1,i), mocap.block<4,1>(4,i), v_mocap[i], omega_mocap[i]));
-    problem.AddResidualBlock(cost_function, NULL, x[i].data(), T_bm.data(), &tm);
-  }
-
-//  // Add drag factors
-//  for (int i = 0; i < N; ++i)
-//  {
-//    for (int j = 0; j < acc.cols(); ++j)
-//    {
-//      if (mocap(0,i) == acc(0,j))
-//      {
-//        Vector3d acc_mean, gyro_mean;
-//        if (j < 4)
-//        {
-//          acc_mean = acc.block<3,5>(1,j).rowwise().mean();
-//          gyro_mean = gyro.block<3,5>(1,j).rowwise().mean();
-//        }
-//        else if (j > acc.cols()-4)
-//        {
-//          acc_mean = acc.block<3,5>(1,j-4).rowwise().mean();
-//          gyro_mean = gyro.block<3,5>(1,j-4).rowwise().mean();
-//        }
-//        else
-//        {
-//          acc_mean = acc.block<3,9>(1,j-4).rowwise().mean();
-//          gyro_mean = gyro.block<3,9>(1,j-4).rowwise().mean();
-//        }
-//        ceres::CostFunction* cost_function =
-//          new ceres::AutoDiffCostFunction<DragFactor, 2, STATE_SIZE, 1, 7>(
-//          new DragFactor(acc_mean, gyro_mean));
-//        problem.AddResidualBlock(cost_function, NULL, x[i].data(), &cd, T_bu.data());
-//        break;
-//      }
-//    }
-//  }
-
-  // Solve for the optimal rotation and translation direction
-  ceres::Solver::Options options;
-  options.linear_solver_type = ceres::SPARSE_SCHUR;
-  options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
-  options.max_num_iterations = 50;
-  options.num_threads = 8;
-  options.num_linear_solver_threads = 8;
-  options.minimizer_progress_to_stdout = true;
-  ceres::Solver::Summary summary;
-  ceres::Solve(options, &problem, &summary);
-  cout << summary.BriefReport() << "\n\n";
 
   log_data("../logs/mocap_opt_final.bin", mocap.row(0), x, cd, T_bm.toEigen(), q_bu.toEigen(), tm);
 
