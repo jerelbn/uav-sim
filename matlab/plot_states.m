@@ -29,6 +29,7 @@ for i=1:3
     title(titles(i));
     plot(true_global_euler(1,:), true_global_euler(i + 1, :), 'linewidth', 1.3);
     plot(ekf_global_pos_euler(1,:), ekf_global_pos_euler(i+idx,:), 'r');
+    plot(command(1,:), command(i + idx, :), 'g--');
     if (plot_covariance)
         plot(ekf_cov(1,:), ekf_global_pos_euler(i+idx,:) + sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)
         plot(ekf_cov(1,:), ekf_global_pos_euler(i+idx,:) - sigma * sqrt(ekf_cov(i+idx,:)), 'color', cov_color*[1, 1, 1], 'linewidth', 0.5)

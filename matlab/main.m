@@ -6,7 +6,7 @@ f = 1; % Starts figure numbering
 plot_covariance = 1;
 
 %% Run Simulation
-!cd ../build && ./uav_sim
+% !cd ../build && ./uav_sim
 
 %% Read logs
 directory = '../logs/';
@@ -35,7 +35,7 @@ plot_states;
 % plot_measurements;
 
 %% Plot 3D animation
-% animate_3d(5,env, true_state, ekf_state, command, bicycle_state);
+animate_3d(25,env, true_state, ekf_state, command, bicycle_state, target_est);
 
 %% Plot image animation
 % animate_img(1);

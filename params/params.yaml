@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 120.0
+tf: 60.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -29,9 +29,9 @@ inertia: [0.6271, 0.6271, 1.25]
 linear_drag: [0.1, 0.1, 0.001]
 angular_drag: [0.001, 0.001, 0.001]
 
-Kp: [1, 1, 1]
-Kd: [0.0, 0.0, 0.0]
-Kv: [1, 1, 1]
+Kp: [0.5, 0.5, 0.5]
+Kd: [0, 0, 0]
+Kv: [0.5, 0.5, 0.5]
 
 roll_kp: 10.0
 roll_ki: 0.0
@@ -54,7 +54,7 @@ max_tau_z: 50.0
 # 0: waypoints
 # 1: trajectory
 # 2: circumnavigation
-path_type: 1
+path_type: 2
 
 waypoints: [0, 0, -4, 0,
             10, 0, -4, 0,
@@ -195,12 +195,12 @@ bicycle_max_steering_angle: 0.78
 bicycle_k_u: 5.0
 bicycle_k_theta: 5.0
 bicycle_k_psi: 5.0
-bicycle_velocity_command: 1.0
+bicycle_velocity_command: 0.5
 bicycle_x0: [2, # NORTH
              0, # EAST
              0, # DOWN
              0, # HEADING
-             1.0, # VELOCITY
+             0.5, # VELOCITY
              0] # STEERING ANGLE
 bicycle_waypoints: [8, 8,
                     -8, 8,

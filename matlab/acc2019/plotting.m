@@ -6,6 +6,7 @@ f = 1; % Starts figure numbering
 skip = 10;
 
 % Read binary files
+copy_binaries;
 directory = 'binaries/';
 read_logs;
 
