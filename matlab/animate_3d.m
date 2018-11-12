@@ -12,6 +12,8 @@ function animate_3d(speed, env, truth, est, cmd, bicycle_state, target_est)
     
     s = 1.5; % scale factor for axes
     plot_history = 1000;
+    vw = VideoWriter('circumnavigation_video');
+    open(vw);
     for i =1:speed:length(truth)
         % Compute UAV to target vector
         p_bt = truth(2:4,i) + Rq(truth(11:14,i))'*target_est(2:4,i);
@@ -55,8 +57,10 @@ function animate_3d(speed, env, truth, est, cmd, bicycle_state, target_est)
             set(bike_handle, 'XData', bicycle_state(2,i), 'YData', bicycle_state(3,i),'ZData', bicycle_state(4,i));
             drawnow
         end
+        frame = getframe(gcf);
+        writeVideo(vw,frame);
     end
-
+    close(vw);
 end
 
 function handle = draw_body(iter, body_verts, state, handle)
