@@ -5,38 +5,20 @@
 #include "environment.h"
 
 
-void init(const std::string filename)
-{
-  // Load directory name
-  std::string directory;
-  common::get_yaml_node("log_directory", filename, directory);
-
-  // Create logs directory if it doesn't exist
-  if(!std::experimental::filesystem::exists(directory))
-  {
-    if (std::experimental::filesystem::create_directory(directory))
-      std::cout << "*** Created logs/ directory! ***\n";
-  }
-
-  // Use random seed if desired
-  bool use_random_seed;
-  common::get_yaml_node("use_random_seed", filename, use_random_seed);
-  if (use_random_seed)
-    std::srand((unsigned)std::time(NULL));
-}
-
-
 
 int main()
 {
-  // Load simulation parameters
   std::string param_file = "../params/params.yaml";
-  init(param_file);
 
+  bool use_random_seed;
   double t(0), tf, dt;
+  common::get_yaml_node("use_random_seed", param_file, use_random_seed);
   common::get_yaml_node("tf", param_file, tf);
   common::get_yaml_node("dt", param_file, dt);
+  if (use_random_seed)
+    std::srand((unsigned)std::time(NULL));
 
+  // Create progress bar
   common::ProgressBar prog_bar;
   prog_bar.init(tf/dt,40);
 

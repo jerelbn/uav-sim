@@ -48,9 +48,8 @@ void Bicycle::load(const std::string &filename)
   }
 
   // Initialize loggers
-  common::get_yaml_node("log_directory", filename, directory_);
-  true_state_log_.open(directory_ + "/bicycle_true_state.bin");
-  command_log_.open(directory_ + "/bicycle_command.bin");
+  true_state_log_.open("/tmp/bicycle_true_state.bin");
+  command_log_.open("/tmp/bicycle_command.bin");
 
   // Compute initial control and elevation
   computeControl();

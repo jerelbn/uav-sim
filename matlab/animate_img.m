@@ -1,7 +1,7 @@
 function animate_img(speed)
     
     % Load pixel measurements
-    file = fopen(strcat(directory,'camera.bin'), 'r');
+    file = fopen(strcat('/tmp/camera.bin'), 'r');
     pix = fread(file, 'double');
     pix = reshape(pix, 15001, []);
 

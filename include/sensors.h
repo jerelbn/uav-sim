@@ -40,7 +40,6 @@ private:
   void alt(const double t, const vehicle::State& x);
   void mag(const double t, const vehicle::State& x);
 
-  std::string directory_;
   bool use_random_seed_;
   std::default_random_engine rng_;
 

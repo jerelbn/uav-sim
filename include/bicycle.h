@@ -64,7 +64,6 @@ private:
   double ku_, ktheta_, kpsi_;
   double vel_cmd_;
 
-  std::string directory_;
   std::ofstream true_state_log_;
   std::ofstream command_log_;
 

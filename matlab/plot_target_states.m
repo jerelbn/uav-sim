@@ -1,5 +1,5 @@
 %% Compute true relative states
-target_truth = target_est;
+target_truth = zeros(size(true_state,2));
 for i = 1:size(target_truth,2)
     R_i2b = Rq(true_state(11:14,i));
     target_truth(2:4,i) = R_i2b*(bicycle_state(2:4,i) - true_state(2:4,i));
@@ -20,8 +20,7 @@ for i=1:3
     subplot(4, 1, i); hold on;
     title(titles(i));
     plot(target_truth(1,:), target_truth(i + idx, :), 'linewidth', 1.3);
-    plot(target_est(1,:), target_est(i+idx,:), 'r');
-    legend('truth', 'estimate')
+    legend('truth')
 end
 
 %% Plot the relative target velocity states
@@ -33,6 +32,5 @@ for i=1:3
     subplot(3, 1, i); hold on;
     title(titles(i));
     plot(target_truth(1,:), target_truth(i + idx, :), 'linewidth', 1.3);
-    plot(target_est(1,:), target_est(i+idx,:), 'r');
-    legend('truth', 'estimate')
+    legend('truth')
 end

@@ -9,33 +9,24 @@ plot_covariance = 1;
 % !cd ../build && ./uav_sim
 
 %% Read logs
-directory = '../logs/';
+directory = '/tmp/';
 read_logs;
 
 %% Plot environment
 plot_environment;
 
-%% Plot states and wind
+%% Plot states
 plot_states;
-
-%% Plot estimated target states
 % plot_target_states;
-
-%% Plot bicycle states
 % plot_bicycle_states;
 
 %% Plot commands
 % plot_commands;
-
-%% Plot bicycle commands
 % plot_bicycle_commands;
 
 %% Plot sensor measurements
 % plot_imu;
-% plot_measurements;
 
 %% Plot 3D animation
-animate_3d(25,env, true_state, ekf_state, command, bicycle_state, target_est);
-
-%% Plot image animation
+% animate_3d(25, env, true_state, command, bicycle_state);
 % animate_img(1);

@@ -3,30 +3,6 @@ file = fopen(strcat(directory,'true_state.bin'), 'r');
 true_state = fread(file, 'double');
 true_state = reshape(true_state, 1 + 19, []);
 
-% Load true global Euler angles
-file = fopen(strcat(directory,'true_global_euler.bin'), 'r');
-true_global_euler = fread(file, 'double');
-true_global_euler = reshape(true_global_euler, 1 + 3, []);
-
-% Load body to IMU pose
-file = fopen(strcat(directory,'true_pose_b2u.bin'), 'r');
-pose_b2u = fread(file, 'double');
-
-% Load EKF state
-file = fopen(strcat(directory,'ekf_state.bin'), 'r');
-ekf_state = fread(file, 'double');
-ekf_state = reshape(ekf_state, 1 + 16 + 7, []);
-
-% Load EKF covariance diagonals
-file = fopen(strcat(directory,'ekf_cov.bin'), 'r');
-ekf_cov = fread(file, 'double');
-ekf_cov = reshape(ekf_cov, 1 + 15 + 6, []);
-
-% Load EKF global position and Euler angles
-file = fopen(strcat(directory,'ekf_global_pos_euler.bin'), 'r');
-ekf_global_pos_euler = fread(file, 'double');
-ekf_global_pos_euler = reshape(ekf_global_pos_euler, 1 + 3 + 3, []);
-
 % Load commands
 file = fopen(strcat(directory,'command.bin'), 'r');
 command = fread(file, 'double');
@@ -70,8 +46,3 @@ bicycle_state = reshape(bicycle_state, 7, []);
 file = fopen(strcat(directory,'bicycle_command.bin'), 'r');
 bicycle_command = fread(file, 'double');
 bicycle_command = reshape(bicycle_command, 5, []);
-
-% Load target estimates
-file = fopen(strcat(directory,'target.bin'), 'r');
-target_est = fread(file, 'double');
-target_est = reshape(target_est, 7, []);

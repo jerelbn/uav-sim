@@ -46,7 +46,6 @@ private:
   std::default_random_engine rng_;
   std::normal_distribution<double> vw_walk_dist_;
 
-  std::string directory_;
   std::ofstream environment_log_;
   std::ofstream wind_log_;
 

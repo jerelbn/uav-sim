@@ -51,9 +51,8 @@ void Environment::load(const std::string filename)
   buildRoom();
 
   // Initialize loggers
-  common::get_yaml_node("log_directory", filename, directory_);
-  environment_log_.open(directory_ + "/environment.bin");
-  wind_log_.open(directory_ + "/wind.bin");
+  environment_log_.open("/tmp/environment.bin");
+  wind_log_.open("/tmp/wind.bin");
 
   // Log environment initial wind data
   environment_log_.write((char*)points_.data(), points_.rows() * points_.cols() * sizeof(double));

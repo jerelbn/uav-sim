@@ -3,9 +3,8 @@ tf: 60.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
-log_directory: "../logs"
-control_using_estimates: true
-save_pixel_measurements: false
+control_using_estimates: false
+save_pixel_measurements: true
 
 # Truth Configuration
 use_accel_truth: false

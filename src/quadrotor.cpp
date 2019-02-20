@@ -25,7 +25,6 @@ void Quadrotor::load(const std::string &filename)
   // Instantiate Sensors, Controller, and Estimator classes
   controller_.load(filename);
   sensors_.load(filename);
-  ekf_.load(filename);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -55,9 +54,8 @@ void Quadrotor::load(const std::string &filename)
   updateAccels(u_,vw);
 
   // Initialize loggers
-  common::get_yaml_node("log_directory", filename, directory_);
-  true_state_log_.open(directory_ + "/true_state.bin");
-  command_log_.open(directory_ + "/command.bin");
+  true_state_log_.open("/tmp/true_state.bin");
+  command_log_.open("/tmp/command.bin");
 }
 
 
@@ -117,12 +115,8 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
   getOtherVehicles(env.getVehiclePositions());
   sensors_.updateMeasurements(t, x_, env.get_points().matrix()); // Update sensor measurements
   log(t); // Log current data
-  ekf_.run(t, sensors_, x_);
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
-  if (control_using_estimates_)
-    controller_.computeControl(ekf_.getVehicleState(), t, u_, other_vehicle_positions[0]); // Update control input with estimates
-  else
-    controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions[0]); // Update control input with truth
+  controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions[0]); // Update control input with truth
   updateAccels(u_, env.get_vw()); // Update true acceleration
 }
 

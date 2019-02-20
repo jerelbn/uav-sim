@@ -5,7 +5,6 @@
 #include "common_cpp/common.h"
 #include "controller.h"
 #include "sensors.h"
-#include "ekf/ekf.h"
 #include "environment.h"
 
 namespace quadrotor
@@ -42,7 +41,6 @@ private:
 
   controller::Controller controller_;
   sensors::Sensors sensors_;
-  ekf::EKF ekf_;
 
   vehicle::State x_, x2_, x3_, x4_;
   vehicle::dxVector dx_, k1_, k2_, k3_, k4_;
@@ -57,7 +55,6 @@ private:
   Eigen::Vector3d v_rel_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions;
 
-  std::string directory_;
   std::ofstream true_state_log_;
   std::ofstream command_log_;
 

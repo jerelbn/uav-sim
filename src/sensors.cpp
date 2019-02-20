@@ -106,11 +106,10 @@ void Sensors::load(const std::string filename)
   new_mocap_meas_ = false;
 
   // Initialize loggers
-  common::get_yaml_node("log_directory", filename, directory_);
-  accel_log_.open(directory_ + "/accel.bin");
-  gyro_log_.open(directory_ + "/gyro.bin");
-  cam_log_.open(directory_ + "/camera.bin");
-  mocap_log_.open(directory_ + "/mocap.bin");
+  accel_log_.open("/tmp/accel.bin");
+  gyro_log_.open("/tmp/gyro.bin");
+  cam_log_.open("/tmp/camera.bin");
+  mocap_log_.open("/tmp/mocap.bin");
 }
 
 
