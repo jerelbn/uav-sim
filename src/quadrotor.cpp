@@ -62,10 +62,10 @@ void Quadrotor::load(const std::string &filename)
 void Quadrotor::f(const vehicle::State& x, const commandVector& u,
                   const Eigen::Vector3d& vw, vehicle::dxVector& dx)
 {
-  v_rel_ = x.v - x.q.rot(vw);
-  dx.segment<3>(vehicle::DPX) = x.q.inv().rot(x.v);
+  v_rel_ = x.v - x.q.rotp(vw);
+  dx.segment<3>(vehicle::DPX) = x.q.rota(x.v);
   dx.segment<3>(vehicle::DVX) = -common::e3 * u(THRUST) * max_thrust_ / mass_ - linear_drag_.cwiseProduct(v_rel_).cwiseProduct(v_rel_) +
-                                 common::gravity * x.q.rot(common::e3) - x.omega.cross(x.v);
+                                 common::gravity * x.q.rotp(common::e3) - x.omega.cross(x.v);
   dx.segment<3>(vehicle::DQX) = x.omega;
   dx.segment<3>(vehicle::DWX) = inertia_inv_ * (u.segment<3>(TAUX) - x.omega.cross(inertia_matrix_ * x.omega) -
                                 angular_drag_matrix_ * x.omega.cwiseProduct(x.omega));

@@ -47,7 +47,7 @@ void Sensors::load(const std::string filename)
   common::get_yaml_node("accel_walk_stdev", filename, accel_walk_stdev);
   common::get_yaml_node("accel_bias_init_bound", filename, accel_bias_init_bound);
   last_imu_update_ = 0.0;
-  q_bu_ = common::Quaternion<double>(q_bu);
+  q_bu_ = quat::Quatd(q_bu.data());
   q_bu_.normalize();
   accel_noise_dist_ = std::normal_distribution<double>(0.0, accel_noise_stdev);
   accel_walk_dist_ = std::normal_distribution<double>(0.0, accel_walk_stdev);
@@ -86,7 +86,7 @@ void Sensors::load(const std::string filename)
   last_camera_update_ = 0.0;
   pixel_noise_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
   K_inv_ = K_.inverse();
-  q_bc_ = common::Quaternion<double>(q_bc);
+  q_bc_ = quat::Quatd(q_bc.data());
   q_bc_.normalize();
   pixel_noise_.setZero();
   new_camera_meas_ = false;
@@ -99,7 +99,7 @@ void Sensors::load(const std::string filename)
   common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
   common::get_yaml_eigen("q_bm", filename, q_bm);
   common::get_yaml_eigen("p_bm", filename, p_bm_);
-  q_bm_ = common::Quaternion<double>(q_bm);
+  q_bm_ = quat::Quatd(q_bm.data());
   q_bm_.normalize();
   mocap_noise_dist_ = std::normal_distribution<double>(0.0, mocap_noise_stdev);
   mocap_noise_.setZero();
@@ -141,11 +141,11 @@ void Sensors::imu(const double t, const vehicle::State& x)
       common::randomNormalMatrix(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
-    static common::Quaternion<double> q_i2u;
+    static quat::Quatd q_i2u;
     q_i2u = x.q * q_bu_;
-    accel_ = q_bu_.rot(x.lin_accel + x.omega.cross(x.v) + x.omega.cross(x.omega.cross(p_bu_)) +
-             x.ang_accel.cross(p_bu_)) - common::gravity * q_i2u.rot(common::e3) + accel_bias_ + accel_noise_;
-    gyro_ = q_bu_.rot(x.omega) + gyro_bias_ + gyro_noise_;
+    accel_ = q_bu_.rotp(x.lin_accel + x.omega.cross(x.v) + x.omega.cross(x.omega.cross(p_bu_)) +
+             x.ang_accel.cross(p_bu_)) - common::gravity * q_i2u.rotp(common::e3) + accel_bias_ + accel_noise_;
+    gyro_ = q_bu_.rotp(x.omega) + gyro_bias_ + gyro_noise_;
 
     // Log IMU data
     accel_log_.write((char*)&t, sizeof(double));
@@ -175,15 +175,15 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
       common::randomNormalMatrix(pixel_noise_,pixel_noise_dist_,rng_);
 
     // Compute camera pose
-    common::Quaternion<double> q_i2c = x.q * q_bc_;
-    Eigen::Vector3d p_i2c = x.p + x.q.inv().rot(p_bc_);
+    quat::Quatd q_i2c = x.q * q_bc_;
+    Eigen::Vector3d p_i2c = x.p + x.q.rota(p_bc_);
 
     // Project landmarks into image
     cam_.clear();
     for (int i = 0; i < lm.cols(); ++i)
     {
       // Landmark vector in camera frame
-      Eigen::Vector3d l = q_i2c.rot(lm.col(i) - p_i2c);
+      Eigen::Vector3d l = q_i2c.rotp(lm.col(i) - p_i2c);
 
       // Check if landmark is in front of camera
       if (l(2) < 0)
@@ -226,8 +226,8 @@ void Sensors::mocap(const double t, const vehicle::State &x)
       common::randomNormalMatrix(mocap_noise_,mocap_noise_dist_,rng_);
 
     // Populate mocap measurement
-    mocap_.head<3>() = x.p + x.q.inv().rot(p_bm_) + mocap_noise_.head<3>();
-    mocap_.tail<4>() = (x.q * q_bm_ + Eigen::Vector3d(mocap_noise_.tail<3>())).toEigen();
+    mocap_.head<3>() = x.p + x.q.rota(p_bm_) + mocap_noise_.head<3>();
+    mocap_.tail<4>() = (x.q * q_bm_ + mocap_noise_.tail<3>()).elements();
 
     // Log Mocap data
     mocap_log_.write((char*)&t, sizeof(double));

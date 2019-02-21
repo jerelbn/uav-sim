@@ -188,11 +188,11 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     double tilt_angle = acos(k.transpose() * kd); // desired tilt
 
     // get shortest rotation to desired tilt
-    common::Quaternion<double> q_c;
+    quat::Quatd q_c;
     if (tilt_angle > 1e-6)
     {
       Eigen::Vector3d k_cross_kd = k.cross(kd);
-      q_c = common::Quaternion<double>::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
+      q_c = quat::Quatd::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
     }
 
     // pack up attitude commands
@@ -204,7 +204,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Create noisy bearing measurement of target and full vector measurement
     if (!use_target_truth_)
       common::randomNormalMatrix(target_noise_, target_noise_dist_, rng_);
-    Eigen::Vector3d z_true = x.q.rot(pt - x.p);
+    Eigen::Vector3d z_true = x.q.rotp(pt - x.p);
     Eigen::Vector3d z = z_true + target_noise_;
     Eigen::Vector3d ez = z / z.norm();
     Eigen::Vector3d z_tilde = z_ - z;
@@ -227,15 +227,15 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Extract local level frame rotation
     double phi = x.q.roll();
     double theta = x.q.pitch();
-    common::Quaternion<double> q_l2b(phi, theta, 0.0);
+    quat::Quatd q_l2b(phi, theta, 0.0);
 
     // Commanded velocity in the local level reference frame
     static const Eigen::Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();
     static const Eigen::Matrix3d Pe3 = common::e3 * common::e3.transpose();
-    double r = (IPe3 * q_l2b.inv().rot(z_)).norm();
-    double h = (Pe3 * q_l2b.inv().rot(z_)).norm();
+    double r = (IPe3 * q_l2b.rota(z_)).norm();
+    double h = (Pe3 * q_l2b.rota(z_)).norm();
 
-    Eigen::Vector3d er = IPe3 * q_l2b.inv().rot(ez);
+    Eigen::Vector3d er = IPe3 * q_l2b.rota(ez);
     er /= er.norm();
     Eigen::Vector3d ep = common::e3.cross(er);
     ep /= ep.norm();
@@ -246,7 +246,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     if (bearing_only_)
       vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
     else
-      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.inv().rot(vz_ + x.v);
+      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.rota(vz_ + x.v);
     double vmag = vc.norm();
     if (vmag > max_.vel)
       vc *= max_.vel / vmag;
@@ -257,18 +257,18 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Commanded yaw rate
     xc_.r = 10.0 * common::e3.transpose() * common::e1.cross(ez);
 
-    Eigen::Vector3d vtilde = vc - q_l2b.inv().rot(x.v);
-    Eigen::Vector3d omega_l = common::e3 * common::e3.transpose() * q_l2b.inv().rot(x.omega);
-    Eigen::Vector3d vl = q_l2b.inv().rot(x.v);
+    Eigen::Vector3d vtilde = vc - q_l2b.rota(x.v);
+    Eigen::Vector3d omega_l = common::e3 * common::e3.transpose() * q_l2b.rota(x.omega);
+    Eigen::Vector3d vl = q_l2b.rota(x.v);
 
     // Commanded throttle
-    xc_.throttle = throttle_eq_ * common::e3.transpose() * q_l2b.rot(common::e3
+    xc_.throttle = throttle_eq_ * common::e3.transpose() * q_l2b.rotp(common::e3
                    - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde));
 
     // Commanded body axes in the inertial frame
     Eigen::Vector3d kbc = common::e3 - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde);
     kbc /= kbc.norm();
-    Eigen::Vector3d jbc = kbc.cross(q_l2b.inv().rot(ez));
+    Eigen::Vector3d jbc = kbc.cross(q_l2b.rota(ez));
     jbc /= jbc.norm();
     Eigen::Vector3d ibc = jbc.cross(kbc);
     ibc /= ibc.norm();

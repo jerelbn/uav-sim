@@ -12,7 +12,7 @@ find_package(OpenCV 3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Ceres REQUIRED)
 
-add_library(common_cpp lib/common_cpp/src/common.cpp)
+add_subdirectory(lib/common_cpp)
 add_subdirectory(lib/geometry)
 
 include_directories(include

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <eigen3/Eigen/Eigen>
+#include "geometry/quat.h"
+
+using namespace Eigen;
 
 
 namespace vehicle
@@ -49,25 +52,24 @@ enum
   NUM_DOF
 };
 
-typedef Eigen::Matrix<double, NUM_STATES, 1> xVector;
-typedef Eigen::Matrix<double, NUM_DOF, 1> dxVector;
+typedef Matrix<double, NUM_STATES, 1> xVector;
+typedef Matrix<double, NUM_DOF, 1> dxVector;
 
 struct State
 {
 
-  Eigen::Vector3d p;
-  Eigen::Vector3d v;
-  Eigen::Vector3d lin_accel;
-  common::Quaternion<double> q;
-  Eigen::Vector3d omega;
-  Eigen::Vector3d ang_accel;
+  Vector3d p;
+  Vector3d v;
+  Vector3d lin_accel;
+  quat::Quatd q;
+  Vector3d omega;
+  Vector3d ang_accel;
 
   State()
   {
     p.setZero();
     v.setZero();
     lin_accel.setZero();
-    q = common::Quaternion<double>();
     omega.setZero();
     ang_accel.setZero();
   }
@@ -77,7 +79,7 @@ struct State
     p = x0.segment<3>(PX);
     v = x0.segment<3>(VX);
     lin_accel = x0.segment<3>(AX);
-    q = common::Quaternion<double>(Eigen::Vector4d(x0.segment<4>(QW)));
+    q = quat::Quatd(x0.segment<4>(QW));
     omega = x0.segment<3>(WX);
     ang_accel = x0.segment<3>(GX);
   }
@@ -87,7 +89,7 @@ struct State
     State x;
     x.p = p + delta.segment<3>(DPX);
     x.v = v + delta.segment<3>(DVX);
-    x.q = q + Eigen::Vector3d(delta.segment<3>(DQX));
+    x.q = q + delta.segment<3>(DQX);
     x.omega = omega + delta.segment<3>(DWX);
     return x;
   }
@@ -97,17 +99,17 @@ struct State
     *this = *this + delta;
   }
 
-  Eigen::Matrix<double, NUM_STATES, 1> toEigen() const
+  Matrix<double, NUM_STATES, 1> toEigen() const
   {
-    Eigen::Matrix<double, NUM_STATES, 1> x;
-    x << p, v, lin_accel, q.toEigen(), omega, ang_accel;
+    Matrix<double, NUM_STATES, 1> x;
+    x << p, v, lin_accel, q.elements(), omega, ang_accel;
     return x;
   }
 
-  Eigen::Matrix<double, NUM_DOF, 1> minimal() const
+  Matrix<double, NUM_DOF, 1> minimal() const
   {
-    Eigen::Matrix<double, NUM_DOF, 1> x;
-    x << p, v, lin_accel, common::Quaternion<double>::log(q), omega, ang_accel;
+    Matrix<double, NUM_DOF, 1> x;
+    x << p, v, lin_accel, quat::Quatd::log(q), omega, ang_accel;
     return x;
   }
 
@@ -119,7 +121,7 @@ struct State
 namespace quadrotor
 {
 
-typedef Eigen::Matrix<double, 4, 1> commandVector;
+typedef Matrix<double, 4, 1> commandVector;
 
 // Input indices
 enum
@@ -145,11 +147,11 @@ typedef enum
 typedef struct
 {
   measurement_type_t type;
-  Eigen::MatrixXd z;
-  Eigen::MatrixXd R;
+  MatrixXd z;
+  MatrixXd R;
 } measurement_t;
 
 
-typedef std::vector<measurement_t, Eigen::aligned_allocator<measurement_t> > measurement_list_t;
+typedef std::vector<measurement_t, aligned_allocator<measurement_t> > measurement_list_t;
 
 }
