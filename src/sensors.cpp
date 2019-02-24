@@ -206,7 +206,7 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
       if (cam_.size() == cam_max_feat_) break;
     }
 
-    if (save_pixel_measurements_)
+    if (cam_.size() > 0 && save_pixel_measurements_)
     {
       static const Vector3d a(-1,-1,-1);
       cam_log_.write((char*)&t, sizeof(double));

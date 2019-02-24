@@ -18,12 +18,14 @@ class Bicycle
 public:
 
   Bicycle();
-  Bicycle(const std::string &filename);
+  Bicycle(const std::string &filename, const int& id);
   ~Bicycle();
 
   void load(const std::string &filename);
   void run(const double &t, const environment::Environment& env);
   const xVector& getState() const { return x_; }
+
+  int id_;
 
 private:
 
@@ -35,8 +37,8 @@ private:
   void updateElevation();
   void log(const double &t);
 
-  xVector x_, x2_, x3_, x4_;
-  xVector dx_, k1_, k2_, k3_, k4_;
+  xVector x_;
+  xVector dx_;
   uVector u_;
 
   bool accurate_integration_, initialized_, flat_ground_;

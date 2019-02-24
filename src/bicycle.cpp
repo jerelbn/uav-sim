@@ -7,7 +7,7 @@ namespace bicycle
 Bicycle::Bicycle()  : t_prev_(0.0), initialized_(false) {}
 
 
-Bicycle::Bicycle(const std::string &filename)  : t_prev_(0.0), initialized_(false)
+Bicycle::Bicycle(const std::string &filename, const int& id)  : t_prev_(0.0), initialized_(false), id_(id)
 {
   load(filename);
 }

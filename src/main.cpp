@@ -27,12 +27,12 @@ int main()
   environment::Environment env(param_file);
 
   // Create vehicles
-  quadrotor::Quadrotor quad1(param_file);
-  bicycle::Bicycle bike1(param_file);
+  quadrotor::Quadrotor quad1(param_file, 0);
+  bicycle::Bicycle bike1(param_file, 1);
 
   // Store initial vehicle positions in environment
-  env.initVehicle(quad1.getTrueState().p);
-  env.initVehicle(bike1.getState().segment<3>(bicycle::PX));
+  env.initVehicle(quad1.getTrueState().p, quad1.id_);
+  env.initVehicle(bike1.getState().segment<3>(bicycle::PX), quad1.id_);
 
   // Main simulation loop
   while (t <= tf)
@@ -46,8 +46,8 @@ int main()
 
     // Update wind and stored vehicle positions in environment
     env.updateWind(t);
-    env.updateVehicle(quad1.getTrueState().p, 0);
-    env.updateVehicle(bike1.getState().segment<3>(bicycle::PX), 1);
+    env.updateVehicle(quad1.getTrueState().p, quad1.id_);
+    env.updateVehicle(bike1.getState().segment<3>(bicycle::PX), bike1.id_);
   }
   prog_bar.finished();
 

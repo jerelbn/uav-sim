@@ -7,7 +7,7 @@ namespace quadrotor
 Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename)  : t_prev_(0.0)
+Quadrotor::Quadrotor(const std::string &filename, const int& id)  : t_prev_(0.0), id_(id)
 {
   load(filename);
 }
@@ -102,7 +102,7 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
   sensors_.updateMeasurements(t, x_, env.get_points()); // Update sensor measurements
   log(t); // Log current data
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
-  controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions[0]); // Update control input with truth
+  controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions_[0]); // Update control input with truth
   updateAccels(u_, env.get_vw()); // Update true acceleration
 }
 
@@ -130,21 +130,10 @@ void Quadrotor::log(const double &t)
 
 void Quadrotor::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<Vector3d> > &all_vehicle_positions)
 {
-  // Reserve memory for the other vehicle positions
-  if (other_vehicle_positions.size() < all_vehicle_positions.size()-1)
-    other_vehicle_positions.reserve(all_vehicle_positions.size()-1);
-
-  // Store other vehicle positions
-  int count = 0;
+  other_vehicle_positions_.clear();
   for (int i = 0; i < all_vehicle_positions.size(); ++i)
-  {
-    Vector3d error = all_vehicle_positions[i] - x_.p;
-    if (error.norm() > 1e-6)
-    {
-      other_vehicle_positions[count] = all_vehicle_positions[i];
-      ++count;
-    }
-  }
+    if (i != id_)
+      other_vehicle_positions_.push_back(all_vehicle_positions[i]);
 }
 
 

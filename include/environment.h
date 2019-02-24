@@ -23,12 +23,12 @@ public:
 
   void load(const std::string filename);
   void updateWind(const double t);
-  void initVehicle(const Eigen::Vector3d& p);
-  void updateVehicle(const Eigen::Vector3d& p, const int &idx);
+  void initVehicle(const Eigen::Vector3d& p, const int &id);
+  void updateVehicle(const Eigen::Vector3d& p, const int &id);
   void log(const double t);
   const Eigen::MatrixXd& get_points() const { return points_; }
   const Eigen::Vector3d& get_vw() const { return vw_; }
-  const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& getVehiclePositions() const { return vehicle_positions; }
+  const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& getVehiclePositions() const { return vehicle_positions_; }
 
 private:
 
@@ -40,7 +40,7 @@ private:
   double max_deviation_;
   double north_dim_, east_dim_, height_;
   double t_prev_;
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > vehicle_positions;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > vehicle_positions_;
 
   bool enable_wind_;
   std::default_random_engine rng_;

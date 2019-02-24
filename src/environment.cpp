@@ -151,15 +151,17 @@ void Environment::updateWind(const double t)
 }
 
 
-void Environment::initVehicle(const Eigen::Vector3d &p)
+void Environment::initVehicle(const Eigen::Vector3d &p, const int& id)
 {
-  vehicle_positions.push_back(p);
+  vehicle_positions_.push_back(p);
+  if (vehicle_positions_.size() != id + 1)
+    std::runtime_error("Vehicle ID does not match Environment conainer index!");
 }
 
 
-void Environment::updateVehicle(const Eigen::Vector3d &p, const int& idx)
+void Environment::updateVehicle(const Eigen::Vector3d &p, const int& id)
 {
-  vehicle_positions[idx] = p;
+  vehicle_positions_[id] = p;
 }
 
 
