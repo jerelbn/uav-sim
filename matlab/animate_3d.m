@@ -11,12 +11,18 @@ function animate_3d(speed, env, truth, cmd, bicycle_state)
               -0.5, -0.5, 0.1];
     
     s = 1.5; % scale factor for axes
-    plot_history = 1000;
+    quad_history = 10000;
+    bike_history = 30000;
     for i =1:speed:length(truth)
-        if i < plot_history
-            hh = i - 1;
+        if i < quad_history
+            qh = i - 1;
         else
-            hh = plot_history;
+            qh = quad_history;
+        end
+        if i < bike_history
+            bh = i - 1;
+        else
+            bh = bike_history;
         end
         if i == 1
             figure(1e6), clf, grid on, hold on, axis equal
@@ -35,16 +41,17 @@ function animate_3d(speed, env, truth, cmd, bicycle_state)
             set(gca,'YDir','Reverse')
             set(gca,'ZDir','Reverse')
             
+            plot3(env(1,:), env(2,:), env(3,:), 'k.', 'MarkerSize', 4.0)
             body_handle = draw_body(i, points, truth, []);
-            true_path_handle = plot3(truth(2,1:i), truth(3,1:i), truth(4,1:i), 'b', 'linewidth', 1.3);
-            cmd_handle = plot3(cmd(2,1:i), cmd(3,1:i), cmd(4,1:i), 'g--');
+            true_path_handle = plot3(truth(2,1:i), truth(3,1:i), truth(4,1:i), 'b', 'linewidth', 1.5);
+            cmd_handle = plot3(cmd(2,1:i), cmd(3,1:i), cmd(4,1:i), 'g--', 'linewidth', 1.3);
             bike_trail_handle = plot3(bicycle_state(2,1:i), bicycle_state(3,1:i), bicycle_state(4,1:i), 'm', 'linewidth', 1.3);
             bike_handle = plot3(bicycle_state(2,i), bicycle_state(3,i), bicycle_state(4,i), 'm', 'Marker', '*', 'markersize', 5.0);
         else
             draw_body(i, points, truth, body_handle);
-            set(true_path_handle, 'XData', truth(2,i-hh:i), 'YData', truth(3,i-hh:i),'ZData', truth(4,i-hh:i));
+            set(true_path_handle, 'XData', truth(2,i-qh:i), 'YData', truth(3,i-qh:i),'ZData', truth(4,i-qh:i));
             set(cmd_handle, 'XData', cmd(2,1:i), 'YData', cmd(3,1:i),'ZData', cmd(4,1:i));
-            set(bike_trail_handle, 'XData', bicycle_state(2,1:i), 'YData', bicycle_state(3,1:i),'ZData', bicycle_state(4,1:i));
+            set(bike_trail_handle, 'XData', bicycle_state(2,i-bh:i), 'YData', bicycle_state(3,i-bh:i),'ZData', bicycle_state(4,i-bh:i));
             set(bike_handle, 'XData', bicycle_state(2,i), 'YData', bicycle_state(3,i),'ZData', bicycle_state(4,i));
             drawnow
         end

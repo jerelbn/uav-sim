@@ -29,5 +29,5 @@ plot_states;
 % plot_imu;
 
 %% Plot 3D animation
-% animate_3d(25, env, true_state, command, bicycle_state);
+% animate_3d(100, env, true_state, command, bicycle_state);
 % animate_img(1, pix);
