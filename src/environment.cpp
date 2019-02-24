@@ -42,13 +42,25 @@ void Environment::load(const std::string filename)
   if (!enable_wind_)
     vw_.setZero();
 
-  // Build the room
-  common::get_yaml_node("wall_pts_density", filename, density_);
-  common::get_yaml_node("wall_max_deviation", filename, max_deviation_);
-  common::get_yaml_node("wall_north_dim", filename, north_dim_);
-  common::get_yaml_node("wall_east_dim", filename, east_dim_);
-  common::get_yaml_node("wall_height", filename, height_);
-  buildRoom();
+  // Build the room or ground
+  common::get_yaml_node("fly_indoors", filename, fly_indoors_);
+  common::get_yaml_node("landmark_density", filename, lm_density_);
+  common::get_yaml_node("landmark_deviation", filename, lm_deviation_);
+  if (fly_indoors_)
+  {
+    common::get_yaml_node("indoor_north_dim", filename, indoor_north_dim_);
+    common::get_yaml_node("indoor_east_dim", filename, indoor_east_dim_);
+    common::get_yaml_node("indoor_height", filename, indoor_height_);
+    buildRoom();
+  }
+  else
+  {
+    common::get_yaml_node("outdoor_north_dim", filename, outdoor_north_dim_);
+    common::get_yaml_node("outdoor_east_dim", filename, outdoor_east_dim_);
+    common::get_yaml_node("outdoor_height", filename, outdoor_height_);
+    common::get_yaml_node("outdoor_hill_freq", filename, hill_freq_);
+    buildGround();
+  }
 
   // Initialize loggers
   environment_log_.open("/tmp/environment.bin");
@@ -56,19 +68,19 @@ void Environment::load(const std::string filename)
 
   // Log environment initial wind data
   environment_log_.write((char*)points_.data(), points_.rows() * points_.cols() * sizeof(double));
-  log(0);
+  logWind(0);
 }
 
 
 void Environment::buildRoom()
 {
   // Origin is at the center of the room on the floor
-  int num_pts_floor = north_dim_ * east_dim_ * density_;
-  int num_pts_ceil = north_dim_ * east_dim_ * density_;
-  int num_pts_north = height_ * east_dim_ * density_;
-  int num_pts_south = height_ * east_dim_ * density_;
-  int num_pts_east = height_ * north_dim_ * density_;
-  int num_pts_west = height_ * north_dim_ * density_;
+  int num_pts_floor = indoor_north_dim_ * indoor_east_dim_ * lm_density_;
+  int num_pts_ceil = indoor_north_dim_ * indoor_east_dim_ * lm_density_;
+  int num_pts_north = indoor_height_ * indoor_east_dim_ * lm_density_;
+  int num_pts_south = indoor_height_ * indoor_east_dim_ * lm_density_;
+  int num_pts_east = indoor_height_ * indoor_north_dim_ * lm_density_;
+  int num_pts_west = indoor_height_ * indoor_north_dim_ * lm_density_;
   int num_pts_total = num_pts_floor + num_pts_ceil + num_pts_north + num_pts_south + num_pts_east + num_pts_west;
 
   // Allocate space for all points
@@ -77,53 +89,53 @@ void Environment::buildRoom()
   // Floor
   Eigen::ArrayXXd pts_floor(3,num_pts_floor);
   pts_floor.setRandom();
-  pts_floor.row(0) *= north_dim_ / 2.0;
-  pts_floor.row(1) *= east_dim_ / 2.0;
-  pts_floor.row(2) *= max_deviation_;
+  pts_floor.row(0) *= indoor_north_dim_ / 2.0;
+  pts_floor.row(1) *= indoor_east_dim_ / 2.0;
+  pts_floor.row(2) *= lm_deviation_;
 
   // Ceiling
   Eigen::ArrayXXd pts_ceil(3,num_pts_ceil);
   pts_ceil.setRandom();
-  pts_ceil.row(0) *= north_dim_ / 2.0;
-  pts_ceil.row(1) *= east_dim_ / 2.0;
-  pts_ceil.row(2) *= max_deviation_;
-  pts_ceil.row(2) -= height_; // Offset from origin
+  pts_ceil.row(0) *= indoor_north_dim_ / 2.0;
+  pts_ceil.row(1) *= indoor_east_dim_ / 2.0;
+  pts_ceil.row(2) *= lm_deviation_;
+  pts_ceil.row(2) -= indoor_height_; // Offset from origin
 
   // North wall
   Eigen::ArrayXXd pts_north(3,num_pts_north);
   pts_north.setRandom();
-  pts_north.row(0) *= max_deviation_;
-  pts_north.row(1) *= east_dim_ / 2.0;
+  pts_north.row(0) *= lm_deviation_;
+  pts_north.row(1) *= indoor_east_dim_ / 2.0;
   pts_north.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_north.row(2) *= height_ / 2.0;
-  pts_north.row(0) += north_dim_ / 2.0; // Offset from origin
+  pts_north.row(2) *= indoor_height_ / 2.0;
+  pts_north.row(0) += indoor_north_dim_ / 2.0; // Offset from origin
 
   // South wall
   Eigen::ArrayXXd pts_south(3,num_pts_south);
   pts_south.setRandom();
-  pts_south.row(0) *= max_deviation_;
-  pts_south.row(1) *= east_dim_ / 2.0;
+  pts_south.row(0) *= lm_deviation_;
+  pts_south.row(1) *= indoor_east_dim_ / 2.0;
   pts_south.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_south.row(2) *= height_ / 2.0;
-  pts_south.row(0) -= north_dim_ / 2.0; // Offset from origin
+  pts_south.row(2) *= indoor_height_ / 2.0;
+  pts_south.row(0) -= indoor_north_dim_ / 2.0; // Offset from origin
 
   // East wall
   Eigen::ArrayXXd pts_east(3,num_pts_east);
   pts_east.setRandom();
-  pts_east.row(0) *= north_dim_ / 2.0;
-  pts_east.row(1) *= max_deviation_;
+  pts_east.row(0) *= indoor_north_dim_ / 2.0;
+  pts_east.row(1) *= lm_deviation_;
   pts_east.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_east.row(2) *= height_ / 2.0;
-  pts_east.row(1) += east_dim_ / 2.0; // Offset from origin
+  pts_east.row(2) *= indoor_height_ / 2.0;
+  pts_east.row(1) += indoor_east_dim_ / 2.0; // Offset from origin
 
   // West wall
   Eigen::ArrayXXd pts_west(3,num_pts_west);
   pts_west.setRandom();
-  pts_west.row(0) *= north_dim_ / 2.0;
-  pts_west.row(1) *= max_deviation_;
+  pts_west.row(0) *= indoor_north_dim_ / 2.0;
+  pts_west.row(1) *= lm_deviation_;
   pts_west.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_west.row(2) *= height_ / 2.0;
-  pts_west.row(1) -= east_dim_ / 2.0; // Offset from origin
+  pts_west.row(2) *= indoor_height_ / 2.0;
+  pts_west.row(1) -= indoor_east_dim_ / 2.0; // Offset from origin
 
   // Concatenate all points
   points_ << pts_floor.matrix(), pts_ceil.matrix(), pts_north.matrix(),
@@ -131,7 +143,32 @@ void Environment::buildRoom()
 }
 
 
-void Environment::log(const double t)
+void Environment::buildGround()
+{
+  // Origin is at the center of the room on the floor
+  int num_pts = outdoor_north_dim_ * outdoor_east_dim_ * lm_density_;
+
+  // Allocate space for all points
+  points_.resize(3,num_pts);
+
+  // Create flat ground points
+  Eigen::ArrayXXd pts_ground(3,num_pts);
+  pts_ground.setRandom();
+  pts_ground.row(0) *= outdoor_north_dim_ / 2.0;
+  pts_ground.row(1) *= outdoor_east_dim_ / 2.0;
+  pts_ground.row(2) *= lm_deviation_;
+
+  // Add hills
+  for (int i = 0; i < pts_ground.cols(); ++i)
+    pts_ground.col(i).z() = outdoor_height_ * sin(hill_freq_ * pts_ground.col(i).x()) +
+                            outdoor_height_ * sin(hill_freq_ * pts_ground.col(i).y());
+
+  // Concatenate all points
+  points_ << pts_ground.matrix();
+}
+
+
+void Environment::logWind(const double t)
 {
   // Write data to binary files and plot in another program
   wind_log_.write((char*)&t, sizeof(double));
@@ -147,7 +184,7 @@ void Environment::updateWind(const double t)
     vw_ += vw_walk_ * (t - t_prev_);
   }
   t_prev_ = t;
-  log(t);
+  logWind(t);
 }
 
 

@@ -25,7 +25,7 @@ public:
   void updateWind(const double t);
   void initVehicle(const Eigen::Vector3d& p, const int &id);
   void updateVehicle(const Eigen::Vector3d& p, const int &id);
-  void log(const double t);
+  void logWind(const double t);
   const Eigen::MatrixXd& get_points() const { return points_; }
   const Eigen::Vector3d& get_vw() const { return vw_; }
   const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& getVehiclePositions() const { return vehicle_positions_; }
@@ -33,17 +33,20 @@ public:
 private:
 
   void buildRoom();
+  void buildGround();
 
-  Eigen::Vector3d vw_, vw_walk_;
+  std::default_random_engine rng_;
   Eigen::MatrixXd points_;
-  double density_;
-  double max_deviation_;
-  double north_dim_, east_dim_, height_;
+  bool fly_indoors_;
   double t_prev_;
+  double lm_density_;
+  double lm_deviation_;
+  double indoor_north_dim_, indoor_east_dim_, indoor_height_;
+  double outdoor_north_dim_, outdoor_east_dim_, outdoor_height_, hill_freq_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > vehicle_positions_;
 
   bool enable_wind_;
-  std::default_random_engine rng_;
+  Eigen::Vector3d vw_, vw_walk_;
   std::normal_distribution<double> vw_walk_dist_;
 
   std::ofstream environment_log_;
