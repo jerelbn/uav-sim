@@ -20,13 +20,13 @@ class Quadrotor
 public:
 
   Quadrotor();
-  Quadrotor(const std::string &filename, const int& id);
+  Quadrotor(const std::string &filename, const environment::Environment& env, const int& id);
   ~Quadrotor();
 
-  void load(const std::string &filename);
+  void load(const std::string &filename, const environment::Environment &env);
   void run(const double &t, const environment::Environment& env);
 
-  const vehicle::State& getTrueState() const { return x_; }
+  const vehicle::State& getState() const { return x_; }
 
   int id_;
 
@@ -60,7 +60,7 @@ private:
   Eigen::Vector3d v_rel_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions_;
 
-  std::ofstream true_state_log_;
+  std::ofstream state_log_;
   std::ofstream command_log_;
 
 };

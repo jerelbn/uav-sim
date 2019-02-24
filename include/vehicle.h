@@ -138,8 +138,8 @@ enum
   PX,
   PY,
   PZ,
-  PSI,
   VEL,
+  PSI,
   THETA,
   NUM_STATES
 };
@@ -153,15 +153,62 @@ enum
 };
 
 // Convenient definitions
-typedef Matrix<double, NUM_STATES, 1> xVector;
+typedef Matrix<double, NUM_STATES, 1> xVector, dxVector;
 typedef Matrix<double, COMMAND_SIZE, 1> uVector;
 
-// 4th order integration for truth of each vehicle
-inline void rk4(std::function<void(const xVector&, const uVector&, const Vector3d&, xVector&)> f,
-                                   const double& dt, const xVector& x, const uVector& u,
-                                   const Vector3d& vw, xVector& dx)
+struct State
 {
-  xVector k1, k2, k3, k4;
+
+  Vector3d p;
+  double v;
+  double psi; // heading
+  double theta; // steering angle
+
+  State()
+  {
+    p.setZero();
+    v = 0;
+    psi = 0;
+    theta =0;
+  }
+
+  State(const xVector &x0)
+  {
+    p = x0.segment<3>(PX);
+    v = x0(VEL);
+    psi = x0(PSI);
+    theta = x0(THETA);
+  }
+
+  State operator+(const dxVector &delta) const
+  {
+    State x;
+    x.p = p + delta.segment<3>(PX);
+    x.v = v + delta(VEL);
+    x.psi = psi + delta(PSI);
+    x.theta = theta + delta(THETA);
+    return x;
+  }
+
+  void operator+=(const dxVector &delta)
+  {
+    *this = *this + delta;
+  }
+
+  Matrix<double, NUM_STATES, 1> toEigen() const
+  {
+    Matrix<double, NUM_STATES, 1> x;
+    x << p, v, psi, theta;
+    return x;
+  }
+
+};
+
+inline void rk4(std::function<void(const State&, const uVector&, const Vector3d&, dxVector&)> f,
+                                   const double& dt, const State& x, const uVector& u,
+                                   const Vector3d& vw, dxVector& dx)
+{
+  dxVector k1, k2, k3, k4;
   f(x, u, vw, k1);
   f(x + k1 * dt / 2, u, vw, k2);
   f(x + k2 * dt / 2, u, vw, k3);

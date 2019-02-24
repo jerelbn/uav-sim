@@ -7,9 +7,10 @@ namespace bicycle
 Bicycle::Bicycle()  : t_prev_(0.0), initialized_(false) {}
 
 
-Bicycle::Bicycle(const std::string &filename, const int& id)  : t_prev_(0.0), initialized_(false), id_(id)
+Bicycle::Bicycle(const std::string &filename, const environment::Environment& env, const int& id)
+  : t_prev_(0.0), initialized_(false), id_(id)
 {
-  load(filename);
+  load(filename, env);
 }
 
 
@@ -20,9 +21,10 @@ Bicycle::~Bicycle()
 }
 
 
-void Bicycle::load(const std::string &filename)
+void Bicycle::load(const std::string &filename, const environment::Environment &env)
 {
   // Load all parameters
+  xVector x0;
   common::get_yaml_node("bicycle_accurate_integration", filename, accurate_integration_);
   common::get_yaml_node("bicycle_mass", filename, mass_);
   common::get_yaml_node("bicycle_inertia", filename, inertia_);
@@ -35,7 +37,8 @@ void Bicycle::load(const std::string &filename)
   common::get_yaml_node("bicycle_k_psi", filename, kpsi_);
   common::get_yaml_node("bicycle_velocity_command", filename, vel_cmd_);
   common::get_yaml_node("bicycle_flat_ground", filename, flat_ground_);
-  common::get_yaml_eigen<xVector>("bicycle_x0", filename, x_);
+  common::get_yaml_eigen<xVector>("bicycle_x0", filename, x0);
+  x_ = State(x0);
 
   // Load waypoints
   std::vector<double> loaded_wps;
@@ -47,22 +50,23 @@ void Bicycle::load(const std::string &filename)
     current_waypoint_id_ = 0;
   }
 
+  // Compute initial control and elevation
+  computeControl();
+  updateElevation(env);
+
   // Initialize loggers
   true_state_log_.open("/tmp/bicycle_true_state.bin");
   command_log_.open("/tmp/bicycle_command.bin");
-
-  // Compute initial control and elevation
-  computeControl();
-  updateElevation();
+  log(0);
 }
 
 
-void Bicycle::f(const xVector& x, const uVector& u, const Vector3d& vw, xVector& dx)
+void Bicycle::f(const State &x, const uVector& u, const Vector3d& vw, xVector& dx)
 {
-  dx(PX) = x(VEL) * cos(x(PSI));
-  dx(PY) = x(VEL) * sin(x(PSI));
+  dx(PX) = x.v * cos(x.psi);
+  dx(PY) = x.v * sin(x.psi);
   dx(PZ) = 0;
-  dx(PSI) = x(VEL) * tan(x(THETA)) / L_;
+  dx(PSI) = x.v * tan(x.theta) / L_;
   dx(VEL) = u(FORCE) / mass_;
   dx(THETA) = u(TORQUE) / inertia_;
 }
@@ -94,25 +98,26 @@ void Bicycle::propagate(const double &t, const uVector& u, const Vector3d& vw)
   x_ += dx_;
 
   // Wrap angles and enforce limits
-  x_(PSI) = common::wrapAngle(x_(PSI), M_PI);
-  x_(THETA) = common::saturate(x_(THETA), max_steering_angle_, -max_steering_angle_);
+  x_.psi = common::wrapAngle(x_.psi, M_PI);
+  x_.theta = common::saturate(x_.theta, max_steering_angle_, -max_steering_angle_);
 }
 
 
 void Bicycle::run(const double &t, const environment::Environment& env)
 {
-  log(t); // Log current data
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
   computeControl(); // Update control input with truth
-  updateElevation(); // Update vehicle z component
+  updateElevation(env); // Update vehicle z component
+  log(t); // Log current data
 }
 
 
 void Bicycle::log(const double &t)
 {
   // Write data to binary files and plot in another program
+  Matrix<double, NUM_STATES, 1> x = x_.toEigen();
   true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)x_.data(), x_.rows() * sizeof(double));
+  true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   command_log_.write((char*)&t, sizeof(double));
   command_log_.write((char*)u_.data(), u_.rows() * sizeof(double));
   command_log_.write((char*)wp_.data(), wp_.rows() * sizeof(double));
@@ -122,14 +127,14 @@ void Bicycle::log(const double &t)
 void Bicycle::computeControl()
 {
   // Cosntant velocity doesn't care about waypoints
-  u_(FORCE) = common::saturate(-ku_ * mass_ * (x_(VEL) - vel_cmd_), max_force_, -max_force_);
+  u_(FORCE) = common::saturate(-ku_ * mass_ * (x_.v - vel_cmd_), max_force_, -max_force_);
 
   // Turn the vehicle toward the current waypoint
   updateWaypoint();
-  double psi_d = atan2(wp_(PY) - x_(PY), wp_(PX) - x_(PX));
-  double psi_err = common::wrapAngle(x_(PSI) - psi_d, M_PI);
-  double theta_d = common::saturate(atan(-kpsi_ * L_ / x_(VEL) * psi_err), max_steering_angle_, -max_steering_angle_);
-  u_(TORQUE) = common::saturate(-ktheta_ * inertia_ * (x_(THETA) - theta_d), max_torque_, -max_torque_);
+  double psi_d = atan2(wp_(PY) - x_.p(PY), wp_(PX) - x_.p(PX));
+  double psi_err = common::wrapAngle(x_.psi - psi_d, M_PI);
+  double theta_d = common::saturate(atan(-kpsi_ * L_ / x_.v * psi_err), max_steering_angle_, -max_steering_angle_);
+  u_(TORQUE) = common::saturate(-ktheta_ * inertia_ * (x_.theta - theta_d), max_torque_, -max_torque_);
 }
 
 
@@ -142,7 +147,7 @@ void Bicycle::updateWaypoint()
   }
 
   // If waypoint error is small, increment waypoint id and update commanded waypoint
-  Eigen::Vector2d error = x_.segment<2>(PX) - wp_;
+  Eigen::Vector2d error = x_.p.segment<2>(PX) - wp_;
   if (error.norm() < waypoint_threshold_)
   {
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();
@@ -151,24 +156,9 @@ void Bicycle::updateWaypoint()
 }
 
 
-double Bicycle::groundFunction(const xVector &state)
+void Bicycle::updateElevation(const environment::Environment& env)
 {
-  if (!flat_ground_)
-  {
-    double x = state(PX);
-    double y = state(PY);
-    return 1.0 * sin(0.25 * x) + 1.0 * sin(0.25 * y);
-  }
-  else
-  {
-    return x_(PZ);
-  }
-}
-
-
-void Bicycle::updateElevation()
-{
-  x_(PZ) = groundFunction(x_);
+  x_.p(PZ) = env.getElevation(x_.p(PX), x_.p(PY));
 }
 
 

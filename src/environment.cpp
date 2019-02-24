@@ -160,11 +160,16 @@ void Environment::buildGround()
 
   // Add hills
   for (int i = 0; i < pts_ground.cols(); ++i)
-    pts_ground.col(i).z() = outdoor_height_ * sin(hill_freq_ * pts_ground.col(i).x()) +
-                            outdoor_height_ * sin(hill_freq_ * pts_ground.col(i).y());
+    pts_ground.col(i).z() = getElevation(pts_ground.col(i).x(), pts_ground.col(i).y());
 
   // Concatenate all points
   points_ << pts_ground.matrix();
+}
+
+
+const double Environment::getElevation(const double &x, const double &y) const
+{
+  return outdoor_height_ * sin(hill_freq_ * x) + outdoor_height_ * sin(hill_freq_ * y);
 }
 
 

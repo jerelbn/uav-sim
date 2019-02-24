@@ -29,6 +29,7 @@ public:
   const Eigen::MatrixXd& get_points() const { return points_; }
   const Eigen::Vector3d& get_vw() const { return vw_; }
   const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& getVehiclePositions() const { return vehicle_positions_; }
+  const double getElevation(const double& x, const double& y) const;
 
 private:
 

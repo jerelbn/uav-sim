@@ -7,20 +7,21 @@ namespace quadrotor
 Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename, const int& id)  : t_prev_(0.0), id_(id)
+Quadrotor::Quadrotor(const std::string &filename, const environment::Environment& env, const int& id)
+  : t_prev_(0.0), id_(id)
 {
-  load(filename);
+  load(filename, env);
 }
 
 
 Quadrotor::~Quadrotor()
 {
-  true_state_log_.close();
+  state_log_.close();
   command_log_.close();
 }
 
 
-void Quadrotor::load(const std::string &filename)
+void Quadrotor::load(const std::string &filename, const environment::Environment& env)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   controller_.load(filename);
@@ -48,13 +49,13 @@ void Quadrotor::load(const std::string &filename)
 
   // Compute initial control and corresponding acceleration
   Vector3d vw;
-  controller_.computeControl(getTrueState(), 0, u_, Vector3d(1,0,0));
-  vw.setZero(); // get vw from environment
+  controller_.computeControl(getState(), 0, u_, env.get_vw());
   updateAccels(u_,vw);
 
-  // Initialize loggers
-  true_state_log_.open("/tmp/true_state.bin");
+  // Initialize loggers and log initial data
+  state_log_.open("/tmp/true_state.bin");
   command_log_.open("/tmp/command.bin");
+  log(0);
 }
 
 
@@ -100,10 +101,10 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
   sensors_.updateMeasurements(t, x_, env.get_points()); // Update sensor measurements
-  log(t); // Log current data
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
-  controller_.computeControl(getTrueState(), t, u_, other_vehicle_positions_[0]); // Update control input with truth
+  controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]); // Update control input with truth
   updateAccels(u_, env.get_vw()); // Update true acceleration
+  log(t); // Log current data
 }
 
 
@@ -120,8 +121,8 @@ void Quadrotor::log(const double &t)
 {
   // Write data to binary files and plot in another program
   Matrix<double, vehicle::NUM_STATES, 1> x = x_.toEigen();
-  true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+  state_log_.write((char*)&t, sizeof(double));
+  state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   controller::Controller::state_t commanded_state = controller_.getCommandedState();
   command_log_.write((char*)&commanded_state, sizeof(controller::Controller::state_t));
   controller_.log(t);

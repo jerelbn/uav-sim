@@ -18,26 +18,25 @@ class Bicycle
 public:
 
   Bicycle();
-  Bicycle(const std::string &filename, const int& id);
+  Bicycle(const std::string &filename, const environment::Environment& env, const int& id);
   ~Bicycle();
 
-  void load(const std::string &filename);
+  void load(const std::string &filename, const environment::Environment& env);
   void run(const double &t, const environment::Environment& env);
-  const xVector& getState() const { return x_; }
+  const State& getState() const { return x_; }
 
   int id_;
 
 private:
 
-  void f(const xVector& x, const uVector& u, const Vector3d& vw, xVector& dx);
+  void f(const State& x, const uVector& u, const Vector3d& vw, xVector& dx);
   void propagate(const double &t, const uVector& u, const Vector3d& vw);
   void computeControl();
   void updateWaypoint();
-  double groundFunction(const xVector& state);
-  void updateElevation();
+  void updateElevation(const environment::Environment& env);
   void log(const double &t);
 
-  xVector x_;
+  State x_;
   xVector dx_;
   uVector u_;
 
