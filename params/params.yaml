@@ -1,16 +1,11 @@
 # simulation final time and time step
+t0: 0.0
 tf: 60.0
-dt: 0.004
+dt: 0.001
 use_random_seed: true
 accurate_integration: true
 control_using_estimates: false
 save_pixel_measurements: true
-
-# Truth Configuration
-use_accel_truth: false
-use_gyro_truth: false
-use_camera_truth: false
-use_mocap_truth: false
 
 x0: [0, 0, 0,    # POS
      0, 0, 0,    # VEL
@@ -53,7 +48,7 @@ max_tau_z: 50.0
 # 0: waypoints
 # 1: trajectory
 # 2: circumnavigation
-path_type: 2
+path_type: 0
 
 waypoints: [0, 0, -4, 0,
             10, 0, -4, 0,
@@ -92,7 +87,7 @@ circ_kh: 5.0
 enable_wind: false # Turn wind on and off
 wind_init_stdev: 1.0 # Variation on the initial wind direction
 wind_walk_stdev: 0.2 # Amount of random walk in wind components
-wall_pts_density: 5 # Average points per square meter of wall
+wall_pts_density: 3 # Average points per square meter of wall
 wall_max_deviation: 0.2 # Maximum deviation from wall center
 wall_north_dim: 30 # Total room length in north dimension
 wall_east_dim: 30 # Total room length in east dimension
@@ -100,6 +95,14 @@ wall_height: 10 # Total room height
 
 
 # Sensor Configuration
+imu_enabled: true
+camera_enabled: true
+mocap_enabled: true
+
+use_accel_truth: false
+use_gyro_truth: false
+use_camera_truth: false
+use_mocap_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -115,6 +118,7 @@ gyro_bias_init_bound: 0.2
 gyro_walk_stdev: 0.01
 
 ## Camera
+camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 50
 pixel_noise_stdev: 0.5
 image_size: [640, 480]

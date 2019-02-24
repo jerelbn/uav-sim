@@ -10,7 +10,6 @@ Sensors::Sensors() {}
 
 Sensors::Sensors(const std::string filename)
 {
-  cam_.reserve(10000);
   load(filename);
 }
 
@@ -39,6 +38,7 @@ void Sensors::load(const std::string filename)
   // IMU
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
   Eigen::Vector4d q_bu;
+  common::get_yaml_node("imu_enabled", filename, imu_enabled_);
   common::get_yaml_node("imu_update_rate", filename, imu_update_rate_);
   common::get_yaml_eigen("q_bu", filename, q_bu);
   common::get_yaml_eigen("p_bu", filename, p_bu_);
@@ -75,6 +75,8 @@ void Sensors::load(const std::string filename)
   // Camera
   double pixel_noise_stdev;
   Eigen::Vector4d q_bc;
+  common::get_yaml_node("camera_enabled", filename, camera_enabled_);
+  common::get_yaml_node("camera_max_features", filename, cam_max_feat_);
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
   common::get_yaml_node("save_pixel_measurements", filename, save_pixel_measurements_);
   common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
@@ -90,10 +92,12 @@ void Sensors::load(const std::string filename)
   q_bc_.normalize();
   pixel_noise_.setZero();
   new_camera_meas_ = false;
+  cam_.reserve(cam_max_feat_);
 
   // Motion Capture
   double mocap_noise_stdev;
   Eigen::Vector4d q_bm;
+  common::get_yaml_node("mocap_enabled", filename, mocap_enabled_);
   common::get_yaml_node("use_mocap_truth", filename, use_mocap_truth_);
   common::get_yaml_node("mocap_update_rate", filename, mocap_update_rate_);
   common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
@@ -115,10 +119,13 @@ void Sensors::load(const std::string filename)
 
 void Sensors::updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd& lm)
 {
-  // Update all sensor measurements
-  imu(t, x);
-  camera(t, x, lm);
-  mocap(t, x);
+  // Update enabled sensor measurements
+  if (imu_enabled_)
+    imu(t, x);
+  if (camera_enabled_)
+    camera(t, x, lm);
+  if (mocap_enabled_)
+    mocap(t, x);
 }
 
 
@@ -131,14 +138,14 @@ void Sensors::imu(const double t, const vehicle::State& x)
     last_imu_update_ = t;
     if (!use_accel_truth_)
     {
-      common::randomNormalMatrix(accel_noise_,accel_noise_dist_,rng_);
-      common::randomNormalMatrix(accel_walk_,accel_walk_dist_,rng_);
+      common::randomNormal(accel_noise_,accel_noise_dist_,rng_);
+      common::randomNormal(accel_walk_,accel_walk_dist_,rng_);
       accel_bias_ += accel_walk_ * dt;
     }
     if (!use_gyro_truth_)
     {
-      common::randomNormalMatrix(gyro_noise_,gyro_noise_dist_,rng_);
-      common::randomNormalMatrix(gyro_walk_,gyro_walk_dist_,rng_);
+      common::randomNormal(gyro_noise_,gyro_noise_dist_,rng_);
+      common::randomNormal(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
     static quat::Quatd q_i2u;
@@ -172,7 +179,7 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
     new_camera_meas_ = true;
     last_camera_update_ = t;
     if (!use_camera_truth_)
-      common::randomNormalMatrix(pixel_noise_,pixel_noise_dist_,rng_);
+      common::randomNormal(pixel_noise_,pixel_noise_dist_,rng_);
 
     // Compute camera pose
     quat::Quatd q_i2c = x.q * q_bc_;
@@ -195,17 +202,21 @@ void Sensors::camera(const double t, const vehicle::State &x, const Eigen::Matri
       pix += pixel_noise_;
       if (pix(0) >= 1 && pix(1) >= 1 && pix(0) <= image_size_(0) && pix(1) <= image_size_(1))
         cam_.push_back(Eigen::Vector3d(pix(0), pix(1), i));
+
+      if (cam_.size() == cam_max_feat_) break;
     }
 
-    // Log up to 5000 pixel measurements per measurement cycle, can't allocate much more on the stack...
-    if (cam_.size() > 0 && save_pixel_measurements_)
+    if (save_pixel_measurements_)
     {
+      static const Vector3d a(-1,-1,-1);
       cam_log_.write((char*)&t, sizeof(double));
-      Eigen::Matrix<double,3*5000,1> cam_save = Eigen::Matrix<double,3*5000,1>::Constant(-1);
-      int num_saves = std::min(5000, int(cam_.size()));
-      for (int i = 0; i < num_saves; ++i)
-        cam_save.segment<3>(3*i) = cam_[i];
-      cam_log_.write((char*)cam_save.data(), cam_save.rows() * sizeof(double));
+      for (int i = 0; i < cam_max_feat_; ++i)
+      {
+        if (i <= cam_.size())
+          cam_log_.write((char*)cam_[i].data(), cam_[i].rows() * sizeof(double));
+        else
+          cam_log_.write((char*)a.data(), a.rows() * sizeof(double));
+      }
     }
   }
   else
@@ -223,7 +234,7 @@ void Sensors::mocap(const double t, const vehicle::State &x)
     new_mocap_meas_ = true;
     last_mocap_update_ = t;
     if (!use_mocap_truth_)
-      common::randomNormalMatrix(mocap_noise_,mocap_noise_dist_,rng_);
+      common::randomNormal(mocap_noise_,mocap_noise_dist_,rng_);
 
     // Populate mocap measurement
     mocap_.head<3>() = x.p + x.q.rota(p_bm_) + mocap_noise_.head<3>();

@@ -26,7 +26,7 @@ public:
   void initVehicle(const Eigen::Vector3d& p);
   void updateVehicle(const Eigen::Vector3d& p, const int &idx);
   void log(const double t);
-  const Eigen::ArrayXXd& get_points() const { return points_; }
+  const Eigen::MatrixXd& get_points() const { return points_; }
   const Eigen::Vector3d& get_vw() const { return vw_; }
   const std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> >& getVehiclePositions() const { return vehicle_positions; }
 
@@ -35,7 +35,7 @@ private:
   void buildRoom();
 
   Eigen::Vector3d vw_, vw_walk_;
-  Eigen::ArrayXXd points_;
+  Eigen::MatrixXd points_;
   double density_;
   double max_deviation_;
   double north_dim_, east_dim_, height_;

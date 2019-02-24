@@ -37,19 +37,19 @@ int main()
   // Main simulation loop
   while (t <= tf)
   {
+    t += dt;
+    prog_bar.print(t/dt);
+
     // Run each vehicle
     quad1.run(t, env);
-    bike1.run(t);
+    bike1.run(t, env);
 
     // Update wind and stored vehicle positions in environment
     env.updateWind(t);
     env.updateVehicle(quad1.getTrueState().p, 0);
     env.updateVehicle(bike1.getState().segment<3>(bicycle::PX), 1);
-
-    // Increment time step
-    t += dt;
-    prog_bar.print(t/dt);
   }
+  prog_bar.finished();
 
   return 0;
 }   

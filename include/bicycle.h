@@ -2,34 +2,14 @@
 
 #include <fstream>
 #include "common_cpp/common.h"
+#include "vehicle.h"
+#include "environment.h"
+
+using namespace Eigen;
+
 
 namespace bicycle
 {
-
-
-// State indices
-enum
-{
-  PX,
-  PY,
-  PZ,
-  PSI,
-  VEL,
-  THETA,
-  NUM_STATES
-};
-
-// Input indices
-enum
-{
-  FORCE,
-  TORQUE,
-  NUM_INPUTS
-};
-
-// Convenient definitions
-typedef Eigen::Matrix<double, NUM_STATES, 1> xVector;
-typedef Eigen::Matrix<double, NUM_INPUTS, 1> uVector;
 
 
 class Bicycle
@@ -42,13 +22,13 @@ public:
   ~Bicycle();
 
   void load(const std::string &filename);
-  void run(const double &t);
+  void run(const double &t, const environment::Environment& env);
   const xVector& getState() const { return x_; }
 
 private:
 
-  void f(const xVector& x, const uVector& u, xVector& dx);
-  void propagate(const double &dt);
+  void f(const xVector& x, const uVector& u, const Vector3d& vw, xVector& dx);
+  void propagate(const double &t, const uVector& u, const Vector3d& vw);
   void computeControl();
   void updateWaypoint();
   double groundFunction(const xVector& state);
@@ -68,12 +48,12 @@ private:
   std::ofstream command_log_;
 
   // Waypoint Parameters
-  Eigen::MatrixXd waypoints_;
+  MatrixXd waypoints_;
   int current_waypoint_id_;
   double waypoint_threshold_;
-  Eigen::Vector2d wp_;
+  Vector2d wp_;
 
 };
 
 
-}
+} // namespace bicycle

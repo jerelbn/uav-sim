@@ -4,6 +4,7 @@ format compact
 set(0,'DefaultFigureWindowStyle','docked')
 f = 1; % Starts figure numbering
 plot_covariance = 1;
+cam_max_feat = 10000;
 
 %% Run Simulation
 % !cd ../build && ./uav_sim
@@ -29,4 +30,4 @@ plot_states;
 
 %% Plot 3D animation
 % animate_3d(25, env, true_state, command, bicycle_state);
-% animate_img(1);
+% animate_img(1, pix);

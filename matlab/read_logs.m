@@ -37,6 +37,11 @@ file = fopen(strcat(directory,'mocap.bin'), 'r');
 mocap = fread(file, 'double');
 mocap = reshape(mocap, 21, []);
 
+% Load pixel measurements
+file = fopen(strcat('/tmp/camera.bin'), 'r');
+pix = fread(file, 'double');
+pix = reshape(pix, 3*cam_max_feat+1, []);
+
 % Load bicycle truth
 file = fopen(strcat(directory,'bicycle_true_state.bin'), 'r');
 bicycle_state = fread(file, 'double');

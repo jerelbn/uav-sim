@@ -1,8 +1,10 @@
 #pragma once
 
 #include "common_cpp/common.h"
-#include "vehicle_common.h"
+#include "vehicle.h"
 #include <fstream>
+
+using namespace Eigen;
 
 
 namespace controller
@@ -39,7 +41,7 @@ public:
   Controller(const std::string filename);
 
   void load(const std::string filename);
-  void computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d &pt);
+  void computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
   void log(const double& t);
   inline state_t getCommandedState() const { return xc_; }
 
@@ -94,7 +96,7 @@ private:
   std::default_random_engine rng_;
 
   // Waypoint Parameters
-  Eigen::MatrixXd waypoints_;
+  MatrixXd waypoints_;
   int current_waypoint_id_;
   double waypoint_threshold_;
   double waypoint_velocity_threshold_;
@@ -121,9 +123,9 @@ private:
   double circ_kh_;
 
   // Controller Gains
-  Eigen::Matrix3d K_p_; // position
-  Eigen::Matrix3d K_v_; // velocity
-  Eigen::Matrix3d K_d_; // disturbance acceleration
+  Matrix3d K_p_; // position
+  Matrix3d K_v_; // velocity
+  Matrix3d K_d_; // disturbance acceleration
 
 
   // Memory for sharing information between functions
@@ -133,13 +135,13 @@ private:
   max_t max_ = {};
   double prev_time_;
   uint8_t control_mode_;
-  Eigen::Vector3d dhat_; // disturbance acceleration
+  Vector3d dhat_; // disturbance acceleration
 
   // Target estimation parameters
   bool use_target_truth_, bearing_only_;
-  Eigen::Vector3d z_, vz_;
+  Vector3d z_, vz_;
   double kz_, kvz_;
-  Eigen::Vector3d target_noise_;
+  Vector3d target_noise_;
   std::normal_distribution<double> target_noise_dist_;
 
   // Logging

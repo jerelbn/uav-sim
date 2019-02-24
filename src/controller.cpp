@@ -38,7 +38,7 @@ void Controller::load(const std::string filename)
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("max_thrust", filename, max_thrust_);
 
-  Eigen::Vector3d Kp_diag, Kd_diag, Kv_diag;
+  Vector3d Kp_diag, Kd_diag, Kv_diag;
   if (common::get_yaml_eigen("Kp", filename, Kp_diag))
     K_p_ = Kp_diag.asDiagonal();
   if (common::get_yaml_eigen("Kd", filename, Kd_diag))
@@ -70,7 +70,7 @@ void Controller::load(const std::string filename)
   if (common::get_yaml_node("waypoints", filename, loaded_wps))
   {
     int num_waypoints = std::floor(loaded_wps.size()/4.0);
-    waypoints_ = Eigen::Map<Eigen::MatrixXd>(loaded_wps.data(), 4, num_waypoints);
+    waypoints_ = Map<MatrixXd>(loaded_wps.data(), 4, num_waypoints);
     current_waypoint_id_ = 0;
   }
   common::get_yaml_node("waypoint_threshold", filename, waypoint_threshold_);
@@ -103,8 +103,8 @@ void Controller::load(const std::string filename)
   double target_noise_stdev;
   common::get_yaml_node("target_gain", filename, kz_);
   common::get_yaml_node("target_velocity_gain", filename, kvz_);
-  common::get_yaml_eigen<Eigen::Vector3d>("target_z0", filename, z_);
-  common::get_yaml_eigen<Eigen::Vector3d>("target_vz0", filename, vz_);
+  common::get_yaml_eigen<Vector3d>("target_z0", filename, z_);
+  common::get_yaml_eigen<Vector3d>("target_vz0", filename, vz_);
   common::get_yaml_node("bearing_only", filename, bearing_only_);
   common::get_yaml_node("use_target_truth", filename, use_target_truth_);
   common::get_yaml_node("target_noise_stdev", filename, target_noise_stdev);
@@ -112,15 +112,14 @@ void Controller::load(const std::string filename)
   target_noise_.setZero();
 
   // Initialize loggers
-  common::get_yaml_node("log_directory", filename, directory_);
-  target_log_.open(directory_ + "/target.bin");
+  target_log_.open("/tmp/target.bin");
 }
 
 
-void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::commandVector& u, const Eigen::Vector3d& pt)
+void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
 {
   // Copy the current state
-  Eigen::Vector3d euler = x.q.euler();
+  Vector3d euler = x.q.euler();
   xhat_.pn = x.p(0);
   xhat_.pe = x.p(1);
   xhat_.pd = x.p(2);
@@ -154,13 +153,13 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
       updateTrajectoryManager();
 
     // get data that applies to both position and velocity control
-    Eigen::Matrix3d R_v_to_v1 = common::R_v_to_v1(euler(2)); // rotation from vehicle to vehicle-1 frame
-    Eigen::Matrix3d R_v1_to_b = common::R_v_to_b(euler(0), euler(1), 0.0); // rotation from vehicle-1 to body frame
-    static Eigen::Vector3d k = common::e3;
+    Matrix3d R_v_to_v1 = common::R_v_to_v1(euler(2)); // rotation from vehicle to vehicle-1 frame
+    Matrix3d R_v1_to_b = common::R_v_to_b(euler(0), euler(1), 0.0); // rotation from vehicle-1 to body frame
+    static Vector3d k = common::e3;
 
-    Eigen::Vector3d phat(xhat_.pn, xhat_.pe, xhat_.pd); // position estimate
-    Eigen::Vector3d pc(xc_.pn, xc_.pe, xc_.pd); // position command
-    Eigen::Vector3d vc = R_v_to_v1 * K_p_ * (pc-phat); // velocity command
+    Vector3d phat(xhat_.pn, xhat_.pe, xhat_.pd); // position estimate
+    Vector3d pc(xc_.pn, xc_.pe, xc_.pd); // position command
+    Vector3d vc = R_v_to_v1 * K_p_ * (pc-phat); // velocity command
 
     // store velocity command
     xc_.u = vc(0);
@@ -175,15 +174,15 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     if (vmag > max_.vel)
       vc = vc*max_.vel/vmag;
 
-    Eigen::Vector3d vhat_b(xhat_.u,xhat_.v,xhat_.w); // body velocity estimate
-    Eigen::Vector3d vhat = R_v1_to_b.transpose()*vhat_b; // vehicle-1 velocity estimate
+    Vector3d vhat_b(xhat_.u,xhat_.v,xhat_.w); // body velocity estimate
+    Vector3d vhat = R_v1_to_b.transpose()*vhat_b; // vehicle-1 velocity estimate
     dhat_ = dhat_ - K_d_*(vc-vhat)*dt; // update disturbance estimate
-    Eigen::Vector3d k_tilde = throttle_eq_ * (k - (1.0 / common::gravity) * (K_v_ * (vc - vhat) - dhat_));
+    Vector3d k_tilde = throttle_eq_ * (k - (1.0 / common::gravity) * (K_v_ * (vc - vhat) - dhat_));
 
     // pack up throttle command
     xc_.throttle = k.transpose() * R_v1_to_b * k_tilde;
 
-    Eigen::Vector3d kd = (1.0 / xc_.throttle) * k_tilde; // desired body z direction
+    Vector3d kd = (1.0 / xc_.throttle) * k_tilde; // desired body z direction
     kd = kd / kd.norm(); // need direction only
     double tilt_angle = acos(k.transpose() * kd); // desired tilt
 
@@ -191,7 +190,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     quat::Quatd q_c;
     if (tilt_angle > 1e-6)
     {
-      Eigen::Vector3d k_cross_kd = k.cross(kd);
+      Vector3d k_cross_kd = k.cross(kd);
       q_c = quat::Quatd::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
     }
 
@@ -203,14 +202,14 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
   {
     // Create noisy bearing measurement of target and full vector measurement
     if (!use_target_truth_)
-      common::randomNormalMatrix(target_noise_, target_noise_dist_, rng_);
-    Eigen::Vector3d z_true = x.q.rotp(pt - x.p);
-    Eigen::Vector3d z = z_true + target_noise_;
-    Eigen::Vector3d ez = z / z.norm();
-    Eigen::Vector3d z_tilde = z_ - z;
+      common::randomNormal(target_noise_, target_noise_dist_, rng_);
+    Vector3d z_true = x.q.rotp(pt - x.p);
+    Vector3d z = z_true + target_noise_;
+    Vector3d ez = z / z.norm();
+    Vector3d z_tilde = z_ - z;
 
     // Target estimator
-    Eigen::Vector3d zdot(0, 0, 0), vzdot(0, 0, 0);
+    Vector3d zdot(0, 0, 0), vzdot(0, 0, 0);
     if (bearing_only_)
     {
       zdot = -x.v - x.omega.cross(z_) - kz_ * (common::I_3x3 - ez * ez.transpose()) * z_;
@@ -230,19 +229,19 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     quat::Quatd q_l2b(phi, theta, 0.0);
 
     // Commanded velocity in the local level reference frame
-    static const Eigen::Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();
-    static const Eigen::Matrix3d Pe3 = common::e3 * common::e3.transpose();
+    static const Matrix3d IPe3 = common::I_3x3 - common::e3 * common::e3.transpose();
+    static const Matrix3d Pe3 = common::e3 * common::e3.transpose();
     double r = (IPe3 * q_l2b.rota(z_)).norm();
     double h = (Pe3 * q_l2b.rota(z_)).norm();
 
-    Eigen::Vector3d er = IPe3 * q_l2b.rota(ez);
+    Vector3d er = IPe3 * q_l2b.rota(ez);
     er /= er.norm();
-    Eigen::Vector3d ep = common::e3.cross(er);
+    Vector3d ep = common::e3.cross(er);
     ep /= ep.norm();
 
     double r_tilde = r - circ_rd_;
     double h_tilde = h - circ_hd_;
-    Eigen::Vector3d vc;
+    Vector3d vc;
     if (bearing_only_)
       vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
     else
@@ -257,24 +256,24 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Commanded yaw rate
     xc_.r = 10.0 * common::e3.transpose() * common::e1.cross(ez);
 
-    Eigen::Vector3d vtilde = vc - q_l2b.rota(x.v);
-    Eigen::Vector3d omega_l = common::e3 * common::e3.transpose() * q_l2b.rota(x.omega);
-    Eigen::Vector3d vl = q_l2b.rota(x.v);
+    Vector3d vtilde = vc - q_l2b.rota(x.v);
+    Vector3d omega_l = common::e3 * common::e3.transpose() * q_l2b.rota(x.omega);
+    Vector3d vl = q_l2b.rota(x.v);
 
     // Commanded throttle
     xc_.throttle = throttle_eq_ * common::e3.transpose() * q_l2b.rotp(common::e3
                    - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde));
 
     // Commanded body axes in the inertial frame
-    Eigen::Vector3d kbc = common::e3 - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde);
+    Vector3d kbc = common::e3 - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde);
     kbc /= kbc.norm();
-    Eigen::Vector3d jbc = kbc.cross(q_l2b.rota(ez));
+    Vector3d jbc = kbc.cross(q_l2b.rota(ez));
     jbc /= jbc.norm();
-    Eigen::Vector3d ibc = jbc.cross(kbc);
+    Vector3d ibc = jbc.cross(kbc);
     ibc /= ibc.norm();
 
     // Build commanded attitude
-    Eigen::Matrix3d Rc; // Should be inertial to body rotation
+    Matrix3d Rc; // Should be inertial to body rotation
     Rc << ibc, jbc, kbc;
 
     // Extract roll and pitch angles
@@ -381,7 +380,7 @@ void Controller::updateWaypointManager()
   if (!initialized_)
   {
     initialized_ = true;
-    Eigen::Map<Eigen::Vector4d> new_waypoint(waypoints_.block<4,1>(0, 0).data());
+    Map<Vector4d> new_waypoint(waypoints_.block<4,1>(0, 0).data());
     xc_.pn = new_waypoint(PX);
     xc_.pe = new_waypoint(PY);
     xc_.pd = new_waypoint(PZ);
@@ -389,8 +388,8 @@ void Controller::updateWaypointManager()
   }
 
   // Find the distance to the desired waypoint
-  Eigen::Vector4d current_waypoint = waypoints_.block<4,1>(0, current_waypoint_id_);
-  Eigen::Vector4d error;
+  Vector4d current_waypoint = waypoints_.block<4,1>(0, current_waypoint_id_);
+  Vector4d error;
   error(PX) = current_waypoint(PX) - xhat_.pn;
   error(PY) = current_waypoint(PY) - xhat_.pe;
   error(PZ) = current_waypoint(PZ) - xhat_.pd;
@@ -402,7 +401,7 @@ void Controller::updateWaypointManager()
   else if (error(PSI) < -M_PI)
     error(PSI) += 2.0 * M_PI;
 
-  Eigen::Vector3d current_velocity(xhat_.u, xhat_.v, xhat_.w);
+  Vector3d current_velocity(xhat_.u, xhat_.v, xhat_.w);
 
   if (error.norm() < waypoint_threshold_ && current_velocity.norm() < waypoint_velocity_threshold_)
   {
@@ -410,7 +409,7 @@ void Controller::updateWaypointManager()
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();
 
     // Update The commanded State
-    Eigen::Map<Eigen::Vector4d> new_waypoint(waypoints_.block<4,1>(0, current_waypoint_id_).data());
+    Map<Vector4d> new_waypoint(waypoints_.block<4,1>(0, current_waypoint_id_).data());
     xc_.pn = new_waypoint(PX);
     xc_.pe = new_waypoint(PY);
     xc_.pd = new_waypoint(PZ);

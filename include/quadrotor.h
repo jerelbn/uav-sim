@@ -7,6 +7,9 @@
 #include "sensors.h"
 #include "environment.h"
 
+using namespace Eigen;
+
+
 namespace quadrotor
 {
 
@@ -27,14 +30,14 @@ public:
 
 private:
 
-  void f(const vehicle::State& x, const commandVector& u,
+  void f(const vehicle::State& x, const uVector& u,
          const Eigen::Vector3d& vw, vehicle::dxVector& dx);
-  void rk4(std::function<void(const vehicle::State&, const commandVector&,
+  void rk4(std::function<void(const vehicle::State&, const uVector&,
                         const Eigen::Vector3d&, vehicle::dxVector&)> func,
-           const double& dt, const vehicle::State& x, const commandVector& u,
+           const double& dt, const vehicle::State& x, const uVector& u,
            const Eigen::Vector3d& vw, vehicle::dxVector& dx);
-  void propagate(const double &dt, const commandVector& u, const Eigen::Vector3d& vw);
-  void updateAccels(const commandVector& u, const Eigen::Vector3d& vw);
+  void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
+  void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
   void getOtherVehicles(const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
@@ -44,7 +47,7 @@ private:
 
   vehicle::State x_, x2_, x3_, x4_;
   vehicle::dxVector dx_, k1_, k2_, k3_, k4_;
-  commandVector u_;
+  uVector u_;
 
   bool accurate_integration_, control_using_estimates_;
   double mass_, max_thrust_, t_prev_;

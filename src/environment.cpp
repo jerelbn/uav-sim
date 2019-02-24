@@ -72,7 +72,7 @@ void Environment::buildRoom()
   int num_pts_total = num_pts_floor + num_pts_ceil + num_pts_north + num_pts_south + num_pts_east + num_pts_west;
 
   // Allocate space for all points
-  points_.conservativeResize(3,num_pts_total);
+  points_.resize(3,num_pts_total);
 
   // Floor
   Eigen::ArrayXXd pts_floor(3,num_pts_floor);
@@ -126,7 +126,8 @@ void Environment::buildRoom()
   pts_west.row(1) -= east_dim_ / 2.0; // Offset from origin
 
   // Concatenate all points
-  points_ << pts_floor, pts_ceil, pts_north, pts_south, pts_east, pts_west;
+  points_ << pts_floor.matrix(), pts_ceil.matrix(), pts_north.matrix(),
+             pts_south.matrix(), pts_east.matrix(), pts_west.matrix();
 }
 
 
@@ -142,7 +143,7 @@ void Environment::updateWind(const double t)
 {
   if (enable_wind_)
   {
-    common::randomNormalMatrix(vw_walk_, vw_walk_dist_, rng_);
+    common::randomNormal(vw_walk_, vw_walk_dist_, rng_);
     vw_ += vw_walk_ * (t - t_prev_);
   }
   t_prev_ = t;

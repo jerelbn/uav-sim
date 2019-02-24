@@ -1,9 +1,4 @@
-function animate_img(speed)
-    
-    % Load pixel measurements
-    file = fopen(strcat('/tmp/camera.bin'), 'r');
-    pix = fread(file, 'double');
-    pix = reshape(pix, 15001, []);
+function animate_img(speed, pix)
 
     persistent image_handle
 
@@ -15,7 +10,7 @@ function animate_img(speed)
             image_handle = plot(pix_img(1,:), pix_img(2,:), 'b.');
             axis equal, axis ij
             set(gcf, 'name', 'Image Animation', 'NumberTitle', 'off')
-            set(gca,'XAxisLocation','top','XLim',[0,641],'YLim',[0,481]);
+            set(gca,'XAxisLocation','top','XLim',[0,640],'YLim',[0,480]);
             xlabel('x (pixels)')
             ylabel('y (pixels)')
             title('Camera View')
