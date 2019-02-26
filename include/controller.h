@@ -38,9 +38,9 @@ public:
   } state_t;
 
   Controller();
-  Controller(const std::string filename);
+  Controller(const std::string &filename, const bool &use_random_seed);
 
-  void load(const std::string filename);
+  void load(const std::string &filename, const bool &use_random_seed);
   void computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
   void log(const double& t);
   inline state_t getCommandedState() const { return xc_; }
@@ -92,7 +92,6 @@ private:
   double mass_;
   double max_thrust_;
   int path_type_;
-  bool use_random_seed_;
   std::default_random_engine rng_;
 
   // Waypoint Parameters

@@ -9,13 +9,11 @@
 
 int main()
 {
-  std::string param_file = "../params/params.yaml";
-
   bool use_random_seed;
   double t(0), tf, dt;
-  common::get_yaml_node("use_random_seed", param_file, use_random_seed);
-  common::get_yaml_node("tf", param_file, tf);
-  common::get_yaml_node("dt", param_file, dt);
+  common::get_yaml_node("use_random_seed", "../params/sim.yaml", use_random_seed);
+  common::get_yaml_node("tf", "../params/sim.yaml", tf);
+  common::get_yaml_node("dt", "../params/sim.yaml", dt);
   if (use_random_seed)
     std::srand((unsigned)std::time(NULL));
 
@@ -24,11 +22,11 @@ int main()
   prog_bar.init(tf/dt,40);
 
   // Create environment
-  environment::Environment env(param_file);
+  environment::Environment env("../params/sim.yaml");
 
-  // Create vehicles
-  quadrotor::Quadrotor quad1(param_file, env, 0);
-  bicycle::Bicycle bike1(param_file, env, 1);
+  // Create vehicles -- last input is vehicle ID
+  quadrotor::Quadrotor quad1("../params/quadrotor1.yaml", env, use_random_seed, 0);
+  bicycle::Bicycle bike1("../params/bicycle1.yaml", env, use_random_seed, 1);
 
   // Store initial vehicle positions in environment
   env.initVehicle(quad1.getState().p, quad1.id_);

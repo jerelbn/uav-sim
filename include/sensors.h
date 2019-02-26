@@ -17,10 +17,10 @@ class Sensors
 public:
 
   Sensors();
-  Sensors(const std::string filename);
+  Sensors(const std::string &filename, const bool &use_random_seed);
   ~Sensors();
 
-  void load(const std::string filename);
+  void load(const std::string &filename, const bool &use_random_seed);
   void updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;
@@ -40,7 +40,6 @@ private:
   void alt(const double t, const vehicle::State& x);
   void mag(const double t, const vehicle::State& x);
 
-  bool use_random_seed_;
   std::default_random_engine rng_;
 
   // IMU

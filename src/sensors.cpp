@@ -8,9 +8,9 @@ namespace sensors
 Sensors::Sensors() {}
 
 
-Sensors::Sensors(const std::string filename)
+Sensors::Sensors(const std::string& filename, const bool& use_random_seed)
 {
-  load(filename);
+  load(filename, use_random_seed);
 }
 
 
@@ -23,12 +23,11 @@ Sensors::~Sensors()
 }
 
 
-void Sensors::load(const std::string filename)
+void Sensors::load(const std::string& filename, const bool& use_random_seed)
 {
   // Initialize random number generator
-  common::get_yaml_node("use_random_seed", filename, use_random_seed_);
   int seed;
-  if (use_random_seed_)
+  if (use_random_seed)
     seed = std::chrono::system_clock::now().time_since_epoch().count();
   else
     seed = 0;

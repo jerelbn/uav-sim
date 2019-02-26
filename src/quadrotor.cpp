@@ -7,10 +7,10 @@ namespace quadrotor
 Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename, const environment::Environment& env, const int& id)
+Quadrotor::Quadrotor(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
   : t_prev_(0.0), id_(id)
 {
-  load(filename, env);
+  load(filename, env, use_random_seed);
 }
 
 
@@ -21,11 +21,11 @@ Quadrotor::~Quadrotor()
 }
 
 
-void Quadrotor::load(const std::string &filename, const environment::Environment& env)
+void Quadrotor::load(const std::string &filename, const environment::Environment& env, const bool& use_random_seed)
 {
   // Instantiate Sensors, Controller, and Estimator classes
-  controller_.load(filename);
-  sensors_.load(filename);
+  controller_.load(filename, use_random_seed);
+  sensors_.load(filename, use_random_seed);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);

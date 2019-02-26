@@ -1,0 +1,19 @@
+# Parameters for time, randomness, environment, etc.
+tf: 60.0
+dt: 0.001
+use_random_seed: true
+
+enable_wind: false # Turn wind on and off
+wind_init_stdev: 1.0 # Variation on the initial wind direction
+wind_walk_stdev: 0.2 # Amount of random walk in wind components
+
+fly_indoors: false # fly indoors or outdoors
+landmark_density: 1 # Average points per square meter of wall
+landmark_deviation: 0.2 # Maximum deviation of random points
+outdoor_north_dim: 100 # Total ground length in north dimension
+outdoor_east_dim: 100 # Total ground length in east dimension
+outdoor_height: 2.0 # Max height of hills from ground zero
+outdoor_hill_freq: 0.1 # frequency of hills
+indoor_north_dim: 30 # Total room length in north dimension
+indoor_east_dim: 30 # Total room length in east dimension
+indoor_height: 10 # Total room height

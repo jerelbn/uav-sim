@@ -20,10 +20,10 @@ class Quadrotor
 public:
 
   Quadrotor();
-  Quadrotor(const std::string &filename, const environment::Environment& env, const int& id);
+  Quadrotor(const std::string &filename, const environment::Environment& env, const bool &use_random_seed, const int& id);
   ~Quadrotor();
 
-  void load(const std::string &filename, const environment::Environment &env);
+  void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
   void run(const double &t, const environment::Environment& env);
 
   const vehicle::State& getState() const { return x_; }

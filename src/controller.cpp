@@ -13,21 +13,20 @@ Controller::Controller() :
 }
 
 
-Controller::Controller(const std::string filename) :
+Controller::Controller(const std::string& filename, const bool& use_random_seed) :
   prev_time_(0),
   initialized_(false)
 {
   dhat_.setZero();
-  load(filename);
+  load(filename, use_random_seed);
 }
 
 
-void Controller::load(const std::string filename)
+void Controller::load(const std::string& filename, const bool& use_random_seed)
 {
   // Initialize random number generator
-  common::get_yaml_node("use_random_seed", filename, use_random_seed_);
   int seed;
-  if (use_random_seed_)
+  if (use_random_seed)
     seed = std::chrono::system_clock::now().time_since_epoch().count();
   else
     seed = 0;
