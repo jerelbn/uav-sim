@@ -3,7 +3,7 @@
 #include <fstream>
 
 #include "common_cpp/common.h"
-#include "controller.h"
+#include "quad_control.h"
 #include "sensors.h"
 #include "environment.h"
 

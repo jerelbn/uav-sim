@@ -30,7 +30,7 @@ add_executable(uav_sim
   src/quadrotor.cpp
   src/bicycle.cpp
   src/sensors.cpp
-  src/controller.cpp
+  src/quad_control.cpp
   )
 target_link_libraries(uav_sim
   common_cpp
