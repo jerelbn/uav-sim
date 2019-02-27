@@ -26,18 +26,18 @@ public:
   void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
   void run(const double &t, const environment::Environment& env);
 
-  const vehicle::State& getState() const { return x_; }
+  const vehicle::State<double>& getState() const { return x_; }
 
   int id_;
   std::string name_;
 
 private:
 
-  void f(const vehicle::State& x, const uVector& u,
+  void f(const vehicle::State<double>& x, const uVector& u,
          const Eigen::Vector3d& vw, vehicle::dxVector& dx);
-  void rk4(std::function<void(const vehicle::State&, const uVector&,
+  void rk4(std::function<void(const vehicle::State<double>&, const uVector&,
                         const Eigen::Vector3d&, vehicle::dxVector&)> func,
-           const double& dt, const vehicle::State& x, const uVector& u,
+           const double& dt, const vehicle::State<double>& x, const uVector& u,
            const Eigen::Vector3d& vw, vehicle::dxVector& dx);
   void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
   void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
@@ -48,8 +48,8 @@ private:
   Controller controller_;
   sensors::Sensors sensors_;
 
-  vehicle::State x_, x2_, x3_, x4_;
-  vehicle::dxVector dx_, k1_, k2_, k3_, k4_;
+  vehicle::State<double> x_;
+  vehicle::dxVector dx_;
   uVector u_;
 
   bool accurate_integration_, control_using_estimates_;

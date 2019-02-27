@@ -34,15 +34,18 @@ void FixedWing::load(const std::string &filename, const environment::Environment
 
   vehicle::xVector x0;
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
-  x_ = vehicle::State(x0);
+  x_ = vehicle::State<double>(x0);
 
-  double Jx, Jy, Jz, Jxz;
+  common::get_yaml_node("Va_star", filename, Va_star_);
+  common::get_yaml_node("R_star", filename, R_star_);
+  common::get_yaml_node("gamma_star", filename, gamma_star_);
+
   common::get_yaml_node("mass", filename, mass_);
-  common::get_yaml_node("Jx", filename, Jx);
-  common::get_yaml_node("Jy", filename, Jy);
-  common::get_yaml_node("Jz", filename, Jz);
-  common::get_yaml_node("Jxz", filename, Jxz);
-  J_ << Jx, 0, -Jxz, 0, Jy, 0, -Jxz, 0, Jz;
+  common::get_yaml_node("Jx", filename, Jx_);
+  common::get_yaml_node("Jy", filename, Jy_);
+  common::get_yaml_node("Jz", filename, Jz_);
+  common::get_yaml_node("Jxz", filename, Jxz_);
+  J_ << Jx_, 0, -Jxz_, 0, Jy_, 0, -Jxz_, 0, Jz_;
   J_inv_ = J_.inverse();
 
   common::get_yaml_node("rho", filename, rho_);
@@ -54,7 +57,7 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   common::get_yaml_node("wing_alpha0", filename, wing_alpha0_);
 
   common::get_yaml_node("k_motor", filename, k_motor_);
-  common::get_yaml_node("k_T_P", filename, k_T_P_);
+  common::get_yaml_node("k_T_p", filename, k_T_p_);
   common::get_yaml_node("k_Omega", filename, k_Omega_);
 
   common::get_yaml_node("prop_e", filename, prop_e_);
@@ -129,6 +132,12 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw());
 
+  // Compute trim
+  vehicle::State<double> x_star;
+  uVector u_star;
+  computeTrim(Va_star_, R_star_, gamma_star_, x_star, u_star);
+  std::cout << "x_star = \n" << x_star.toEigen() << "\n\nu_star = \n" << u_star << "\n\n";
+
   // Initialize loggers and log initial data
   std::stringstream ss_ts, ss_c;
   ss_ts << "/tmp/" << name_ << "_true_state.log";
@@ -136,70 +145,6 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   state_log_.open(ss_ts.str());
   command_log_.open(ss_c.str());
   log(0);
-}
-
-
-void FixedWing::f(const vehicle::State& x, const uVector& u,
-                  const Vector3d& vw, vehicle::dxVector& dx)
-{
-
-  Vector3d v_r = x.v - x.q.rotp(vw);
-  double Va = v_r.norm();
-  double alpha = atan2(v_r(2), v_r(0));
-  double beta = asin(v_r(1) / Va);
-
-  double sigma_of_alpha = (1.0 + exp(-wing_M_ * (alpha - wing_alpha0_)) + exp(wing_M_ * (alpha + wing_alpha0_))) /
-                          ((1.0 + exp(-wing_M_ * (alpha - wing_alpha0_))) * (1.0 + exp(wing_M_ * (alpha + wing_alpha0_))));
-  double C_L_of_alpha = (1.0 - sigma_of_alpha) * (C_L_0_ + C_L_alpha_ * alpha) +
-                        sigma_of_alpha * (2.0 * common::sign(alpha) * sin(alpha) * sin(alpha) * cos(alpha));
-  double C_D_of_alpha = C_D_p_ + wing_S_ * (C_L_0_ + C_L_alpha_ * alpha) * (C_L_0_ + C_L_alpha_ * alpha) /
-                        (M_PI * prop_e_ * wing_b_ * wing_b_);
-  double C_X_of_alpha = -C_D_of_alpha * cos(alpha) + C_L_of_alpha * sin(alpha);
-  double C_X_q_of_alpha = -C_D_q_ * cos(alpha) + C_L_q_ * sin(alpha);
-  double C_X_delta_e_of_alpha = -C_D_delta_e_ * cos(alpha) + C_L_delta_e_ * sin(alpha);
-  double C_Z_of_alpha = -C_D_of_alpha * sin(alpha) - C_L_of_alpha * cos(alpha);
-  double C_Z_q_of_alpha = -C_D_q_ * sin(alpha) - C_L_q_ * cos(alpha);
-  double C_Z_delta_e_of_alpha = -C_D_delta_e_ * sin(alpha) - C_L_delta_e_ * cos(alpha);
-
-  Vector3d C_F_alpha_beta(C_X_of_alpha, C_Y_0_ + C_Y_beta_ * beta, C_Z_of_alpha);
-  Matrix3d C_F_omega = Matrix3d::Zero();
-  C_F_omega(0,1) = C_X_q_of_alpha * wing_c_;
-  C_F_omega(1,0) = C_Y_p_ * wing_b_;
-  C_F_omega(1,2) = C_Y_r_ * wing_b_;
-  C_F_omega(2,1) = C_Z_q_of_alpha * wing_c_;
-  Matrix<double,3,4> C_F_u = Matrix<double,3,4>::Zero();
-  C_F_u(0,1) = C_X_delta_e_of_alpha * delta_e_max_;
-  C_F_u(1,0) = C_Y_delta_a_ * delta_a_max_;
-  C_F_u(1,3) = C_Y_delta_r_ * delta_r_max_;
-  C_F_u(2,1) = C_Z_delta_e_of_alpha * delta_e_max_;
-  Matrix3d C_bc = Vector3d(wing_b_, wing_c_, wing_b_).asDiagonal();
-  Vector3d C_tau_alpha_beta(C_el_0_ + C_el_beta_ * beta,
-                            C_m_0_ + C_m_alpha_ * alpha,
-                            C_n_0_ + C_n_beta_ * beta);
-  Matrix3d C_tau_omega = Matrix3d::Zero();
-  C_tau_omega(0,0) = C_el_p_ * wing_b_;
-  C_tau_omega(0,2) = C_el_r_ * wing_b_;
-  C_tau_omega(1,1) = C_m_q_ * wing_c_;
-  C_tau_omega(2,0) = C_n_p_ * wing_b_;
-  C_tau_omega(2,2) = C_n_r_ * wing_b_;
-  Matrix<double,3,4> C_tau_u = Matrix<double,3,4>::Zero();
-  C_tau_u(0,0) = C_el_delta_a_ * delta_a_max_;
-  C_tau_u(0,3) = C_el_delta_r_ * delta_r_max_;
-  C_tau_u(1,1) = C_m_delta_e_ * delta_e_max_;
-  C_tau_u(2,0) = C_n_delta_a_ * delta_a_max_;
-  C_tau_u(2,3) = C_n_delta_r_ * delta_r_max_;
-
-  Vector3d f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
-                 (C_F_alpha_beta + 1.0 / (2.0 * Va) * C_F_omega * x.omega + C_F_u * u) +
-                 0.5 * rho_ * prop_S_ * prop_C_ * (k_motor_ * k_motor_ * u(T) * u(T) - Va * Va) * common::e1;
-  Vector3d tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc *
-                   (C_tau_alpha_beta + 1.0 / (2.0 * Va) * C_tau_omega * x.omega + C_tau_u * u) -
-                   k_T_P_ * k_Omega_ * k_Omega_ * u(T) * u(T) * common::e1;
-
-  dx.segment<3>(vehicle::DP) = x.q.rota(x.v);
-  dx.segment<3>(vehicle::DV) = 1.0 / mass_ * f_b - x.omega.cross(x.v);
-  dx.segment<3>(vehicle::DQ) = x.omega;
-  dx.segment<3>(vehicle::DW) = J_inv_ * (tau_b - x.omega.cross(J_ * x.omega));
 }
 
 
@@ -213,7 +158,7 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta
-    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWing::f, this,
+    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWing::f<double>, this,
                                std::placeholders::_1,std::placeholders::_2,
                                std::placeholders::_3,std::placeholders::_4),
                                dt, x_, u, vw, dx_);
@@ -221,7 +166,7 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
   else
   {
     // Euler
-    f(x_, u, vw, dx_);
+    f<double>(x_, u, vw, dx_);
     dx_ *= dt;
   }
   x_ += dx_;
@@ -242,7 +187,7 @@ void FixedWing::run(const double &t, const environment::Environment& env)
 void FixedWing::updateAccels(const uVector &u, const Vector3d &vw)
 {
   static vehicle::dxVector dx;
-  f(x_, u, vw, dx);
+  f<double>(x_, u, vw, dx);
   x_.lin_accel = dx.segment<3>(vehicle::DV);
   x_.ang_accel = dx.segment<3>(vehicle::DW);
 }
@@ -266,6 +211,32 @@ void FixedWing::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<V
   for (int i = 0; i < all_vehicle_positions.size(); ++i)
     if (i != id_)
       other_vehicle_positions_.push_back(all_vehicle_positions[i]);
+}
+
+
+void FixedWing::computeTrim(const double &Va_star, const double &R_star, const double &gamma_star,
+                            vehicle::State<double> &x_star, uVector &u_star)
+{
+  // Compute desired state derivative
+  vehicle::dxVector xdot_star = vehicle::dxVector::Zero();
+  xdot_star(vehicle::DP+2) = Va_star * sin(gamma_star);
+  xdot_star(vehicle::DQ+2) = Va_star / R_star * cos(gamma_star);
+
+  // Computed trimmed alpha, beta, phi
+  double alpha_star = 0;
+  double beta_star = 0;
+  double phi_star = 0;
+  ceres::Problem problem;
+  problem.AddResidualBlock(new DynamicsCostFactor(
+                           new DynamicsCost(xdot_star, Va_star, R_star, gamma_star, *this)),
+                           NULL, &alpha_star, &beta_star, &phi_star);
+  ceres::Solver::Options options;
+  options.minimizer_progress_to_stdout = false;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+
+  // Compute final trimmed state and trimmed command
+  computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, Va_star, R_star, gamma_star, x_star, u_star);
 }
 
 

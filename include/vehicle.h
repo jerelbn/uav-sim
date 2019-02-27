@@ -34,15 +34,16 @@ enum
 typedef Matrix<double, NUM_STATES, 1> xVector;
 typedef Matrix<double, NUM_DOF, 1> dxVector;
 
+template<typename T>
 struct State
 {
 
-  Vector3d p;
-  Vector3d v;
-  Vector3d lin_accel;
-  quat::Quatd q;
-  Vector3d omega;
-  Vector3d ang_accel;
+  Matrix<T,3,1> p;
+  Matrix<T,3,1> v;
+  Matrix<T,3,1> lin_accel;
+  quat::Quat<T> q;
+  Matrix<T,3,1> omega;
+  Matrix<T,3,1> ang_accel;
 
   State()
   {
@@ -53,42 +54,52 @@ struct State
     ang_accel.setZero();
   }
 
-  State(const xVector &x0)
+  State(const Matrix<T, NUM_STATES, 1>  &x0)
   {
-    p = x0.segment<3>(P);
-    v = x0.segment<3>(V);
-    lin_accel = x0.segment<3>(LA);
-    q = quat::Quatd(x0.segment<4>(Q));
-    omega = x0.segment<3>(W);
-    ang_accel = x0.segment<3>(AA);
+    p = x0.template segment<3>(P);
+    v = x0.template segment<3>(V);
+    lin_accel = x0.template segment<3>(LA);
+    q = quat::Quat<T>(x0.template segment<4>(Q));
+    omega = x0.template segment<3>(W);
+    ang_accel = x0.template segment<3>(AA);
   }
 
-  State operator+(const dxVector &delta) const
+  State operator+(const Matrix<T, NUM_DOF, 1> &delta) const
   {
     State x;
-    x.p = p + delta.segment<3>(DP);
-    x.v = v + delta.segment<3>(DV);
-    x.q = q + delta.segment<3>(DQ);
-    x.omega = omega + delta.segment<3>(DW);
+    x.p = p + delta.template segment<3>(DP);
+    x.v = v + delta.template segment<3>(DV);
+    x.q = q + delta.template segment<3>(DQ);
+    x.omega = omega + delta.template segment<3>(DW);
     return x;
   }
 
-  void operator+=(const dxVector &delta)
+  void operator+=(const Matrix<T, NUM_DOF, 1> &delta)
   {
     *this = *this + delta;
   }
 
-  Matrix<double, NUM_STATES, 1> toEigen() const
+  void setZero()
   {
-    Matrix<double, NUM_STATES, 1> x;
+    p.setZero();
+    v.setZero();
+    lin_accel.setZero();
+    q = quat::Quat<T>();
+    omega.setZero();
+    ang_accel.setZero();
+  }
+
+  Matrix<T, NUM_STATES, 1> toEigen() const
+  {
+    Matrix<T, NUM_STATES, 1> x;
     x << p, v, lin_accel, q.elements(), omega, ang_accel;
     return x;
   }
 
-  Matrix<double, NUM_DOF, 1> minimal() const
+  Matrix<T, NUM_DOF, 1> minimal() const
   {
-    Matrix<double, NUM_DOF, 1> x;
-    x << p, v, lin_accel, quat::Quatd::log(q), omega, ang_accel;
+    Matrix<T, NUM_DOF, 1> x;
+    x << p, v, lin_accel, quat::Quat<T>::log(q), omega, ang_accel;
     return x;
   }
 
@@ -97,8 +108,8 @@ struct State
 
 // 4th order integration for truth of each vehicle
 template<int U> // command vector size
-void rk4(std::function<void(const State&, const Matrix<double,U,1>&, const Vector3d&, dxVector&)> f,
-                            const double& dt, const State& x, const Matrix<double,U,1>& u,
+void rk4(std::function<void(const State<double>&, const Matrix<double,U,1>&, const Vector3d&, dxVector&)> f,
+                            const double& dt, const State<double>& x, const Matrix<double,U,1>& u,
                             const Vector3d& vw, vehicle::dxVector& dx)
 {
   dxVector k1, k2, k3, k4;
@@ -134,10 +145,10 @@ namespace fixedwing
 
 enum
 {
-  A, // aileron
-  E, // elevator
-  T, // throttle
-  R, // rudder
+  AIL, // aileron
+  ELE, // elevator
+  THR, // throttle
+  RUD, // rudder
   COMMAND_SIZE
 };
 typedef Matrix<double, COMMAND_SIZE, 1> uVector;

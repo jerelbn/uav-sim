@@ -5,11 +5,15 @@ control_using_estimates: false
 
 # Physical parameters
 x0: [0, 0, -5,    # POS
-     16.3700255105806, 0, 0.571545958728427,    # VEL
+     16.3474, -0.181355, 1.01741,    # VEL
      0, 0, 0,    # LIN ACC
-     0.999847752613368, 0, 0.0174491144187124, 0, # ATT
-     0, 0, 0,    # OMEGA
+     0.999517, 0, 0.0310733, 0, # ATT
+     -0.0101747, 0.163483, 0.00040236,    # OMEGA
      0, 0, 0]    # ANG ACC
+
+Va_star: 16.38 # desired air speed
+R_star: 100 # desired turn radius
+gamma_star: 0.0 # desired flight path angle
 
 mass: 3.92
 
@@ -26,8 +30,8 @@ wing_M: 50
 wing_epsilon: 0.1592
 wing_alpha0: 0.3040363557
 
-k_motor: 40.0
-k_T_P: 0.0
+k_motor: 60.0
+k_T_p: 0.0
 k_Omega: 0.0
 
 prop_e: 0.8
@@ -97,14 +101,6 @@ C_Y_delta_r:  0.1591
 delta_a_max: 1.0
 delta_e_max: 1.0
 delta_r_max: 1.0
-
-# trim conditions
-phi0: 0
-theta0: 0.0349 # 2 degrees
-psi0: 0
-Va0: 16.38
-delta_e0: 0.02967 # 1.7 degrees
-delta_t0: 0.4
 
 # Controller
 throttle_eq: 0.5

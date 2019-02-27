@@ -18,9 +18,9 @@ public:
   Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
-  void computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
+  void computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
   void log(const double& t);
-  inline vehicle::State getCommandedState() const { return xc_; }
+  inline vehicle::State<double> getCommandedState() const { return xc_; }
 
 private:
 
@@ -106,8 +106,8 @@ private:
 
   // Memory for sharing information between functions
   bool initialized_;
-  vehicle::State xhat_; // estimate
-  vehicle::State xc_; // command
+  vehicle::State<double> xhat_; // estimate
+  vehicle::State<double> xc_; // command
   max_t max_ = {};
   double prev_time_;
   uint8_t control_mode_;

@@ -56,7 +56,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 }
 
 
-void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
+void Controller::computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
 {
   // Copy the current state
   xhat_ = x;
@@ -84,10 +84,10 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     throw std::runtime_error("Undefined path type in fixed wing controller.");
 
   // Calculate the Final Output Torques using PID
-  u(A) = 0;
-  u(E) = 0.02967;
-  u(T) = 0.4;
-  u(R) = 0;
+  u(AIL) = -0.000274906;
+  u(ELE) =     0.005857;
+  u(THR) =     0.360361;
+  u(RUD) =   -0.0153994;
 }
 
 

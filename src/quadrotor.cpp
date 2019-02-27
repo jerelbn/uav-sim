@@ -37,7 +37,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   vehicle::xVector x0;
   Vector3d inertia_diag, angular_drag_diag;
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
-  x_ = vehicle::State(x0);
+  x_ = vehicle::State<double>(x0);
   if (common::get_yaml_eigen<Vector3d>("inertia", filename, inertia_diag))
   {
     inertia_matrix_ = inertia_diag.asDiagonal();
@@ -62,7 +62,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
 }
 
 
-void Quadrotor::f(const vehicle::State& x, const uVector& u,
+void Quadrotor::f(const vehicle::State<double>& x, const uVector& u,
                   const Vector3d& vw, vehicle::dxVector& dx)
 {
   v_rel_ = x.v - x.q.rotp(vw);

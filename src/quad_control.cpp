@@ -108,7 +108,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 }
 
 
-void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
+void Controller::computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
 {
   // Update state estimate for waypoint manager
   xhat_ = x;
