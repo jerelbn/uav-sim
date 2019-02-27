@@ -145,7 +145,7 @@ public:
     x.v(0) = Va * cos(alpha) * cos(beta);
     x.v(1) = Va * sin(beta);
     x.v(2) = Va * sin(alpha) * cos(beta);
-    x.q = quat::Quat<T>(T(0), theta, T(0));
+    x.q = quat::Quat<T>(phi, theta, T(0));
     x.omega(0) = -Va / R * sin(theta);
     x.omega(1) = Va / R * sin(phi) * cos(theta);
     x.omega(2) = Va / R * cos(phi) * cos(theta);
@@ -268,6 +268,7 @@ public:
 };
 
 
+// Cost functor to minimize when computing trim
 class DynamicsCost
 {
 public:
