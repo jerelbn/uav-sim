@@ -24,7 +24,6 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 
   common::get_yaml_node("throttle_eq", filename, throttle_eq_);
   common::get_yaml_node("mass", filename, mass_);
-  common::get_yaml_node("max_thrust", filename, max_thrust_);
 
   common::get_yaml_node("path_type", filename, path_type_);
 
@@ -86,8 +85,8 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
 
   // Calculate the Final Output Torques using PID
   u(A) = 0;
-  u(E) = 0;
-  u(T) = 0.5;
+  u(E) = 0.02967;
+  u(T) = 0.4;
   u(R) = 0;
 }
 

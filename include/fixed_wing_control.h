@@ -35,7 +35,6 @@ private:
   // Parameters
   double throttle_eq_;
   double mass_;
-  double max_thrust_;
   int path_type_;
   std::default_random_engine rng_;
   uVector u_prev_;

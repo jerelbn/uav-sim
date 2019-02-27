@@ -4,7 +4,7 @@ cam_max_feat = 10000;
 
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
-command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 14, []);
+command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 19, []);
 accel = reshape(fread(fopen(strcat(['/tmp/',name,'_accel.log']), 'r'), 'double'), 10, []);
 accel_bias = accel(5:7,:);
 accel_noise = accel(8:10,:);

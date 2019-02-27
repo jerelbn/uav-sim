@@ -49,9 +49,8 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
     angular_drag_matrix_ = angular_drag_diag.asDiagonal();
 
   // Compute initial control and corresponding acceleration
-  Vector3d vw;
-  controller_.computeControl(getState(), 0, u_, env.get_vw());
-  updateAccels(u_,vw);
+  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
+  updateAccels(u_, env.get_vw());
 
   // Initialize loggers and log initial data
   std::stringstream ss_ts, ss_c;

@@ -5,20 +5,106 @@ control_using_estimates: false
 
 # Physical parameters
 x0: [0, 0, -5,    # POS
-     0, 0, 0,    # VEL
+     16.3700255105806, 0, 0.571545958728427,    # VEL
      0, 0, 0,    # LIN ACC
-     1, 0, 0, 0, # ATT
+     0.999847752613368, 0, 0.0174491144187124, 0, # ATT
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
-mass: 10.0
-inertia: [0.6271, 0.6271, 1.25]
-linear_drag: [0.1, 0.1, 0.001]
-angular_drag: [0.001, 0.001, 0.001]
+mass: 3.92
 
-max_thrust: 196.133
-max_throttle: 1.0
-max_vel: 2.0
+Jx: 0.213
+Jy: 0.171
+Jz: 0.350
+Jxz: 0.04
+
+rho: 1.2682
+wing_S: 0.468
+wing_b: 1.8
+wing_c: 0.26
+wing_M: 50
+wing_epsilon: 0.1592
+wing_alpha0: 0.3040363557
+
+k_motor: 40.0
+k_T_P: 0.0
+k_Omega: 0.0
+
+prop_e: 0.8
+prop_S: 0.0314
+prop_C: 1.0
+
+C_L_0: 0.2869
+C_L_alpha: 5.1378
+C_L_beta: 0.0
+C_L_p: 0.0
+C_L_q: 1.7102
+C_L_r: 0.0
+C_L_delta_a: 0.0
+C_L_delta_e: 0.5202
+C_L_delta_r: 0.0
+
+C_D_0: 0.03087
+C_D_alpha: 0.0043021
+C_D_beta: 0.0
+C_D_p: 0.02815
+C_D_q: 0.2514
+C_D_r: 0.0
+C_D_delta_a: 0.0
+C_D_delta_e: 0.01879
+C_D_delta_r: 0.0
+
+C_el_0: 0.0
+C_el_alpha: 0.00
+C_el_beta: 0.0193
+C_el_p: -0.5406
+C_el_q: 0.0
+C_el_r: 0.1929
+C_el_delta_a: 0.2818
+C_el_delta_e: 0.0
+C_el_delta_r: 0.00096
+
+C_m_0: 0.0362
+C_m_alpha: -0.2627
+C_m_beta: 0.0
+C_m_p: 0.0
+C_m_q: -9.7213
+C_m_r: 0.0
+C_m_delta_a: 0.0
+C_m_delta_e: -1.2392
+C_m_delta_r: 0.0
+
+C_n_0: 0.0
+C_n_alpha: 0.0
+C_n_beta: 0.08557
+C_n_p: -0.0498
+C_n_q: 0.0
+C_n_r: -0.0572
+C_n_delta_a: 0.0095
+C_n_delta_e: 0.0
+C_n_delta_r: -0.06
+
+C_Y_0: 0.0
+C_Y_alpha: 0.00
+C_Y_beta: -0.2471
+C_Y_p: -0.07278
+C_Y_q: 0.0
+C_Y_r: 0.1849
+C_Y_delta_a: -0.02344
+C_Y_delta_e: 0.0
+C_Y_delta_r:  0.1591
+
+delta_a_max: 1.0
+delta_e_max: 1.0
+delta_r_max: 1.0
+
+# trim conditions
+phi0: 0
+theta0: 0.0349 # 2 degrees
+psi0: 0
+Va0: 16.38
+delta_e0: 0.02967 # 1.7 degrees
+delta_t0: 0.4
 
 # Controller
 throttle_eq: 0.5
