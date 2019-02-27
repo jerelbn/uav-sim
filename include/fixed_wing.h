@@ -3,25 +3,25 @@
 #include <fstream>
 
 #include "common_cpp/common.h"
-#include "quad_control.h"
+#include "fixed_wing_control.h"
 #include "sensors.h"
 #include "environment.h"
 
 using namespace Eigen;
 
 
-namespace quadrotor
+namespace fixedwing
 {
 
 
-class Quadrotor
+class FixedWing
 {
 
 public:
 
-  Quadrotor();
-  Quadrotor(const std::string &filename, const environment::Environment& env, const bool &use_random_seed, const int& id);
-  ~Quadrotor();
+  FixedWing();
+  FixedWing(const std::string &filename, const environment::Environment& env, const bool &use_random_seed, const int& id);
+  ~FixedWing();
 
   void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
   void run(const double &t, const environment::Environment& env);
@@ -67,4 +67,4 @@ private:
 };
 
 
-} // namespace quadrotor
+} // namespace fixedwing

@@ -63,8 +63,8 @@ void Environment::load(const std::string filename)
   }
 
   // Initialize loggers
-  environment_log_.open("/tmp/environment.bin");
-  wind_log_.open("/tmp/wind.bin");
+  environment_log_.open("/tmp/environment.log");
+  wind_log_.open("/tmp/wind.log");
 
   // Log environment initial wind data
   environment_log_.write((char*)points_.data(), points_.rows() * points_.cols() * sizeof(double));

@@ -17,10 +17,9 @@ class Sensors
 public:
 
   Sensors();
-  Sensors(const std::string &filename, const bool &use_random_seed);
   ~Sensors();
 
-  void load(const std::string &filename, const bool &use_random_seed);
+  void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
   void updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;

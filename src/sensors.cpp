@@ -8,12 +8,6 @@ namespace sensors
 Sensors::Sensors() {}
 
 
-Sensors::Sensors(const std::string& filename, const bool& use_random_seed)
-{
-  load(filename, use_random_seed);
-}
-
-
 Sensors::~Sensors()
 {
   accel_log_.close();
@@ -23,7 +17,7 @@ Sensors::~Sensors()
 }
 
 
-void Sensors::load(const std::string& filename, const bool& use_random_seed)
+void Sensors::load(const std::string& filename, const bool& use_random_seed, const std::string& name)
 {
   // Initialize random number generator
   int seed;
@@ -109,10 +103,15 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed)
   new_mocap_meas_ = false;
 
   // Initialize loggers
-  accel_log_.open("/tmp/accel.bin");
-  gyro_log_.open("/tmp/gyro.bin");
-  cam_log_.open("/tmp/camera.bin");
-  mocap_log_.open("/tmp/mocap.bin");
+  std::stringstream ss_a, ss_g, ss_c, ss_m;
+  ss_a << "/tmp/" << name << "_accel.log";
+  ss_g << "/tmp/" << name << "_gyro.log";
+  ss_c << "/tmp/" << name << "_camera.log";
+  ss_m << "/tmp/" << name << "_mocap.log";
+  accel_log_.open(ss_a.str());
+  gyro_log_.open(ss_g.str());
+  cam_log_.open(ss_c.str());
+  mocap_log_.open(ss_m.str());
 }
 
 

@@ -1,5 +1,5 @@
-# Quadrotor 1 configuration
-name: quad1
+# Fixed Wing 1 configuration
+name: wing1
 accurate_integration: true
 control_using_estimates: false
 
@@ -17,35 +17,11 @@ linear_drag: [0.1, 0.1, 0.001]
 angular_drag: [0.001, 0.001, 0.001]
 
 max_thrust: 196.133
-max_roll: 1.0
-max_pitch: 1.0
-max_yaw_rate: 1.5
 max_throttle: 1.0
 max_vel: 2.0
-max_tau_x: 200.0
-max_tau_y: 200.0
-max_tau_z: 50.0
 
 # Controller
 throttle_eq: 0.5
-
-Kp: [1.0, 1.0, 1.0]
-Kd: [0, 0, 0]
-Kv: [2.0, 2.0, 2.0]
-
-roll_kp: 10.0
-roll_ki: 0.0
-roll_kd: 3.0
-pitch_kp: 10.0
-pitch_ki: 0.0
-pitch_kd: 3.0
-yaw_rate_kp: 1.0
-yaw_rate_ki: 0.0
-yaw_rate_kd: 0.0
-
-circ_kr: 5.0
-circ_kp: 5.0
-circ_kh: 5.0
 
 
 # Trajectory
@@ -88,7 +64,7 @@ circ_hd: 5.0
 
 # Sensors
 imu_enabled: true
-camera_enabled: true
+camera_enabled: false
 mocap_enabled: false
 
 use_accel_truth: false
@@ -132,13 +108,3 @@ q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 ## Barometer
 ## Magnetometer
 ## GPS
-
-
-# Target estimator parameters
-bearing_only: true
-use_target_truth: false
-target_z0: [5, 0, 0]
-target_vz0: [0, 0, 0]
-target_gain: 1.0
-target_velocity_gain: 1.0
-target_noise_stdev: 1.0

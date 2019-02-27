@@ -1,4 +1,10 @@
-function animate_3d(speed, env, truth, cmd, bicycle_state)
+function animate_3d(speed, name)
+
+    % Load data
+    env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []);
+    air_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
+    air_command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 14, []);
+    bike_state = reshape(fread(fopen('/tmp/bike1_true_state.log', 'r'), 'double'), 7, []);
 
     persistent body_handle true_path_handle cmd_handle bike_trail_handle bike_handle
 
@@ -9,15 +15,14 @@ function animate_3d(speed, env, truth, cmd, bicycle_state)
               -0.5, 0.5, 0.1;
               -0.3, -0.3, 0;
               -0.5, -0.5, 0.1];
-    
-    s = 1.5; % scale factor for axes
-    quad_history = 10000;
+    s = 1.2; % axis scale factor
+    air_history = 10000;
     bike_history = 30000;
-    for i =1:speed:length(truth)
-        if i < quad_history
+    for i =1:speed:length(air_state)
+        if i < air_history
             qh = i - 1;
         else
-            qh = quad_history;
+            qh = air_history;
         end
         if i < bike_history
             bh = i - 1;
@@ -25,15 +30,12 @@ function animate_3d(speed, env, truth, cmd, bicycle_state)
             bh = bike_history;
         end
         if i == 1
-            figure(1e6), clf, grid on, hold on, axis equal
+            figure(), grid on, hold on, axis equal
             set(gcf, 'name', '3D Animation', 'NumberTitle', 'off')
             set(gcf, 'color', 'w')
-%             axis([s*min(env(1,:)) s*max(env(1,:)),... % x
-%                   s*min(env(2,:)) s*max(env(2,:)),... % y
-%                   s*min(env(3,:)) s*max(env(3,:))])   % z
-            axis([-15, 15,... % x
-                  -15, 15,... % y
-                  -10,  3])
+            axis([s*min([air_state(2,:),bike_state(2,:)]) s*max([air_state(2,:),bike_state(2,:)]),... % x
+                  s*min([air_state(3,:),bike_state(3,:)]) s*max([air_state(3,:),bike_state(3,:)]),... % y
+                  s*min([air_state(4,:),bike_state(4,:)]) s*max([air_state(4,:),bike_state(4,:)])])   % z
             xlabel('North axis');
             ylabel('East axis');
             zlabel('Down axis');
@@ -42,17 +44,17 @@ function animate_3d(speed, env, truth, cmd, bicycle_state)
             set(gca,'ZDir','Reverse')
             
             plot3(env(1,:), env(2,:), env(3,:), 'k.', 'MarkerSize', 4.0)
-            body_handle = draw_body(i, points, truth, []);
-            true_path_handle = plot3(truth(2,1:i), truth(3,1:i), truth(4,1:i), 'b', 'linewidth', 1.5);
-            cmd_handle = plot3(cmd(2,1:i), cmd(3,1:i), cmd(4,1:i), 'g--', 'linewidth', 1.3);
-            bike_trail_handle = plot3(bicycle_state(2,1:i), bicycle_state(3,1:i), bicycle_state(4,1:i), 'm', 'linewidth', 1.3);
-            bike_handle = plot3(bicycle_state(2,i), bicycle_state(3,i), bicycle_state(4,i), 'm', 'Marker', '*', 'markersize', 5.0);
+            body_handle = draw_body(i, points, air_state, []);
+            true_path_handle = plot3(air_state(2,1:i), air_state(3,1:i), air_state(4,1:i), 'b', 'linewidth', 1.5);
+            cmd_handle = plot3(air_command(2,1:i), air_command(3,1:i), air_command(4,1:i), 'g--', 'linewidth', 1.3);
+            bike_trail_handle = plot3(bike_state(2,1:i), bike_state(3,1:i), bike_state(4,1:i), 'm', 'linewidth', 1.3);
+            bike_handle = plot3(bike_state(2,i), bike_state(3,i), bike_state(4,i), 'm', 'Marker', '*', 'markersize', 5.0);
         else
-            draw_body(i, points, truth, body_handle);
-            set(true_path_handle, 'XData', truth(2,i-qh:i), 'YData', truth(3,i-qh:i),'ZData', truth(4,i-qh:i));
-            set(cmd_handle, 'XData', cmd(2,1:i), 'YData', cmd(3,1:i),'ZData', cmd(4,1:i));
-            set(bike_trail_handle, 'XData', bicycle_state(2,i-bh:i), 'YData', bicycle_state(3,i-bh:i),'ZData', bicycle_state(4,i-bh:i));
-            set(bike_handle, 'XData', bicycle_state(2,i), 'YData', bicycle_state(3,i),'ZData', bicycle_state(4,i));
+            draw_body(i, points, air_state, body_handle);
+            set(true_path_handle, 'XData', air_state(2,i-qh:i), 'YData', air_state(3,i-qh:i),'ZData', air_state(4,i-qh:i));
+            set(cmd_handle, 'XData', air_command(2,1:i), 'YData', air_command(3,1:i),'ZData', air_command(4,1:i));
+            set(bike_trail_handle, 'XData', bike_state(2,i-bh:i), 'YData', bike_state(3,i-bh:i),'ZData', bike_state(4,i-bh:i));
+            set(bike_handle, 'XData', bike_state(2,i), 'YData', bike_state(3,i),'ZData', bike_state(4,i));
             drawnow
         end
     end

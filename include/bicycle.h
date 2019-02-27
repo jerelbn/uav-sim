@@ -111,6 +111,7 @@ public:
   const State& getState() const { return x_; }
 
   int id_;
+  std::string name_;
 
 private:
 

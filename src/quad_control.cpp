@@ -1,7 +1,7 @@
 #include "quad_control.h"
 
 
-namespace controller
+namespace quadrotor
 {
 
 
@@ -13,16 +13,7 @@ Controller::Controller() :
 }
 
 
-Controller::Controller(const std::string& filename, const bool& use_random_seed) :
-  prev_time_(0),
-  initialized_(false)
-{
-  dhat_.setZero();
-  load(filename, use_random_seed);
-}
-
-
-void Controller::load(const std::string& filename, const bool& use_random_seed)
+void Controller::load(const std::string& filename, const bool& use_random_seed, const std::string& name)
 {
   // Initialize random number generator
   int seed;
@@ -111,7 +102,9 @@ void Controller::load(const std::string& filename, const bool& use_random_seed)
   target_noise_.setZero();
 
   // Initialize loggers
-  target_log_.open("/tmp/target.bin");
+  std::stringstream ss_t;
+  ss_t << "/tmp/" << name << "_target.log";
+  target_log_.open(ss_t.str());
 }
 
 
@@ -280,7 +273,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     xc_.theta = atan2(-Rc(2,0),Rc(0,0));
   }
   else
-    throw std::runtime_error("Undefined path type in controller.");
+    throw std::runtime_error("Undefined path type in quadrotor controller.");
 
   // Create Roll and Pitch Command
   xc_.throttle = common::saturate(xc_.throttle, max_.throttle, 0.0);
@@ -434,4 +427,4 @@ void Controller::log(const double &t)
   target_log_.write((char*)vz_.data(), vz_.rows() * sizeof(double));
 }
 
-}
+} // namespace quadrotor

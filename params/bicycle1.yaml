@@ -1,27 +1,28 @@
 # Bicycle configuration
-bicycle_accurate_integration: true
-bicycle_x0: [2, # NORTH
-             0, # EAST
-             0, # DOWN
-             0, # HEADING
-             0.5, # VELOCITY
-             0] # STEERING ANGLE
+name: bike1
+accurate_integration: true
+x0: [2, # NORTH
+     0, # EAST
+     0, # DOWN
+     0, # HEADING
+     0.5, # VELOCITY
+     0] # STEERING ANGLE
 
-bicycle_mass: 1.0
-bicycle_inertia: 0.1
-bicycle_length: 1.5
-bicycle_max_force: 10.0
-bicycle_max_torque: 1.0
-bicycle_max_steering_angle: 0.78
+mass: 1.0
+inertia: 0.1
+length: 1.5
+max_force: 10.0
+max_torque: 1.0
+max_steering_angle: 0.78
 
-bicycle_k_u: 5.0
-bicycle_k_theta: 5.0
-bicycle_k_psi: 5.0
-bicycle_velocity_command: 0.5
+k_u: 5.0
+k_theta: 5.0
+k_psi: 5.0
+velocity_command: 0.5
 
-bicycle_waypoints: [8, 8,
-                    -8, 8,
-                    -8, -8,
-                    8, -8]
-bicycle_waypoint_threshold: 1.0
-bicycle_flat_ground: false
+waypoints: [8, 8,
+            -8, 8,
+            -8, -8,
+            8, -8]
+waypoint_threshold: 1.0
+flat_ground: false

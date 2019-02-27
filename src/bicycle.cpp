@@ -25,25 +25,26 @@ void Bicycle::load(const std::string &filename, const environment::Environment &
 {
   // Load all parameters
   xVector x0;
-  common::get_yaml_node("bicycle_accurate_integration", filename, accurate_integration_);
-  common::get_yaml_node("bicycle_mass", filename, mass_);
-  common::get_yaml_node("bicycle_inertia", filename, inertia_);
-  common::get_yaml_node("bicycle_length", filename, L_);
-  common::get_yaml_node("bicycle_max_force", filename, max_force_);
-  common::get_yaml_node("bicycle_max_torque", filename, max_torque_);
-  common::get_yaml_node("bicycle_max_steering_angle", filename, max_steering_angle_);
-  common::get_yaml_node("bicycle_k_u", filename, ku_);
-  common::get_yaml_node("bicycle_k_theta", filename, ktheta_);
-  common::get_yaml_node("bicycle_k_psi", filename, kpsi_);
-  common::get_yaml_node("bicycle_velocity_command", filename, vel_cmd_);
-  common::get_yaml_node("bicycle_flat_ground", filename, flat_ground_);
-  common::get_yaml_eigen<xVector>("bicycle_x0", filename, x0);
+  common::get_yaml_node("name", filename, name_);
+  common::get_yaml_node("accurate_integration", filename, accurate_integration_);
+  common::get_yaml_node("mass", filename, mass_);
+  common::get_yaml_node("inertia", filename, inertia_);
+  common::get_yaml_node("length", filename, L_);
+  common::get_yaml_node("max_force", filename, max_force_);
+  common::get_yaml_node("max_torque", filename, max_torque_);
+  common::get_yaml_node("max_steering_angle", filename, max_steering_angle_);
+  common::get_yaml_node("k_u", filename, ku_);
+  common::get_yaml_node("k_theta", filename, ktheta_);
+  common::get_yaml_node("k_psi", filename, kpsi_);
+  common::get_yaml_node("velocity_command", filename, vel_cmd_);
+  common::get_yaml_node("flat_ground", filename, flat_ground_);
+  common::get_yaml_eigen<xVector>("x0", filename, x0);
   x_ = State(x0);
 
   // Load waypoints
   std::vector<double> loaded_wps;
-  common::get_yaml_node("bicycle_waypoint_threshold", filename, waypoint_threshold_);
-  if (common::get_yaml_node("bicycle_waypoints", filename, loaded_wps))
+  common::get_yaml_node("waypoint_threshold", filename, waypoint_threshold_);
+  if (common::get_yaml_node("waypoints", filename, loaded_wps))
   {
     int num_waypoints = std::floor(loaded_wps.size()/2.0);
     waypoints_ = Eigen::Map<Eigen::MatrixXd>(loaded_wps.data(), 2, num_waypoints);
@@ -55,8 +56,11 @@ void Bicycle::load(const std::string &filename, const environment::Environment &
   updateElevation(env);
 
   // Initialize loggers
-  true_state_log_.open("/tmp/bicycle_true_state.bin");
-  command_log_.open("/tmp/bicycle_command.bin");
+  std::stringstream ss_ts, ss_c;
+  ss_ts << "/tmp/" << name_ << "_true_state.log";
+  ss_c << "/tmp/" << name_ << "_command.log";
+  true_state_log_.open(ss_ts.str());
+  command_log_.open(ss_c.str());
   log(0);
 }
 

@@ -7,7 +7,7 @@
 using namespace Eigen;
 
 
-namespace controller
+namespace quadrotor
 {
 
 class Controller
@@ -38,9 +38,8 @@ public:
   } state_t;
 
   Controller();
-  Controller(const std::string &filename, const bool &use_random_seed);
 
-  void load(const std::string &filename, const bool &use_random_seed);
+  void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
   void computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
   void log(const double& t);
   inline state_t getCommandedState() const { return xc_; }
@@ -152,4 +151,4 @@ private:
   void updateTrajectoryManager();
 };
 
-}
+} // namespace quadrotor

@@ -1,34 +1,34 @@
-#include "quadrotor.h"
+#include "fixed_wing.h"
 
-namespace quadrotor
+namespace fixedwing
 {
 
 
-Quadrotor::Quadrotor()  : t_prev_(0.0) {}
+FixedWing::FixedWing()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
+FixedWing::FixedWing(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
   : t_prev_(0.0), id_(id)
 {
   load(filename, env, use_random_seed);
 }
 
 
-Quadrotor::~Quadrotor()
+FixedWing::~FixedWing()
 {
   state_log_.close();
   command_log_.close();
 }
 
 
-void Quadrotor::load(const std::string &filename, const environment::Environment& env, const bool& use_random_seed)
+void FixedWing::load(const std::string &filename, const environment::Environment& env, const bool& use_random_seed)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   common::get_yaml_node("name", filename, name_);
   controller_.load(filename, use_random_seed, name_);
   sensors_.load(filename, use_random_seed, name_);
 
-  // Load all Quadrotor parameters
+  // Load all FixedWing parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("max_thrust", filename, max_thrust_);
@@ -63,20 +63,15 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
 }
 
 
-void Quadrotor::f(const vehicle::State& x, const uVector& u,
+void FixedWing::f(const vehicle::State& x, const uVector& u,
                   const Vector3d& vw, vehicle::dxVector& dx)
 {
   v_rel_ = x.v - x.q.rotp(vw);
-  dx.segment<3>(vehicle::DP) = x.q.rota(x.v);
-  dx.segment<3>(vehicle::DV) = -common::e3 * u(THRUST) * max_thrust_ / mass_ - linear_drag_matrix_ * v_rel_ +
-                                 common::gravity * x.q.rotp(common::e3) - x.omega.cross(x.v);
-  dx.segment<3>(vehicle::DQ) = x.omega;
-  dx.segment<3>(vehicle::DW) = inertia_inv_ * (u.segment<3>(TAUX) - x.omega.cross(inertia_matrix_ * x.omega) -
-                                angular_drag_matrix_ * x.omega);
+  dx.setZero();
 }
 
 
-void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
+void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
 {
   // Time step
   double dt = t - t_prev_;
@@ -86,7 +81,7 @@ void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta
-    vehicle::rk4<COMMAND_SIZE>(std::bind(&Quadrotor::f, this,
+    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWing::f, this,
                                std::placeholders::_1,std::placeholders::_2,
                                std::placeholders::_3,std::placeholders::_4),
                                dt, x_, u, vw, dx_);
@@ -101,7 +96,7 @@ void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
 }
 
 
-void Quadrotor::run(const double &t, const environment::Environment& env)
+void FixedWing::run(const double &t, const environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
   sensors_.updateMeasurements(t, x_, env.get_points()); // Update sensor measurements
@@ -112,7 +107,7 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
 }
 
 
-void Quadrotor::updateAccels(const uVector &u, const Vector3d &vw)
+void FixedWing::updateAccels(const uVector &u, const Vector3d &vw)
 {
   static vehicle::dxVector dx;
   f(x_, u, vw, dx);
@@ -121,19 +116,18 @@ void Quadrotor::updateAccels(const uVector &u, const Vector3d &vw)
 }
 
 
-void Quadrotor::log(const double &t)
+void FixedWing::log(const double &t)
 {
   // Write data to binary files and plot in another program
-  Matrix<double, vehicle::NUM_STATES, 1> x = x_.toEigen();
+  vehicle::xVector x = x_.toEigen();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
-  Controller::state_t commanded_state = controller_.getCommandedState();
-  command_log_.write((char*)&commanded_state, sizeof(Controller::state_t));
-  controller_.log(t);
+  vehicle::xVector commanded_state = controller_.getCommandedState().toEigen();
+  command_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
 }
 
 
-void Quadrotor::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<Vector3d> > &all_vehicle_positions)
+void FixedWing::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<Vector3d> > &all_vehicle_positions)
 {
   other_vehicle_positions_.clear();
   for (int i = 0; i < all_vehicle_positions.size(); ++i)
@@ -142,4 +136,4 @@ void Quadrotor::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<V
 }
 
 
-} // namespace quadrotor
+} // namespace fixedwing

@@ -127,3 +127,19 @@ enum
 typedef Matrix<double, COMMAND_SIZE, 1> uVector;
 
 } // namespace quadrotor
+
+
+namespace fixedwing
+{
+
+enum
+{
+  A, // aileron
+  E, // elevator
+  T, // throttle
+  R, // rudder
+  COMMAND_SIZE
+};
+typedef Matrix<double, COMMAND_SIZE, 1> uVector;
+
+} // namespace fixedwing
