@@ -255,6 +255,7 @@ void FixedWing::log(const double &t)
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   vehicle::xVector commanded_state = controller_.getCommandedState().toEigen();
+  command_log_.write((char*)&t, sizeof(double));
   command_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
 }
 
