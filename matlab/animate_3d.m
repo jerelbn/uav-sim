@@ -3,7 +3,7 @@ function animate_3d(speed, name)
     % Load data
     env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []);
     air_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
-    air_command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 14, []);
+    air_command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 1 + 19, []);
     bike_state = reshape(fread(fopen('/tmp/bike1_true_state.log', 'r'), 'double'), 7, []);
 
     persistent body_handle true_path_handle cmd_handle bike_trail_handle bike_handle
@@ -62,7 +62,7 @@ function animate_3d(speed, name)
 end
 
 function handle = draw_body(iter, body_verts, state, handle)
-    R_I_b = R_from_q(state(11:14, iter));
+     R_I_b = R_from_q(state(11:14, iter));
     verts_I = (R_I_b' * body_verts' + state(2:4, iter))';
 
     % define all vertices
