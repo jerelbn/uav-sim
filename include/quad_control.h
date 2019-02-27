@@ -15,34 +15,12 @@ class Controller
 
 public:
 
-  typedef struct
-  {
-    double t;
-    double pn;
-    double pe;
-    double pd;
-
-    double phi;
-    double theta;
-    double psi;
-
-    double u;
-    double v;
-    double w;
-
-    double p;
-    double q;
-    double r;
-
-    double throttle;
-  } state_t;
-
   Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
   void computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
   void log(const double& t);
-  inline state_t getCommandedState() const { return xc_; }
+  inline vehicle::State getCommandedState() const { return xc_; }
 
 private:
 
@@ -128,8 +106,8 @@ private:
 
   // Memory for sharing information between functions
   bool initialized_;
-  state_t xhat_ = {}; // estimate
-  state_t xc_ = {}; // command
+  vehicle::State xhat_; // estimate
+  vehicle::State xc_; // command
   max_t max_ = {};
   double prev_time_;
   uint8_t control_mode_;
@@ -148,7 +126,7 @@ private:
 
   // Functions
   void updateWaypointManager();
-  void updateTrajectoryManager();
+  void updateTrajectoryManager(const double &t);
 };
 
 } // namespace quadrotor

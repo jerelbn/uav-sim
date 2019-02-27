@@ -4,7 +4,7 @@ cam_max_feat = 10000;
 
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
-command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 19, []);
+command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 1 + 19, []);
 accel = reshape(fread(fopen(strcat(['/tmp/',name,'_accel.log']), 'r'), 'double'), 10, []);
 accel_bias = accel(5:7,:);
 accel_noise = accel(8:10,:);
@@ -23,7 +23,7 @@ for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.3)
-    plot(true_state(1,:), command(i + idx, :), 'g--')
+    plot(command(1,:), command(i + idx, :), 'g--')
     legend('truth', 'control')
 end
 
@@ -36,6 +36,7 @@ for i=1:4
     subplot(4, 1, i), hold on, grid on
     title(titles(i))
     plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.3)
+    plot(command(1,:), command(i + idx1, :), 'g--')
 end
 
 

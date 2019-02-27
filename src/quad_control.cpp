@@ -110,22 +110,13 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 
 void Controller::computeControl(const vehicle::State &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
 {
-  // Copy the current state
-  Vector3d euler = x.q.euler();
-  xhat_.pn = x.p(0);
-  xhat_.pe = x.p(1);
-  xhat_.pd = x.p(2);
-  xhat_.u = x.v(0);
-  xhat_.v = x.v(1);
-  xhat_.w = x.v(2);
-  xhat_.phi = euler(0);
-  xhat_.theta = euler(1);
-  xhat_.psi = euler(2);
-  xhat_.p = x.omega(0);
-  xhat_.q = x.omega(1);
-  xhat_.r = x.omega(2);
+  // Update state estimate for waypoint manager
+  xhat_ = x;
 
-  xc_.t = t;
+  // Unpack useful states
+  double phi = x.q.roll();
+  double theta = x.q.pitch();
+  double psi = x.q.yaw();
 
   double dt = t - prev_time_;
   prev_time_ = t;
@@ -136,59 +127,50 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     return;
   }
 
+  double throttle;
   if (path_type_ == 0 || path_type_ == 1)
   {
     // Refresh the waypoint or trajectory
     if (path_type_ == 0)
       updateWaypointManager();
     else
-      updateTrajectoryManager();
+      updateTrajectoryManager(t);
 
     // get data that applies to both position and velocity control
-    Matrix3d R_v_to_v1 = common::R_v_to_v1(euler(2)); // rotation from vehicle to vehicle-1 frame
-    Matrix3d R_v1_to_b = common::R_v_to_b(euler(0), euler(1), 0.0); // rotation from vehicle-1 to body frame
-    static Vector3d k = common::e3;
+    Matrix3d R_v_to_v1 = common::R_v_to_v1(psi); // rotation from vehicle to vehicle-1 frame
+    Matrix3d R_v1_to_b = common::R_v_to_b(phi, theta, 0.0); // rotation from vehicle-1 to body frame
 
-    Vector3d phat(xhat_.pn, xhat_.pe, xhat_.pd); // position estimate
-    Vector3d pc(xc_.pn, xc_.pe, xc_.pd); // position command
-    Vector3d vc = R_v_to_v1 * K_p_ * (pc-phat); // velocity command
-
-    // store velocity command
-    xc_.u = vc(0);
-    xc_.v = vc(1);
-    xc_.w = vc(2);
+    xc_.v = R_v_to_v1 * K_p_ * (xc_.p - x.p); // velocity command
 
     // get yaw rate direction and allow it to saturate
-    xc_.r = common::wrapAngle(xc_.psi - xhat_.psi, M_PI); // wrap angle
+    xc_.omega(2) = common::wrapAngle(xc_.q.yaw() - x.q.yaw(), M_PI); // wrap angle
 
     // get velocity command and enforce max velocity
-    double vmag = vc.norm();
+    double vmag = xc_.v.norm();
     if (vmag > max_.vel)
-      vc = vc*max_.vel/vmag;
+      xc_.v = xc_.v * max_.vel / vmag;
 
-    Vector3d vhat_b(xhat_.u,xhat_.v,xhat_.w); // body velocity estimate
-    Vector3d vhat = R_v1_to_b.transpose()*vhat_b; // vehicle-1 velocity estimate
-    dhat_ = dhat_ - K_d_*(vc-vhat)*dt; // update disturbance estimate
-    Vector3d k_tilde = throttle_eq_ * (k - (1.0 / common::gravity) * (K_v_ * (vc - vhat) - dhat_));
+    Vector3d vhat = R_v1_to_b.transpose() * x.v; // vehicle-1 velocity estimate
+    dhat_ = dhat_ - K_d_*(xc_.v - vhat)*dt; // update disturbance estimate
+    Vector3d k_tilde = throttle_eq_ * (common::e3 - (1.0 / common::gravity) * (K_v_ * (xc_.v - vhat) - dhat_));
 
     // pack up throttle command
-    xc_.throttle = k.transpose() * R_v1_to_b * k_tilde;
+    throttle = common::e3.transpose() * R_v1_to_b * k_tilde;
 
-    Vector3d kd = (1.0 / xc_.throttle) * k_tilde; // desired body z direction
+    Vector3d kd = (1.0 / throttle) * k_tilde; // desired body z direction
     kd = kd / kd.norm(); // need direction only
-    double tilt_angle = acos(k.transpose() * kd); // desired tilt
+    double tilt_angle = acos(common::e3.transpose() * kd); // desired tilt
 
     // get shortest rotation to desired tilt
     quat::Quatd q_c;
     if (tilt_angle > 1e-6)
     {
-      Vector3d k_cross_kd = k.cross(kd);
+      Vector3d k_cross_kd = common::e3.cross(kd);
       q_c = quat::Quatd::exp(tilt_angle * k_cross_kd / k_cross_kd.norm());
     }
 
     // pack up attitude commands
-    xc_.phi = q_c.roll();
-    xc_.theta = q_c.pitch();
+    xc_.q = quat::Quatd(q_c.roll(), q_c.pitch(), xc_.q.yaw());
   }
   else if (path_type_ == 2)
   {
@@ -216,8 +198,6 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
 
 
     // Extract local level frame rotation
-    double phi = x.q.roll();
-    double theta = x.q.pitch();
     quat::Quatd q_l2b(phi, theta, 0.0);
 
     // Commanded velocity in the local level reference frame
@@ -233,28 +213,24 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
 
     double r_tilde = r - circ_rd_;
     double h_tilde = h - circ_hd_;
-    Vector3d vc;
     if (bearing_only_)
-      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
+      xc_.v = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3;
     else
-      vc = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.rota(vz_ + x.v);
-    double vmag = vc.norm();
+      xc_.v = circ_kr_ * r_tilde * er + circ_kp_ * ep + circ_kh_ * h_tilde * common::e3 + q_l2b.rota(vz_ + x.v);
+    double vmag = xc_.v.norm();
     if (vmag > max_.vel)
-      vc *= max_.vel / vmag;
-    xc_.u = vc(0);
-    xc_.v = vc(1);
-    xc_.w = vc(2);
+      xc_.v *= max_.vel / vmag;
 
     // Commanded yaw rate
-    xc_.r = 10.0 * common::e3.transpose() * common::e1.cross(ez);
+    xc_.omega(2) = 10.0 * common::e3.transpose() * common::e1.cross(ez);
 
-    Vector3d vtilde = vc - q_l2b.rota(x.v);
+    Vector3d vtilde = xc_.v - q_l2b.rota(x.v);
     Vector3d omega_l = common::e3 * common::e3.transpose() * q_l2b.rota(x.omega);
     Vector3d vl = q_l2b.rota(x.v);
 
     // Commanded throttle
-    xc_.throttle = throttle_eq_ * common::e3.transpose() * q_l2b.rotp(common::e3
-                   - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde));
+    throttle = throttle_eq_ * common::e3.transpose() * q_l2b.rotp(common::e3
+               - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde));
 
     // Commanded body axes in the inertial frame
     Vector3d kbc = common::e3 - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde);
@@ -269,23 +245,27 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     Rc << ibc, jbc, kbc;
 
     // Extract roll and pitch angles
-    xc_.phi = atan2(-Rc(1,2), Rc(1,1));
-    xc_.theta = atan2(-Rc(2,0),Rc(0,0));
+    double phi_c = atan2(-Rc(1,2), Rc(1,1));
+    double theta_c = atan2(-Rc(2,0),Rc(0,0));
+    xc_.q = quat::Quatd(phi_c, theta_c, xc_.q.yaw());
   }
   else
     throw std::runtime_error("Undefined path type in quadrotor controller.");
 
   // Create Roll and Pitch Command
-  xc_.throttle = common::saturate(xc_.throttle, max_.throttle, 0.0);
-  xc_.phi = common::saturate(xc_.phi, max_.roll, -max_.roll);
-  xc_.theta = common::saturate(xc_.theta, max_.pitch, -max_.pitch);
-  xc_.r = common::saturate(xc_.r, max_.yaw_rate, -max_.yaw_rate);
+  double phi_c = xc_.q.roll();
+  double theta_c = xc_.q.pitch();
+  double r_c = xc_.omega(2);
+  throttle = common::saturate(throttle, max_.throttle, 0.0);
+  phi_c = common::saturate(phi_c, max_.roll, -max_.roll);
+  theta_c = common::saturate(theta_c, max_.pitch, -max_.pitch);
+  r_c = common::saturate(r_c, max_.yaw_rate, -max_.yaw_rate);
 
   // Calculate the Final Output Torques using PID
-  u(quadrotor::THRUST) = xc_.throttle;
-  u(quadrotor::TAUX) = roll_.run(dt, xhat_.phi, xc_.phi, false, xhat_.p);
-  u(quadrotor::TAUY) = pitch_.run(dt, xhat_.theta, xc_.theta, false, xhat_.q);
-  u(quadrotor::TAUZ) = yaw_rate_.run(dt, xhat_.r, xc_.r, false);
+  u(quadrotor::THRUST) = throttle;
+  u(quadrotor::TAUX) = roll_.run(dt, phi, phi_c, false, x.omega(0));
+  u(quadrotor::TAUY) = pitch_.run(dt, theta, theta_c, false, x.omega(1));
+  u(quadrotor::TAUZ) = yaw_rate_.run(dt, x.omega(2), r_c, false);
 }
 
 Controller::PID::PID() :
@@ -373,49 +353,35 @@ void Controller::updateWaypointManager()
   {
     initialized_ = true;
     Map<Vector4d> new_waypoint(waypoints_.block<4,1>(0, 0).data());
-    xc_.pn = new_waypoint(PX);
-    xc_.pe = new_waypoint(PY);
-    xc_.pd = new_waypoint(PZ);
-    xc_.psi = new_waypoint(PSI);
+    xc_.p = new_waypoint.segment<3>(PX);
+    xc_.q = quat::Quatd(0, 0, new_waypoint(PSI));
   }
 
   // Find the distance to the desired waypoint
   Vector4d current_waypoint = waypoints_.block<4,1>(0, current_waypoint_id_);
   Vector4d error;
-  error(PX) = current_waypoint(PX) - xhat_.pn;
-  error(PY) = current_waypoint(PY) - xhat_.pe;
-  error(PZ) = current_waypoint(PZ) - xhat_.pd;
-  error(PSI) = current_waypoint(PSI) - xhat_.psi;
+  error.segment<3>(PX) = current_waypoint.segment<3>(PX) - xhat_.p;
+  error(PSI) = common::wrapAngle(current_waypoint(PSI) - xhat_.q.yaw(), 2.0 * M_PI);
 
-  // Angle wrapping on heading
-  if (error(PSI) > M_PI)
-    error(PSI) -= 2.0 * M_PI;
-  else if (error(PSI) < -M_PI)
-    error(PSI) += 2.0 * M_PI;
-
-  Vector3d current_velocity(xhat_.u, xhat_.v, xhat_.w);
-
-  if (error.norm() < waypoint_threshold_ && current_velocity.norm() < waypoint_velocity_threshold_)
+  if (error.norm() < waypoint_threshold_ && xhat_.v.norm() < waypoint_velocity_threshold_)
   {
     // increment waypoint
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();
 
     // Update The commanded State
     Map<Vector4d> new_waypoint(waypoints_.block<4,1>(0, current_waypoint_id_).data());
-    xc_.pn = new_waypoint(PX);
-    xc_.pe = new_waypoint(PY);
-    xc_.pd = new_waypoint(PZ);
-    xc_.psi = new_waypoint(PSI);
+    xc_.p = new_waypoint.segment<3>(PX);
+    xc_.q = quat::Quatd(0, 0, new_waypoint(PSI));
   }
 }
 
 
-void Controller::updateTrajectoryManager()
+void Controller::updateTrajectoryManager(const double& t)
 {
-  xc_.pn = traj_nom_north_ + traj_delta_north_ / 2.0 * cos(traj_north_freq_ * xc_.t);
-  xc_.pe = traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * xc_.t);
-  xc_.pd = -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * xc_.t));
-  xc_.psi = traj_nom_yaw_ + traj_delta_yaw_ / 2.0 * sin(traj_yaw_freq_ * xc_.t);
+  xc_.p = Vector3d(traj_nom_north_ + traj_delta_north_ / 2.0 * cos(traj_north_freq_ * t),
+                   traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * t),
+                   -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * t)));
+  xc_.q = quat::Quatd(0, 0, traj_nom_yaw_ + traj_delta_yaw_ / 2.0 * sin(traj_yaw_freq_ * t));
 }
 
 

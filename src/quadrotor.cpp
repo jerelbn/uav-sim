@@ -123,11 +123,12 @@ void Quadrotor::updateAccels(const uVector &u, const Vector3d &vw)
 void Quadrotor::log(const double &t)
 {
   // Write data to binary files and plot in another program
-  Matrix<double, vehicle::NUM_STATES, 1> x = x_.toEigen();
+  vehicle::xVector x = x_.toEigen();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
-  Controller::state_t commanded_state = controller_.getCommandedState();
-  command_log_.write((char*)&commanded_state, sizeof(Controller::state_t));
+  vehicle::xVector commanded_state = controller_.getCommandedState().toEigen();
+  command_log_.write((char*)&t, sizeof(double));
+  command_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
   controller_.log(t);
 }
 
