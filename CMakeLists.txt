@@ -36,6 +36,7 @@ add_executable(uav_sim
   )
 target_link_libraries(uav_sim
   common_cpp
+  geometry
   ${YAML_CPP_LIBRARIES}
   ${CERES_LIBRARIES}
   )

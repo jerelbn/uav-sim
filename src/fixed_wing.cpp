@@ -36,10 +36,6 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
   x_ = vehicle::State<double>(x0);
 
-  common::get_yaml_node("Va_star", filename, Va_star_);
-  common::get_yaml_node("R_star", filename, R_star_);
-  common::get_yaml_node("gamma_star", filename, gamma_star_);
-
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("Jx", filename, Jx_);
   common::get_yaml_node("Jy", filename, Jy_);
@@ -133,10 +129,18 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   updateAccels(u_, env.get_vw());
 
   // Compute trim
-  vehicle::State<double> x_star;
-  uVector u_star;
-  computeTrim(Va_star_, R_star_, gamma_star_, x_star, u_star);
-  std::cout << "x_star = \n" << x_star.toEigen() << "\n\nu_star = \n" << u_star << "\n\n";
+  bool compute_trim;
+  common::get_yaml_node("compute_trim", filename, compute_trim);
+  if (compute_trim)
+  {
+    common::get_yaml_node("Va_star", filename, Va_star_);
+    common::get_yaml_node("R_star", filename, R_star_);
+    common::get_yaml_node("gamma_star", filename, gamma_star_);
+
+    vehicle::State<double> x_star;
+    uVector u_star;
+    computeTrim(x_star, u_star);
+  }
 
   // Initialize loggers and log initial data
   std::stringstream ss_ts, ss_c;
@@ -214,13 +218,12 @@ void FixedWing::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<V
 }
 
 
-void FixedWing::computeTrim(const double &Va_star, const double &R_star, const double &gamma_star,
-                            vehicle::State<double> &x_star, uVector &u_star)
+void FixedWing::computeTrim(vehicle::State<double> &x_star, uVector &u_star)
 {
   // Compute desired state derivative
   vehicle::dxVector xdot_star = vehicle::dxVector::Zero();
-  xdot_star(vehicle::DP+2) = Va_star * sin(gamma_star);
-  xdot_star(vehicle::DQ+2) = Va_star / R_star * cos(gamma_star);
+  xdot_star(vehicle::DP+2) = Va_star_ * sin(gamma_star_);
+  xdot_star(vehicle::DQ+2) = Va_star_ / R_star_ * cos(gamma_star_);
 
   // Computed trimmed alpha, beta, phi
   double alpha_star = 0;
@@ -228,7 +231,7 @@ void FixedWing::computeTrim(const double &Va_star, const double &R_star, const d
   double phi_star = 0;
   ceres::Problem problem;
   problem.AddResidualBlock(new DynamicsCostFactor(
-                           new DynamicsCost(xdot_star, Va_star, R_star, gamma_star, *this)),
+                           new DynamicsCost(xdot_star, Va_star_, R_star_, gamma_star_, *this)),
                            NULL, &alpha_star, &beta_star, &phi_star);
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = false;
@@ -236,7 +239,33 @@ void FixedWing::computeTrim(const double &Va_star, const double &R_star, const d
   ceres::Solve(options, &problem, &summary);
 
   // Compute final trimmed state and trimmed command
-  computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, Va_star, R_star, gamma_star, x_star, u_star);
+  computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, Va_star_, R_star_, gamma_star_, x_star, u_star);
+
+  // Scale trimmed command
+  u_star(AIL) /= delta_a_max_;
+  u_star(ELE) /= delta_e_max_;
+  u_star(RUD) /= delta_r_max_;
+
+  // Show results
+  std::cout << "\n\n";
+  std::cout << "v_star =     " << x_star.v.transpose() << "\n";
+  std::cout << "q_star =     " << x_star.q.elements().transpose() << "\n";
+  std::cout << "omega_star = " << x_star.omega.transpose() << "\n";
+  std::cout << "u_star =     " << u_star.transpose() << "\n";
+  std::cout << "\n\n";
+
+  // Save results to file
+  YAML::Node node;
+  node["v_star"] = std::vector<double>{x_star.v(0), x_star.v(1), x_star.v(2)};
+  node["q_star"] = std::vector<double>{x_star.q.w(), x_star.q.x(), x_star.q.y(), x_star.q.z()};
+  node["omega_star"] = std::vector<double>{x_star.omega(0), x_star.omega(1), x_star.omega(2)};
+  node["u_star"] = std::vector<double>{u_star(AIL), u_star(ELE), u_star(THR), u_star(RUD)};
+
+  std::stringstream ss;
+  ss << "/tmp/" << name_ << "_trim.log";
+  std::ofstream file(ss.str());
+  file << node;
+  file.close();
 }
 
 

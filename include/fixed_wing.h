@@ -26,13 +26,14 @@ public:
 
   void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
   void run(const double &t, const environment::Environment& env);
+  void computeTrim(vehicle::State<double>& x_star, uVector& u_star);
 
   const vehicle::State<double>& getState() const { return x_; }
 
   int id_;
   std::string name_;
 
-//private:
+private:
 
   void rk4(std::function<void(const vehicle::State<double>&, const uVector&,
                         const Eigen::Vector3d&, vehicle::dxVector&)> func,
@@ -43,16 +44,6 @@ public:
   void getOtherVehicles(const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
-
-  // === Inputs ===
-  // Va_star: desired air speed
-  // R_star: desired turn radius
-  // gamma_star: desired flight path angle
-  // === Outputs ===
-  // x_star: trimmed state
-  // u_star: trimmed input
-  void computeTrim(const double& Va_star, const double& R_star, const double& gamma_star,
-                   vehicle::State<double>& x_star, uVector& u_star);
 
   Controller controller_;
   sensors::Sensors sensors_;
@@ -81,6 +72,74 @@ public:
 
   std::ofstream state_log_;
   std::ofstream command_log_;
+
+  // Functions of angle of attack and side slip angle
+  template<typename T>
+  T sigma(const T& alpha)
+  {
+    return (1.0 + exp(-wing_M_ * (alpha - wing_alpha0_)) + exp(wing_M_ * (alpha + wing_alpha0_))) /
+           ((1.0 + exp(-wing_M_ * (alpha - wing_alpha0_))) * (1.0 + exp(wing_M_ * (alpha + wing_alpha0_))));
+  }
+
+
+  template<typename T>
+  T C_L(const T& alpha)
+  {
+    return (1.0 - sigma(alpha)) * (C_L_0_ + C_L_alpha_ * alpha) +
+           sigma(alpha) * (2.0 * common::sign(alpha) * sin(alpha) * sin(alpha) * cos(alpha));
+  }
+
+
+  template<typename T>
+  T C_D(const T& alpha)
+  {
+    return C_D_p_ + wing_S_ * (C_L_0_ + C_L_alpha_ * alpha) * (C_L_0_ + C_L_alpha_ * alpha) /
+           (M_PI * prop_e_ * wing_b_ * wing_b_);
+  }
+
+
+  template<typename T>
+  T C_X(const T& alpha)
+  {
+    return -C_D(alpha) * cos(alpha) + C_L(alpha) * sin(alpha);
+  }
+
+
+  template<typename T>
+  T C_X_q(const T& alpha)
+  {
+    return -C_D_q_ * cos(alpha) + C_L_q_ * sin(alpha);
+  }
+
+
+  template<typename T>
+  T C_X_delta_e(const T& alpha)
+  {
+    return -C_D_delta_e_ * cos(alpha) + C_L_delta_e_ * sin(alpha);
+  }
+
+
+  template<typename T>
+  T C_Z(const T& alpha)
+  {
+    return -C_D(alpha) * sin(alpha) - C_L(alpha) * cos(alpha);
+  }
+
+
+  template<typename T>
+  T C_Z_q(const T& alpha)
+  {
+    return -C_D_q_ * sin(alpha) - C_L_q_ * cos(alpha);
+  }
+
+
+  template<typename T>
+  T C_Z_delta_e(const T& alpha)
+  {
+    return -C_D_delta_e_ * sin(alpha) - C_L_delta_e_ * cos(alpha);
+  }
+
+public:
 
   template<typename T>
   void f(const vehicle::State<T>& x, const Matrix<T,COMMAND_SIZE,1>& u,
@@ -196,73 +255,6 @@ public:
     Matrix<T,2,1> delta = C.inverse() * c;
     u(AIL) = delta(0);
     u(RUD) = delta(1);
-  }
-
-
-  // Functions of angle of attack and side slip angle
-  template<typename T>
-  T sigma(const T& alpha)
-  {
-    return (1.0 + exp(-wing_M_ * (alpha - wing_alpha0_)) + exp(wing_M_ * (alpha + wing_alpha0_))) /
-           ((1.0 + exp(-wing_M_ * (alpha - wing_alpha0_))) * (1.0 + exp(wing_M_ * (alpha + wing_alpha0_))));
-  }
-
-
-  template<typename T>
-  T C_L(const T& alpha)
-  {
-    return (1.0 - sigma(alpha)) * (C_L_0_ + C_L_alpha_ * alpha) +
-           sigma(alpha) * (2.0 * common::sign(alpha) * sin(alpha) * sin(alpha) * cos(alpha));
-  }
-  
-
-  template<typename T>
-  T C_D(const T& alpha)
-  {
-    return C_D_p_ + wing_S_ * (C_L_0_ + C_L_alpha_ * alpha) * (C_L_0_ + C_L_alpha_ * alpha) /
-           (M_PI * prop_e_ * wing_b_ * wing_b_);
-  }
-  
-
-  template<typename T>
-  T C_X(const T& alpha)
-  {
-    return -C_D(alpha) * cos(alpha) + C_L(alpha) * sin(alpha);
-  }
-  
-
-  template<typename T>
-  T C_X_q(const T& alpha)
-  {
-    return -C_D_q_ * cos(alpha) + C_L_q_ * sin(alpha);
-  }
-  
-
-  template<typename T>
-  T C_X_delta_e(const T& alpha)
-  {
-    return -C_D_delta_e_ * cos(alpha) + C_L_delta_e_ * sin(alpha);
-  }
-  
-
-  template<typename T>
-  T C_Z(const T& alpha)
-  {
-    return -C_D(alpha) * sin(alpha) - C_L(alpha) * cos(alpha);
-  }
-  
-
-  template<typename T>
-  T C_Z_q(const T& alpha)
-  {
-    return -C_D_q_ * sin(alpha) - C_L_q_ * cos(alpha);
-  }
-  
-
-  template<typename T>
-  T C_Z_delta_e(const T& alpha)
-  {
-    return -C_D_delta_e_ * sin(alpha) - C_L_delta_e_ * cos(alpha);
   }
 
 };

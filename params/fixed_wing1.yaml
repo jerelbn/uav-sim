@@ -5,14 +5,15 @@ control_using_estimates: false
 
 # Physical parameters
 x0: [0, 0, -5,    # POS
-     16.3474, -0.181355, 1.01741,    # VEL
+     16.3589, -0.177656, 0.811626,    # VEL
      0, 0, 0,    # LIN ACC
-     0.999517, 0, 0.0310733, 0, # ATT
-     -0.0101747, 0.163483, 0.00040236,    # OMEGA
+     0.968713, 0.246941, 0.0240159,-0.00612206, # ATT
+     -0.0162335, 0.156637, 0.287268,    # OMEGA
      0, 0, 0]    # ANG ACC
 
+compute_trim: true
 Va_star: 16.38 # desired air speed
-R_star: 100 # desired turn radius
+R_star: 50 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
 
 mass: 3.92
