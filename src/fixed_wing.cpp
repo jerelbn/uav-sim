@@ -138,6 +138,26 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   computeTrim(Va_star_, R_star_, gamma_star_, x_star, u_star);
   std::cout << "x_star = \n" << x_star.toEigen() << "\n\nu_star = \n" << u_star << "\n\n";
 
+  // Compute trim
+  Matrix<double,10,1> x_star2 = Matrix<double,10,1>::Zero();
+  x_star2(0) = 16.3145;
+  x_star2(1) = -0.914975;
+  x_star2(2) =  1.14264;
+  x_star2(3) =  0.932445;
+  x_star2(4) =  0.359616;
+  x_star2(5) =  0.0326137;
+  x_star2(6) = -0.0125781;
+  x_star2(7) = -0.0381476;
+  x_star2(8) =  0.365724;
+  x_star2(9) =  0.403617;
+  uVector u_star2 = uVector::Zero();
+  u_star2(AIL) = -0.0143579;
+  u_star2(ELE) = -0.00821166;
+  u_star2(THR) =  0.606099;
+  u_star2(RUD) = -0.102136;
+  computeTrim2(Va_star_, R_star_, gamma_star_, x_star2, u_star2);
+  std::cout << "x_star2 = \n" << x_star2 << "\n\nu_star2 = \n" << u_star2 << "\n\n";
+
   // Initialize loggers and log initial data
   std::stringstream ss_ts, ss_c;
   ss_ts << "/tmp/" << name_ << "_true_state.log";
@@ -237,6 +257,39 @@ void FixedWing::computeTrim(const double &Va_star, const double &R_star, const d
 
   // Compute final trimmed state and trimmed command
   computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, Va_star, R_star, gamma_star, x_star, u_star);
+}
+
+
+void FixedWing::computeTrim2(const double &Va_star, const double &R_star, const double &gamma_star,
+                             Matrix<double,10,1> &x_star, uVector &u_star)
+{
+  // Compute desired state derivative
+  Matrix<double,9,1> xdot_star = Matrix<double,9,1>::Zero();
+  xdot_star(2) = Va_star * sin(gamma_star);
+  xdot_star(5) = Va_star / R_star * cos(gamma_star);
+
+  // Separate inputs
+  Vector3d v_star = x_star.segment<3>(0);
+  quat::Quatd q_star(x_star.segment<4>(3));
+  Vector3d omega_star = x_star.segment<3>(7);
+
+  // Optimize!
+  ceres::Problem problem;
+  problem.AddParameterBlock(v_star.data(), 3);
+  problem.AddParameterBlock(q_star.data(), 4, new QuatLocalParam());
+  problem.AddParameterBlock(omega_star.data(), 3);
+  problem.AddResidualBlock(new DynamicsCostFactor2(
+                           new DynamicsCost2(xdot_star, *this)),
+                           NULL, v_star.data(), q_star.data(), omega_star.data(), u_star.data());
+  ceres::Solver::Options options;
+  options.minimizer_progress_to_stdout = false;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+
+  // Repack trimmed state
+  x_star.segment<3>(0) = v_star;
+  x_star.segment<4>(3) = q_star.elements();
+  x_star.segment<3>(7) = omega_star;
 }
 
 

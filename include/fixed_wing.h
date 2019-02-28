@@ -53,6 +53,8 @@ public:
   // u_star: trimmed input
   void computeTrim(const double& Va_star, const double& R_star, const double& gamma_star,
                    vehicle::State<double>& x_star, uVector& u_star);
+  void computeTrim2(const double& Va_star, const double& R_star, const double& gamma_star,
+                    Matrix<double,10,1> &x_star, uVector& u_star);
 
   Controller controller_;
   sensors::Sensors sensors_;
@@ -307,6 +309,68 @@ public:
 
 };
 typedef ceres::AutoDiffCostFunction<DynamicsCost, vehicle::NUM_DOF, 1, 1, 1> DynamicsCostFactor;
+
+
+struct QuatPlus {
+  template<typename T>
+  bool operator()(const T* x, const T* delta, T* x_plus_delta) const
+  {
+    quat::Quat<T> q(x);
+    Map<const Matrix<T,3,1>> d(delta);
+    Map<Matrix<T,4,1>> qp(x_plus_delta);
+    qp = (q + d).elements();
+    return true;
+  }
+};
+typedef ceres::AutoDiffLocalParameterization<QuatPlus, 4, 3> QuatLocalParam;
+
+
+// Cost functor to minimize when computing trim, optimizing over trim state and trim commands
+class DynamicsCost2
+{
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  DynamicsCost2(const Matrix<double,9,1>& xdot_star, FixedWing& fw)
+               : xdot_star_(xdot_star), fw_(fw)
+               {}
+
+  template<typename T>
+  bool operator()(const T* const _v_star, const T* const _q_star, const T* const _omega_star,
+                  const T* const _u_star, T* residuals) const
+  {
+    // Copy/map states, commands, and residual error
+    Map<Matrix<T,9,1>> r(residuals);
+    vehicle::State<T> x_star;
+    x_star.p.setZero();
+    x_star.v(0) = _v_star[0];
+    x_star.v(1) = _v_star[1];
+    x_star.v(2) = _v_star[2];
+    x_star.q.arr_[0] =  _q_star[0];
+    x_star.q.arr_[1] =  _q_star[1];
+    x_star.q.arr_[2] =  _q_star[2];
+    x_star.q.arr_[3] =  _q_star[3];
+    x_star.omega(0) = _omega_star[0];
+    x_star.omega(1) = _omega_star[1];
+    x_star.omega(2) = _omega_star[2];
+    Map<const Matrix<T,COMMAND_SIZE,1>> u_star(_u_star);
+
+    // Compute dynamics
+    static const Matrix<T,3,1> vw(T(0), T(0), T(0));
+    Matrix<T,vehicle::NUM_DOF,1> f_star;
+    fw_.f<T>(x_star, u_star, vw, f_star);
+
+    // Compute residual error
+    r = xdot_star_ - f_star.template segment<9>(vehicle::DV);
+
+    return true;
+  }
+
+  const Matrix<double,9,1> xdot_star_;
+  FixedWing& fw_;
+
+};
+typedef ceres::AutoDiffCostFunction<DynamicsCost2, 9, 3, 4, 3, COMMAND_SIZE> DynamicsCostFactor2;
 
 
 } // namespace fixedwing
