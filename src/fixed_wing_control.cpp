@@ -84,10 +84,10 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
     throw std::runtime_error("Undefined path type in fixed wing controller.");
 
   // Calculate the Final Output Torques using PID
-  u(AIL) = -0.0114625;
-  u(ELE) = 0.00905437;
-  u(THR) =   0.543179;
-  u(RUD) = -0.0318121;
+  u(AIL) = -0.01146250476123955;
+  u(ELE) = 0.009054369420580166;
+  u(THR) = 0.2035736781976917  ;
+  u(RUD) = -0.03181209079966326;
 }
 
 

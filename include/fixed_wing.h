@@ -181,7 +181,7 @@ public:
 
     Matrix<T,3,1> f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
                    (C_F_alpha_beta + 1.0 / (2.0 * Va) * C_F_omega * x.omega + C_F_u * u) +
-                   0.5 * rho_ * prop_S_ * prop_C_ * (k_motor_ * k_motor_ * u(THR) * u(THR) - Va * Va) * common::e1;
+                   rho_ * prop_S_ * prop_C_ * (Va + u(THR) * (k_motor_ - Va)) * u(THR) * (k_motor_ - Va) * common::e1;
     Matrix<T,3,1> tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc *
                      (C_tau_alpha_beta + 1.0 / (2.0 * Va) * C_tau_omega * x.omega + C_tau_u * u) -
                      k_T_p_ * k_Omega_ * k_Omega_ * u(THR) * u(THR) * common::e1;
@@ -211,12 +211,13 @@ public:
 
     // Trimmed command
     u.setZero();
-    u(ELE) = ((Jxz_ * (x.omega(0) * x.omega(0) - x.omega(2) * x.omega(2)) + (Jx_ - Jz_) * x.omega(0) * x.omega(2)) /
-             (0.5 * rho_ * Va * Va * wing_c_ * wing_S_) - C_m_0_ - C_m_alpha_ * alpha -
+    u(ELE) = (2.0 * (Jxz_ * (x.omega(0) * x.omega(0) - x.omega(2) * x.omega(2)) + (Jx_ - Jz_) * x.omega(0) * x.omega(2)) /
+             (rho_ * Va * Va * wing_c_ * wing_S_) - C_m_0_ - C_m_alpha_ * alpha -
              C_m_q_ * wing_c_ * x.omega(1) / (2.0 * Va)) / C_m_delta_e_;
-    u(THR) = sqrt((2.0 * mass_ * (-x.omega(2) * x.v(1) + x.omega(1) * x.v(2) + common::gravity * sin(theta)) -
-             rho_ * Va * Va * wing_S_ * (C_X(alpha) + C_X_q(alpha) * wing_c_ * x.omega(1) / (2.0 * Va) + C_X_delta_e(alpha) * u(ELE))) /
-             (rho_ * prop_S_ * prop_C_ * k_motor_ * k_motor_) + Va * Va / (k_motor_ * k_motor_));
+    u(THR) = 1.0 / (2.0 * (k_motor_ - Va)) * (sqrt(Va * Va + (4.0 * mass_ * (x.omega(1) * x.v(2) -
+             x.omega(2) * x.v(1) + common::gravity * sin(theta)) - 2.0 * rho_ * Va * Va * wing_S_ *
+             (C_X(alpha) + C_X_q(alpha) * wing_c_ * x.omega(1) / (2.0 * Va) + C_X_delta_e(alpha) * u(ELE))) /
+             (rho_ * prop_S_ * prop_C_)) - Va);
 
     T Gamma = (T)Jx_ * Jz_ - Jxz_ * Jxz_;
     T Gamma_1 = (Jxz_ * (Jx_ - Jy_ + Jz_)) / Gamma;
