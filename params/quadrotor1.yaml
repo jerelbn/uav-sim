@@ -88,7 +88,7 @@ circ_hd: 5.0
 
 # Sensors
 imu_enabled: true
-camera_enabled: true
+camera_enabled: false
 mocap_enabled: false
 
 use_accel_truth: false
