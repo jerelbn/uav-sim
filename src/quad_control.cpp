@@ -15,6 +15,7 @@ Controller::Controller() :
 
 Controller::~Controller()
 {
+  command_state_log_.close();
   command_log_.close();
   target_log_.close();
 }
@@ -109,9 +110,11 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   target_noise_.setZero();
 
   // Initialize loggers
-  std::stringstream ss_c, ss_t;
+  std::stringstream ss_cs, ss_c, ss_t;
+  ss_cs << "/tmp/" << name << "_commanded_state.log";
   ss_c << "/tmp/" << name << "_command.log";
   ss_t << "/tmp/" << name << "_target.log";
+  command_state_log_.open(ss_cs.str());
   command_log_.open(ss_c.str());
   target_log_.open(ss_t.str());
 }
@@ -277,7 +280,7 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
   u(quadrotor::TAUZ) = yaw_rate_.run(dt, x.omega(2), r_c, false);
 
   // Log all data
-  log(t);
+  log(t, u);
 }
 
 Controller::PID::PID() :
@@ -397,12 +400,14 @@ void Controller::updateTrajectoryManager(const double& t)
 }
 
 
-void Controller::log(const double &t)
+void Controller::log(const double &t, const uVector& u)
 {
   // Write data to binary files and plot in another program
   vehicle::xVector commanded_state = xc_.toEigen();
+  command_state_log_.write((char*)&t, sizeof(double));
+  command_state_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
   command_log_.write((char*)&t, sizeof(double));
-  command_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
+  command_log_.write((char*)u.data(), u.rows() * sizeof(double));
   target_log_.write((char*)&t, sizeof(double));
   target_log_.write((char*)z_.data(), z_.rows() * sizeof(double));
   target_log_.write((char*)vz_.data(), vz_.rows() * sizeof(double));

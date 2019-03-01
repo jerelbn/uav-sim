@@ -40,9 +40,9 @@ private:
   double mass_;
   int path_type_;
   std::default_random_engine rng_;
-  uVector u_prev_;
 
   // Logging
+  std::ofstream command_state_log_;
   std::ofstream command_log_;
 
   // Waypoint Parameters
@@ -74,7 +74,7 @@ private:
   // Functions
   void updateWaypointManager();
   void updateTrajectoryManager(const double& t);
-  void log(const double &t);
+  void log(const double &t, const uVector &u);
 };
 
 } // namespace fixedwing

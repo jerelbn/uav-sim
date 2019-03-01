@@ -122,12 +122,13 @@ private:
 
   // Logging
   std::ofstream target_log_;
+  std::ofstream command_state_log_;
   std::ofstream command_log_;
 
   // Functions
   void updateWaypointManager();
   void updateTrajectoryManager(const double &t);
-  void log(const double& t);
+  void log(const double& t, const uVector &u);
 };
 
 } // namespace quadrotor

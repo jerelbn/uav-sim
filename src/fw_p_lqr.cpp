@@ -39,6 +39,9 @@ void PLQR::init(const std::string& filename)
 
 void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicle::Stated& xc, uVector& u)
 {
+  // Put reference velocity along direction of waypoint
+  v_ref_ = xhat.q.rotp(xc.p - xhat.p);
+
   // Calculate control error
   Vector3d p_err = xc.p - xhat.p;
   Vector3d v_err = v_ref_ - xhat.v;
@@ -76,10 +79,10 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
   K_ = R_inv_ * B_.transpose() * P_;
   uVector u_tilde = -K_ * x_tilde;
   u = u_ref_ - u_tilde;
-  common::saturate(u(AIL), 1.0, -1.0);
-  common::saturate(u(ELE), 1.0, -1.0);
-  common::saturate(u(THR), 1.0,  0.0);
-  common::saturate(u(RUD), 1.0, -1.0);
+  u(AIL) = common::saturate(u(AIL), 1.0, -1.0);
+  u(ELE) = common::saturate(u(ELE), 1.0, -1.0);
+  u(THR) = common::saturate(u(THR), 1.0,  0.0);
+  u(RUD) = common::saturate(u(RUD), 1.0, -1.0);
 }
 
 
