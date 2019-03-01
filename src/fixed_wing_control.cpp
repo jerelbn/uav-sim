@@ -24,6 +24,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 
   common::get_yaml_node("throttle_eq", filename, throttle_eq_);
   common::get_yaml_node("mass", filename, mass_);
+  // need to load more physical parameters for LQR jacobian calculations
 
   common::get_yaml_node("path_type", filename, path_type_);
 
@@ -52,7 +53,9 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 }
 
 
-void Controller::computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
+// need to pass in wind
+void Controller::computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u,
+                                const Vector3d& p_target, const Vector3d& vw)
 {
   // Copy the current state
   xhat_ = x;
@@ -60,7 +63,7 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
   double dt = t - prev_time_;
   prev_time_ = t;
 
-  if (dt < 0.0001)
+  if (dt < 1e-7)
   {
     u.setZero();
     return;
@@ -74,7 +77,31 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
     else
       updateTrajectoryManager(t);
 
-    //
+    // Reference states/inputs
+    Matrix<T,3,1> p_err = xc.p - xhat.p;
+    Matrix<T,3,1> v_err = v_ref - vI;
+
+//    // Create error state
+//    Matrix<T,6,1> x_tilde;
+//    x_tilde.template segment<3>(0) = saturateVector<T>(p_err_max_, p_err);
+//    x_tilde.template segment<3>(3) = saturateVector<T>(v_err_max_, v_err);
+
+//    // Jacobians
+//    B_.template block<3,1>(3,0) = -g * sh * xhat.q.rota(e3);
+//    B_.template block<3,3>(3,1) = g * s_prev_ / sh * xhat.q.inverse().R() * quat::Quat<T>::skew(e3);
+
+//    // Compute control
+//    care_solver.solve(P_, A_, B_, Q_, R_);
+//    K_ = R_inv_ * B_.transpose() * P_;
+//    Matrix<T,4,1> u_tilde = -K_ * x_tilde;
+
+//    // Extract control components
+//    T s_tilde = u_tilde(0);
+//    Matrix<T,3,1> q_tilde = u_tilde.template segment<3>(1);
+
+//    // Commands
+//    throttle = sat(s_ref - s_tilde, max_.throttle, 0.001);
+//    quat::Quat<T> qc = q_ref * quat::Quat<T>::exp(-q_tilde);
   }
   else
     throw std::runtime_error("Undefined path type in fixed wing controller.");

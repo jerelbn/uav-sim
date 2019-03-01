@@ -1,8 +1,10 @@
 #pragma once
 
+#include <fstream>
+
 #include "common_cpp/common.h"
 #include "vehicle.h"
-#include <fstream>
+#include "lin_alg_tools/care.h"
 
 using namespace Eigen;
 
@@ -18,7 +20,8 @@ public:
   Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
-  void computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
+  void computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u,
+                      const Vector3d &p_target, const Vector3d &vw);
   void log(const double& t);
   inline vehicle::State<double> getCommandedState() const { return xc_; }
 

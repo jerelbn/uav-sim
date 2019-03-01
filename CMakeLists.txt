@@ -14,6 +14,7 @@ find_package(Ceres REQUIRED)
 
 add_subdirectory(lib/common_cpp)
 add_subdirectory(lib/geometry)
+add_subdirectory(lib/lin_alg_tools)
 
 include_directories(include
   lib/common_cpp/include
@@ -38,6 +39,7 @@ add_executable(uav_sim
 target_link_libraries(uav_sim
   common_cpp
   geometry
+  lin_alg_tools
   ${YAML_CPP_LIBRARIES}
   ${CERES_LIBRARIES}
   )
