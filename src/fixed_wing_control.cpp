@@ -77,9 +77,9 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
     else
       updateTrajectoryManager(t);
 
-    // Reference states/inputs
-    Matrix<T,3,1> p_err = xc.p - xhat.p;
-    Matrix<T,3,1> v_err = v_ref - vI;
+//    // Reference states/inputs
+//    Matrix<T,3,1> p_err = xc.p - xhat.p;
+//    Matrix<T,3,1> v_err = v_ref - vI;
 
 //    // Create error state
 //    Matrix<T,6,1> x_tilde;

@@ -125,7 +125,7 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   common::get_yaml_node("delta_r_max", filename, delta_r_max_);
 
   // Compute initial control and corresponding acceleration
-  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
+  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.get_vw());
   updateAccels(u_, env.get_vw());
 
   // Compute trim
@@ -174,7 +174,7 @@ void FixedWing::run(const double &t, const environment::Environment& env)
   getOtherVehicles(env.getVehiclePositions());
   sensors_.updateMeasurements(t, x_, env.get_points()); // Update sensor measurements
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
-  controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]); // Update control input with truth
+  controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw()); // Update control input with truth
   updateAccels(u_, env.get_vw()); // Update true acceleration
   log(t); // Log current data
 }
