@@ -60,7 +60,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   traj_east_freq_ = 2.0 * M_PI / traj_east_period;
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
 
-  // Initialize loggers and log initial data
+  // Initialize loggers
   std::stringstream ss;
   ss << "/tmp/" << name << "_command.log";
   command_log_.open(ss.str());
@@ -126,6 +126,7 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
   u(THR) = 0.171139;
   u(RUD) = 0.0;
 
+  // Log all data
   log(t);
 }
 

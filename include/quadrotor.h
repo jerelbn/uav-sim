@@ -58,7 +58,6 @@ private:
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions_;
 
   std::ofstream state_log_;
-  std::ofstream command_log_;
 
 };
 

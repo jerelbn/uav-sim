@@ -16,10 +16,10 @@ class Controller
 public:
 
   Controller();
+  ~Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
   void computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
-  void log(const double& t);
   inline vehicle::State<double> getCommandedState() const { return xc_; }
 
 private:
@@ -121,12 +121,13 @@ private:
   std::normal_distribution<double> target_noise_dist_;
 
   // Logging
-  std::string directory_;
   std::ofstream target_log_;
+  std::ofstream command_log_;
 
   // Functions
   void updateWaypointManager();
   void updateTrajectoryManager(const double &t);
+  void log(const double& t);
 };
 
 } // namespace quadrotor

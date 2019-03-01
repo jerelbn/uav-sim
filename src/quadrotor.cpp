@@ -17,7 +17,6 @@ Quadrotor::Quadrotor(const std::string &filename, const environment::Environment
 Quadrotor::~Quadrotor()
 {
   state_log_.close();
-  command_log_.close();
 }
 
 
@@ -53,11 +52,9 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   updateAccels(u_, env.get_vw());
 
   // Initialize loggers and log initial data
-  std::stringstream ss_ts, ss_c;
-  ss_ts << "/tmp/" << name_ << "_true_state.log";
-  ss_c << "/tmp/" << name_ << "_command.log";
-  state_log_.open(ss_ts.str());
-  command_log_.open(ss_c.str());
+  std::stringstream ss;
+  ss << "/tmp/" << name_ << "_true_state.log";
+  state_log_.open(ss.str());
   log(0);
 }
 
@@ -126,10 +123,6 @@ void Quadrotor::log(const double &t)
   vehicle::xVector x = x_.toEigen();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
-  vehicle::xVector commanded_state = controller_.getCommandedState().toEigen();
-  command_log_.write((char*)&t, sizeof(double));
-  command_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
-  controller_.log(t);
 }
 
 
