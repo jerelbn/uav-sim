@@ -36,23 +36,9 @@ public:
   void load(const std::string& filename);
 
   TrimState xdot_star_;
-  double Va_star_, R_star_, gamma_star_;
-  double mass_;
-  double Jx_, Jy_, Jz_, Jxz_;
-  double rho_;
-  double wing_c_, wing_epsilon_;
-  double k_motor_, k_T_p_, k_Omega_;
-  double prop_e_, prop_S_, prop_C_;
-  double C_L_beta_, C_L_p_, C_L_r_, C_L_delta_a_, C_L_delta_r_;
-  double C_D_0_, C_D_alpha_, C_D_beta_, C_D_r_, C_D_delta_a_, C_D_delta_r_;
-  double C_el_0_, C_el_alpha_, C_el_beta_, C_el_p_, C_el_q_, C_el_r_, C_el_delta_a_, C_el_delta_e_, C_el_delta_r_;
-  double C_m_0_, C_m_alpha_, C_m_beta_, C_m_p_, C_m_q_, C_m_r_, C_m_delta_a_, C_m_delta_e_, C_m_delta_r_;
-  double C_n_0_, C_n_alpha_, C_n_beta_, C_n_p_, C_n_q_, C_n_r_, C_n_delta_a_, C_n_delta_e_, C_n_delta_r_;
-  double C_Y_0_, C_Y_alpha_, C_Y_beta_, C_Y_p_, C_Y_q_, C_Y_r_, C_Y_delta_a_, C_Y_delta_e_, C_Y_delta_r_;
   double Gamma_, Gamma_1_, Gamma_2_, Gamma_3_, Gamma_4_, Gamma_5_, Gamma_6_, Gamma_7_, Gamma_8_;
   double C_p_0_, C_p_beta_, C_p_p_, C_p_r_, C_p_delta_a_, C_p_delta_r_;
   double C_r_0_, C_r_beta_, C_r_p_, C_r_r_, C_r_delta_a_, C_r_delta_r_;
-  double delta_a_max_, delta_e_max_, delta_r_max_;
 
   template<typename T>
   bool operator()(const T* const alpha, const T* const beta, const T* const phi, T* residuals) const

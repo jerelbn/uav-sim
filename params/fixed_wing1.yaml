@@ -11,10 +11,13 @@ x0: [0, 0, -10,    # POS
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
-compute_trim: false
+compute_trim: true
 Va_star: 16.38 # desired air speed
 R_star: 1e16 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
+
+C_F_t: 19.2089
+C_tau_t: 0
 
 mass: 3.92
 
@@ -114,10 +117,10 @@ throttle_eq: 0.5
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [30, 0, -10,
-            0, -30, -15,
-            -30, 0, -10,
-            0, 30, -15]
+waypoints: [40, 0, -10,
+            0, -40, -15,
+            -40, 0, -10,
+            0, 40, -15]
 waypoint_threshold: 5.0
 
 traj_delta_north: 50

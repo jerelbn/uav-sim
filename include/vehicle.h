@@ -104,6 +104,7 @@ struct State
   }
 
 };
+typedef State<double> Stated;
 
 
 // 4th order integration for truth of each vehicle

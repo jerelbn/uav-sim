@@ -36,94 +36,6 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
   x_ = vehicle::State<double>(x0);
 
-  common::get_yaml_node("mass", filename, mass_);
-  common::get_yaml_node("Jx", filename, Jx_);
-  common::get_yaml_node("Jy", filename, Jy_);
-  common::get_yaml_node("Jz", filename, Jz_);
-  common::get_yaml_node("Jxz", filename, Jxz_);
-  J_ << Jx_, 0, -Jxz_, 0, Jy_, 0, -Jxz_, 0, Jz_;
-  J_inv_ = J_.inverse();
-
-  common::get_yaml_node("rho", filename, rho_);
-  common::get_yaml_node("wing_S", filename, wing_S_);
-  common::get_yaml_node("wing_b", filename, wing_b_);
-  common::get_yaml_node("wing_c", filename, wing_c_);
-  common::get_yaml_node("wing_M", filename, wing_M_);
-  common::get_yaml_node("wing_epsilon", filename, wing_epsilon_);
-  common::get_yaml_node("wing_alpha0", filename, wing_alpha0_);
-
-  common::get_yaml_node("k_motor", filename, k_motor_);
-  common::get_yaml_node("k_T_p", filename, k_T_p_);
-  common::get_yaml_node("k_Omega", filename, k_Omega_);
-
-  common::get_yaml_node("prop_e", filename, prop_e_);
-  common::get_yaml_node("prop_S", filename, prop_S_);
-  common::get_yaml_node("prop_C", filename, prop_C_);
-
-  common::get_yaml_node("C_L_0", filename, C_L_0_);
-  common::get_yaml_node("C_L_alpha", filename, C_L_alpha_);
-  common::get_yaml_node("C_L_beta", filename, C_L_beta_);
-  common::get_yaml_node("C_L_p", filename, C_L_p_);
-  common::get_yaml_node("C_L_q", filename, C_L_q_);
-  common::get_yaml_node("C_L_r", filename, C_L_r_);
-  common::get_yaml_node("C_L_delta_a", filename, C_L_delta_a_);
-  common::get_yaml_node("C_L_delta_e", filename, C_L_delta_e_);
-  common::get_yaml_node("C_L_delta_r", filename, C_L_delta_r_);
-
-  common::get_yaml_node("C_D_0", filename, C_D_0_);
-  common::get_yaml_node("C_D_alpha", filename, C_D_alpha_);
-  common::get_yaml_node("C_D_beta", filename, C_D_beta_);
-  common::get_yaml_node("C_D_p", filename, C_D_p_);
-  common::get_yaml_node("C_D_q", filename, C_D_q_);
-  common::get_yaml_node("C_D_r", filename, C_D_r_);
-  common::get_yaml_node("C_D_delta_a", filename, C_D_delta_a_);
-  common::get_yaml_node("C_D_delta_e", filename, C_D_delta_e_);
-  common::get_yaml_node("C_D_delta_r", filename, C_D_delta_r_);
-
-  common::get_yaml_node("C_el_0", filename, C_el_0_);
-  common::get_yaml_node("C_el_alpha", filename, C_el_alpha_);
-  common::get_yaml_node("C_el_beta", filename, C_el_beta_);
-  common::get_yaml_node("C_el_p", filename, C_el_p_);
-  common::get_yaml_node("C_el_q", filename, C_el_q_);
-  common::get_yaml_node("C_el_r", filename, C_el_r_);
-  common::get_yaml_node("C_el_delta_a", filename, C_el_delta_a_);
-  common::get_yaml_node("C_el_delta_e", filename, C_el_delta_e_);
-  common::get_yaml_node("C_el_delta_r", filename, C_el_delta_r_);
-
-  common::get_yaml_node("C_m_0", filename, C_m_0_);
-  common::get_yaml_node("C_m_alpha", filename, C_m_alpha_);
-  common::get_yaml_node("C_m_beta", filename, C_m_beta_);
-  common::get_yaml_node("C_m_p", filename, C_m_p_);
-  common::get_yaml_node("C_m_q", filename, C_m_q_);
-  common::get_yaml_node("C_m_r", filename, C_m_r_);
-  common::get_yaml_node("C_m_delta_a", filename, C_m_delta_a_);
-  common::get_yaml_node("C_m_delta_e", filename, C_m_delta_e_);
-  common::get_yaml_node("C_m_delta_r", filename, C_m_delta_r_);
-
-  common::get_yaml_node("C_n_0", filename, C_n_0_);
-  common::get_yaml_node("C_n_alpha", filename, C_n_alpha_);
-  common::get_yaml_node("C_n_beta", filename, C_n_beta_);
-  common::get_yaml_node("C_n_p", filename, C_n_p_);
-  common::get_yaml_node("C_n_q", filename, C_n_q_);
-  common::get_yaml_node("C_n_r", filename, C_n_r_);
-  common::get_yaml_node("C_n_delta_a", filename, C_n_delta_a_);
-  common::get_yaml_node("C_n_delta_e", filename, C_n_delta_e_);
-  common::get_yaml_node("C_n_delta_r", filename, C_n_delta_r_);
-
-  common::get_yaml_node("C_Y_0", filename, C_Y_0_);
-  common::get_yaml_node("C_Y_alpha", filename, C_Y_alpha_);
-  common::get_yaml_node("C_Y_beta", filename, C_Y_beta_);
-  common::get_yaml_node("C_Y_p", filename, C_Y_p_);
-  common::get_yaml_node("C_Y_q", filename, C_Y_q_);
-  common::get_yaml_node("C_Y_r", filename, C_Y_r_);
-  common::get_yaml_node("C_Y_delta_a", filename, C_Y_delta_a_);
-  common::get_yaml_node("C_Y_delta_e", filename, C_Y_delta_e_);
-  common::get_yaml_node("C_Y_delta_r", filename, C_Y_delta_r_);
-
-  common::get_yaml_node("delta_a_max", filename, delta_a_max_);
-  common::get_yaml_node("delta_e_max", filename, delta_e_max_);
-  common::get_yaml_node("delta_r_max", filename, delta_r_max_);
-
   // Compute initial control and corresponding acceleration
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.get_vw());
   updateAccels(u_, env.get_vw());
@@ -186,39 +98,11 @@ void FixedWing::f(const vehicle::State<double>& x, const uVector& u, const Vecto
   double alpha = atan2(v_r(2), v_r(0));
   double beta = asin(v_r(1) / Va);
 
-  Vector3d C_F_alpha_beta(C_X(alpha), C_Y_0_ + C_Y_beta_ * beta, C_Z(alpha));
-  Matrix3d C_F_omega = Matrix3d::Zero();
-  C_F_omega(0,1) = C_X_q(alpha) * wing_c_;
-  C_F_omega(1,0) = C_Y_p_ * wing_b_;
-  C_F_omega(1,2) = C_Y_r_ * wing_b_;
-  C_F_omega(2,1) = C_Z_q(alpha) * wing_c_;
-  Matrix<double,3,4> C_F_u = Matrix<double,3,4>::Zero();
-  C_F_u(0,1) = C_X_delta_e(alpha) * delta_e_max_;
-  C_F_u(1,0) = C_Y_delta_a_ * delta_a_max_;
-  C_F_u(1,3) = C_Y_delta_r_ * delta_r_max_;
-  C_F_u(2,1) = C_Z_delta_e(alpha) * delta_e_max_;
-  Matrix3d C_bc = Vector3d(wing_b_, wing_c_, wing_b_).asDiagonal();
-  Vector3d C_tau_alpha_beta(C_el_0_ + C_el_beta_ * beta,
-                            C_m_0_ + C_m_alpha_ * alpha,
-                            C_n_0_ + C_n_beta_ * beta);
-  Matrix3d C_tau_omega = Matrix3d::Zero();
-  C_tau_omega(0,0) = C_el_p_ * wing_b_;
-  C_tau_omega(0,2) = C_el_r_ * wing_b_;
-  C_tau_omega(1,1) = C_m_q_ * wing_c_;
-  C_tau_omega(2,0) = C_n_p_ * wing_b_;
-  C_tau_omega(2,2) = C_n_r_ * wing_b_;
-  Matrix<double,3,4> C_tau_u = Matrix<double,3,4>::Zero();
-  C_tau_u(0,0) = C_el_delta_a_ * delta_a_max_;
-  C_tau_u(0,3) = C_el_delta_r_ * delta_r_max_;
-  C_tau_u(1,1) = C_m_delta_e_ * delta_e_max_;
-  C_tau_u(2,0) = C_n_delta_a_ * delta_a_max_;
-  C_tau_u(2,3) = C_n_delta_r_ * delta_r_max_;
-
   Vector3d f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
-                 (C_F_alpha_beta + 1.0 / (2.0 * Va) * C_F_omega * x.omega + C_F_u * u) +
+                 (C_F_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_F_omega(alpha) * x.omega + C_F_u(alpha) * u) +
                  rho_ * prop_S_ * prop_C_ * (Va + u(THR) * (k_motor_ - Va)) * u(THR) * (k_motor_ - Va) * common::e1;
-  Vector3d tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc *
-                   (C_tau_alpha_beta + 1.0 / (2.0 * Va) * C_tau_omega * x.omega + C_tau_u * u) -
+  Vector3d tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc<double>() *
+                   (C_tau_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_tau_omega<double>() * x.omega + C_tau_u<double>() * u) -
                    k_T_p_ * k_Omega_ * k_Omega_ * u(THR) * u(THR) * common::e1;
 
   dx.template segment<3>(vehicle::DP) = x.q.rota(x.v);
@@ -272,6 +156,10 @@ void FixedWing::computeTrim(const std::string& filename) const
   uVector u_star;
   cost->computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, x_star, u_star);
 
+  // Compute throttle linearization parameters
+  double C_F_t, C_tau_t;
+  computeLinearizedThrottle(x_star, u_star, C_F_t, C_tau_t);
+
   // Scale trimmed command
   u_star(AIL) /= delta_a_max_;
   u_star(ELE) /= delta_e_max_;
@@ -284,6 +172,8 @@ void FixedWing::computeTrim(const std::string& filename) const
   std::cout << "q_star =     " << q.elements().transpose() << "\n";
   std::cout << "omega_star = " << x_star.segment<3>(P).transpose() << "\n";
   std::cout << "u_star =     " << u_star.transpose() << "\n";
+  std::cout << "C_F_t =      " << C_F_t << "\n";
+  std::cout << "C_tau_t =    " << C_tau_t << "\n";
   std::cout << "\n\n";
 
   // Save results to file
@@ -292,12 +182,55 @@ void FixedWing::computeTrim(const std::string& filename) const
   node["q_star"] = std::vector<double>{q.w(), q.x(), q.y(), q.z()};
   node["omega_star"] = std::vector<double>{x_star(P), x_star(Q), x_star(R)};
   node["u_star"] = std::vector<double>{u_star(AIL), u_star(ELE), u_star(THR), u_star(RUD)};
+  node["C_F_t"] = C_F_t;
+  node["C_tau_t"] = C_tau_t;
 
   std::stringstream ss;
   ss << "/tmp/" << name_ << "_trim.log";
   std::ofstream file(ss.str());
   file << node;
   file.close();
+}
+
+
+void FixedWing::computeLinearizedThrottle(const TrimState &x, const uVector &cmd, double& C_F_t, double& C_tau_t) const
+{
+  // Unpack states and commands for readability
+  double u = x(U);
+  double v = x(V);
+  double w = x(W);
+  double theta = x(THETA);
+  double p = x(P);
+  double q = x(Q);
+  double r = x(R);
+
+  double delta_a = cmd(AIL);
+  double delta_e = cmd(ELE);
+  double delta_t = cmd(THR);
+  double delta_r = cmd(RUD);
+
+  double g = common::gravity;
+
+  double Gamma = Jx_ * Jz_ - Jxz_ * Jxz_;
+  double Gamma_1 = (Jxz_ * (Jx_ - Jy_ + Jz_)) / Gamma;
+  double Gamma_2 = (Jz_ * (Jz_ - Jy_) + Jxz_ * Jxz_) / Gamma;
+  double Gamma_3 = Jz_ / Gamma;
+  double Gamma_4 = Jxz_ / Gamma;
+
+  double C_p_0_ = Gamma_3 * C_el_0_ + Gamma_4 * C_n_0_;
+  double C_p_beta_ = Gamma_3 * C_el_beta_ + Gamma_4 * C_n_beta_;
+  double C_p_p_ = Gamma_3 * C_el_p_ + Gamma_4 * C_n_p_;
+  double C_p_r_ = Gamma_3 * C_el_r_ + Gamma_4 * C_n_r_;
+  double C_p_delta_a_ = Gamma_3 * C_el_delta_a_ + Gamma_4 * C_n_delta_a_;
+  double C_p_delta_r_ = Gamma_3 * C_el_delta_r_ + Gamma_4 * C_n_delta_r_;
+
+  // Trim dynamics assume no wind
+  double Va = x.segment<3>(U).norm();
+  double alpha = atan2(w, u);
+  double beta = asin(v / Va);
+
+  C_F_t = mass_ / delta_t * (q * w - r * v + g * sin(theta) - 0.5 * rho_ * Va * Va * wing_S_ / mass_ * (C_X(alpha) + 0.5 * C_X_q(alpha) * wing_c_ * q / Va + C_X_delta_e(alpha) * delta_e));
+  C_tau_t = 1.0 / (Gamma_3 * delta_t) * (Gamma_1 * p * q - Gamma_2 * q * r + 0.5 * rho_ * Va * Va * wing_S_ * wing_b_ * (C_p_0_ + C_p_beta_ * beta + 0.5 * wing_b_ / Va * (C_p_p_ * p + C_p_r_ * r) + C_p_delta_a_ * delta_a + C_p_delta_r_ * delta_r));
 }
 
 

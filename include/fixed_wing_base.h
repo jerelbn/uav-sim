@@ -1,6 +1,9 @@
 #pragma once
 
+#include <Eigen/Dense>
 #include "common_cpp/common.h"
+
+using namespace Eigen;
 
 
 namespace fixedwing
@@ -13,12 +16,118 @@ protected:
 
   void load_base(const std::string& filename);
 
-  double wing_S_, wing_b_, wing_M_, wing_alpha0_;
-  double prop_e_;
-  double C_L_0_, C_L_alpha_, C_L_q_, C_L_delta_e_;
-  double C_D_p_, C_D_q_, C_D_delta_e_;
+  double mass_;
+  Eigen::Matrix3d J_, J_inv_;
+  double Jx_, Jy_, Jz_, Jxz_;
+  double rho_;
+  double wing_S_, wing_b_, wing_c_, wing_M_, wing_epsilon_, wing_alpha0_;
+  double k_motor_, k_T_p_, k_Omega_;
+  double prop_e_, prop_S_, prop_C_;
+  double C_L_0_, C_L_alpha_, C_L_beta_, C_L_p_, C_L_q_, C_L_r_, C_L_delta_a_, C_L_delta_e_, C_L_delta_r_;
+  double C_D_0_, C_D_alpha_, C_D_beta_, C_D_p_, C_D_q_, C_D_r_, C_D_delta_a_, C_D_delta_e_, C_D_delta_r_;
+  double C_el_0_, C_el_alpha_, C_el_beta_, C_el_p_, C_el_q_, C_el_r_, C_el_delta_a_, C_el_delta_e_, C_el_delta_r_;
+  double C_m_0_, C_m_alpha_, C_m_beta_, C_m_p_, C_m_q_, C_m_r_, C_m_delta_a_, C_m_delta_e_, C_m_delta_r_;
+  double C_n_0_, C_n_alpha_, C_n_beta_, C_n_p_, C_n_q_, C_n_r_, C_n_delta_a_, C_n_delta_e_, C_n_delta_r_;
+  double C_Y_0_, C_Y_alpha_, C_Y_beta_, C_Y_p_, C_Y_q_, C_Y_r_, C_Y_delta_a_, C_Y_delta_e_, C_Y_delta_r_;
+  double delta_a_max_, delta_e_max_, delta_r_max_;
+  double Va_star_, R_star_, gamma_star_;
+  double C_F_t_, C_tau_t_;
 
-  // Functions of angle of attack and side slip angle
+  template<typename T>
+  inline Matrix<T,3,4> C_F_ul(const T& alpha, const T& Va) const
+  {
+    Matrix<T,3,4> M = Matrix<T,3,4>::Zero();
+    M(0,1) = C_X_delta_e(alpha) * delta_e_max_;
+    M(0,2) = 2.0 * C_F_t_ / (rho_ * Va * Va * wing_S_);
+    M(1,0) = C_Y_delta_a_ * delta_a_max_;
+    M(1,3) = C_Y_delta_r_ * delta_r_max_;
+    M(2,1) = C_Z_delta_e(alpha) * delta_e_max_;
+    return M;
+  }
+
+  template<typename T>
+  inline Matrix<T,3,4> C_tau_ul(const T& Va) const
+  {
+    Matrix<T,3,4> M = Matrix<T,3,4>::Zero();
+    M(0,0) = C_el_delta_a_ * delta_a_max_;
+    M(0,2) = -2.0 * C_tau_t_ / (rho_ * Va * Va * wing_S_ * wing_b_);
+    M(0,3) = C_el_delta_r_ * delta_r_max_;
+    M(1,1) = C_m_delta_e_ * delta_e_max_;
+    M(2,0) = C_n_delta_a_ * delta_a_max_;
+    M(2,3) = C_n_delta_r_ * delta_r_max_;
+    return M;
+  }
+
+  template<typename T>
+  inline Matrix<T,3,1> C_F_alpha_beta(const T& alpha, const T& beta) const
+  {
+    return Matrix<T,3,1>(C_X(alpha), C_Y_0_ + C_Y_beta_ * beta, C_Z(alpha));
+  }
+
+  template<typename T>
+  inline Matrix<T,3,3> C_F_omega(const T& alpha) const
+  {
+    Matrix<T,3,3> M = Matrix<T,3,3>::Zero();
+    M(0,1) = C_X_q(alpha) * wing_c_;
+    M(1,0) = C_Y_p_ * wing_b_;
+    M(1,2) = C_Y_r_ * wing_b_;
+    M(2,1) = C_Z_q(alpha) * wing_c_;
+    return M;
+  }
+
+  template<typename T>
+  inline Matrix<T,3,4> C_F_u(const T& alpha) const
+  {
+    Matrix<T,3,4> M = Matrix<T,3,4>::Zero();
+    M(0,1) = C_X_delta_e(alpha) * delta_e_max_;
+    M(1,0) = C_Y_delta_a_ * delta_a_max_;
+    M(1,3) = C_Y_delta_r_ * delta_r_max_;
+    M(2,1) = C_Z_delta_e(alpha) * delta_e_max_;
+    return M;
+  }
+
+  template<typename T>
+  inline Matrix<T,3,3> C_bc() const
+  {
+    Matrix<T,3,3> M = Matrix<T,3,3>::Zero();
+    M(0,0) = wing_b_;
+    M(1,1) = wing_c_;
+    M(2,2) = wing_b_;
+    return M;
+  }
+
+  template<typename T>
+  inline Matrix<T,3,1> C_tau_alpha_beta(const T& alpha, const T& beta) const
+  {
+    return Matrix<T,3,1>(C_el_0_ + C_el_beta_ * beta,
+                         C_m_0_ + C_m_alpha_ * alpha,
+                         C_n_0_ + C_n_beta_ * beta);
+  }
+
+  template<typename T>
+  inline Matrix<T,3,3> C_tau_omega() const
+  {
+    Matrix<T,3,3> M = Matrix<T,3,3>::Zero();
+    M(0,0) = C_el_p_ * wing_b_;
+    M(0,2) = C_el_r_ * wing_b_;
+    M(1,1) = C_m_q_ * wing_c_;
+    M(2,0) = C_n_p_ * wing_b_;
+    M(2,2) = C_n_r_ * wing_b_;
+    return M;
+  }
+
+  template<typename T>
+  inline Matrix<T,3,4> C_tau_u() const
+  {
+    Matrix<T,3,4> M = Matrix<T,3,4>::Zero();
+    M(0,0) = C_el_delta_a_ * delta_a_max_;
+    M(0,3) = C_el_delta_r_ * delta_r_max_;
+    M(1,1) = C_m_delta_e_ * delta_e_max_;
+    M(2,0) = C_n_delta_a_ * delta_a_max_;
+    M(2,3) = C_n_delta_r_ * delta_r_max_;
+    return M;
+  }
+
   template<typename T>
   inline T sigma(const T& alpha) const
   {
