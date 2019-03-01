@@ -35,10 +35,6 @@ private:
 
   void f(const vehicle::State<double>& x, const uVector& u,
          const Eigen::Vector3d& vw, vehicle::dxVector& dx);
-  void rk4(std::function<void(const vehicle::State<double>&, const uVector&,
-                        const Eigen::Vector3d&, vehicle::dxVector&)> func,
-           const double& dt, const vehicle::State<double>& x, const uVector& u,
-           const Eigen::Vector3d& vw, vehicle::dxVector& dx);
   void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
   void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
   void getOtherVehicles(const std::vector<Eigen::Vector3d,

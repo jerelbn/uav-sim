@@ -132,15 +132,7 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   bool compute_trim;
   common::get_yaml_node("compute_trim", filename, compute_trim);
   if (compute_trim)
-  {
-    common::get_yaml_node("Va_star", filename, Va_star_);
-    common::get_yaml_node("R_star", filename, R_star_);
-    common::get_yaml_node("gamma_star", filename, gamma_star_);
-
-    vehicle::State<double> x_star;
-    uVector u_star;
-    computeTrim(x_star, u_star);
-  }
+    computeTrim(filename);
 
   // Initialize loggers and log initial data
   std::stringstream ss_ts, ss_c;
@@ -162,7 +154,7 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta
-    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWing::f<double>, this,
+    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWing::f, this,
                                std::placeholders::_1,std::placeholders::_2,
                                std::placeholders::_3,std::placeholders::_4),
                                dt, x_, u, vw, dx_);
@@ -170,7 +162,7 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
   else
   {
     // Euler
-    f<double>(x_, u, vw, dx_);
+    f(x_, u, vw, dx_);
     dx_ *= dt;
   }
   x_ += dx_;
@@ -188,10 +180,60 @@ void FixedWing::run(const double &t, const environment::Environment& env)
 }
 
 
+void FixedWing::f(const vehicle::State<double>& x, const uVector& u, const Vector3d& vw, vehicle::dxVector& dx) const
+{
+
+  Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
+  double Va = v_r.norm();
+  double alpha = atan2(v_r(2), v_r(0));
+  double beta = asin(v_r(1) / Va);
+
+  Vector3d C_F_alpha_beta(C_X(alpha), C_Y_0_ + C_Y_beta_ * beta, C_Z(alpha));
+  Matrix3d C_F_omega = Matrix3d::Zero();
+  C_F_omega(0,1) = C_X_q(alpha) * wing_c_;
+  C_F_omega(1,0) = C_Y_p_ * wing_b_;
+  C_F_omega(1,2) = C_Y_r_ * wing_b_;
+  C_F_omega(2,1) = C_Z_q(alpha) * wing_c_;
+  Matrix<double,3,4> C_F_u = Matrix<double,3,4>::Zero();
+  C_F_u(0,1) = C_X_delta_e(alpha) * delta_e_max_;
+  C_F_u(1,0) = C_Y_delta_a_ * delta_a_max_;
+  C_F_u(1,3) = C_Y_delta_r_ * delta_r_max_;
+  C_F_u(2,1) = C_Z_delta_e(alpha) * delta_e_max_;
+  Matrix3d C_bc = Vector3d(wing_b_, wing_c_, wing_b_).asDiagonal();
+  Vector3d C_tau_alpha_beta(C_el_0_ + C_el_beta_ * beta,
+                            C_m_0_ + C_m_alpha_ * alpha,
+                            C_n_0_ + C_n_beta_ * beta);
+  Matrix3d C_tau_omega = Matrix3d::Zero();
+  C_tau_omega(0,0) = C_el_p_ * wing_b_;
+  C_tau_omega(0,2) = C_el_r_ * wing_b_;
+  C_tau_omega(1,1) = C_m_q_ * wing_c_;
+  C_tau_omega(2,0) = C_n_p_ * wing_b_;
+  C_tau_omega(2,2) = C_n_r_ * wing_b_;
+  Matrix<double,3,4> C_tau_u = Matrix<double,3,4>::Zero();
+  C_tau_u(0,0) = C_el_delta_a_ * delta_a_max_;
+  C_tau_u(0,3) = C_el_delta_r_ * delta_r_max_;
+  C_tau_u(1,1) = C_m_delta_e_ * delta_e_max_;
+  C_tau_u(2,0) = C_n_delta_a_ * delta_a_max_;
+  C_tau_u(2,3) = C_n_delta_r_ * delta_r_max_;
+
+  Vector3d f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
+                 (C_F_alpha_beta + 1.0 / (2.0 * Va) * C_F_omega * x.omega + C_F_u * u) +
+                 rho_ * prop_S_ * prop_C_ * (Va + u(THR) * (k_motor_ - Va)) * u(THR) * (k_motor_ - Va) * common::e1;
+  Vector3d tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc *
+                   (C_tau_alpha_beta + 1.0 / (2.0 * Va) * C_tau_omega * x.omega + C_tau_u * u) -
+                   k_T_p_ * k_Omega_ * k_Omega_ * u(THR) * u(THR) * common::e1;
+
+  dx.template segment<3>(vehicle::DP) = x.q.rota(x.v);
+  dx.template segment<3>(vehicle::DV) = 1.0 / mass_ * f_b - x.omega.cross(x.v);
+  dx.template segment<3>(vehicle::DQ) = x.omega;
+  dx.template segment<3>(vehicle::DW) = J_inv_ * (tau_b - x.omega.cross(J_ * x.omega));
+}
+
+
 void FixedWing::updateAccels(const uVector &u, const Vector3d &vw)
 {
   static vehicle::dxVector dx;
-  f<double>(x_, u, vw, dx);
+  f(x_, u, vw, dx);
   x_.lin_accel = dx.segment<3>(vehicle::DV);
   x_.ang_accel = dx.segment<3>(vehicle::DW);
 }
@@ -218,28 +260,22 @@ void FixedWing::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<V
 }
 
 
-void FixedWing::computeTrim(vehicle::State<double> &x_star, uVector &u_star)
+void FixedWing::computeTrim(const std::string& filename) const
 {
-  // Compute desired state derivative
-  vehicle::dxVector xdot_star = vehicle::dxVector::Zero();
-  xdot_star(vehicle::DP+2) = Va_star_ * sin(gamma_star_);
-  xdot_star(vehicle::DQ+2) = Va_star_ / R_star_ * cos(gamma_star_);
-
   // Computed trimmed alpha, beta, phi
-  double alpha_star = 0;
-  double beta_star = 0;
-  double phi_star = 0;
+  double alpha_star(0), beta_star(0), phi_star(0);
   ceres::Problem problem;
-  problem.AddResidualBlock(new DynamicsCostFactor(
-                           new DynamicsCost(xdot_star, Va_star_, R_star_, gamma_star_, *this)),
-                           NULL, &alpha_star, &beta_star, &phi_star);
+  DynamicsCost* cost = new DynamicsCost(filename);
+  problem.AddResidualBlock(new DynamicsCostFactor(cost), NULL, &alpha_star, &beta_star, &phi_star);
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = false;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
 
   // Compute final trimmed state and trimmed command
-  computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, Va_star_, R_star_, gamma_star_, x_star, u_star);
+  TrimState x_star;
+  uVector u_star;
+  cost->computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, x_star, u_star);
 
   // Scale trimmed command
   u_star(AIL) /= delta_a_max_;
@@ -247,18 +283,19 @@ void FixedWing::computeTrim(vehicle::State<double> &x_star, uVector &u_star)
   u_star(RUD) /= delta_r_max_;
 
   // Show results
+  quat::Quatd q(x_star(PHI), x_star(THETA), 0);
   std::cout << "\n\n";
-  std::cout << "v_star =     " << x_star.v.transpose() << "\n";
-  std::cout << "q_star =     " << x_star.q.elements().transpose() << "\n";
-  std::cout << "omega_star = " << x_star.omega.transpose() << "\n";
+  std::cout << "v_star =     " << x_star.segment<3>(U).transpose() << "\n";
+  std::cout << "q_star =     " << q.elements().transpose() << "\n";
+  std::cout << "omega_star = " << x_star.segment<3>(P).transpose() << "\n";
   std::cout << "u_star =     " << u_star.transpose() << "\n";
   std::cout << "\n\n";
 
   // Save results to file
   YAML::Node node;
-  node["v_star"] = std::vector<double>{x_star.v(0), x_star.v(1), x_star.v(2)};
-  node["q_star"] = std::vector<double>{x_star.q.w(), x_star.q.x(), x_star.q.y(), x_star.q.z()};
-  node["omega_star"] = std::vector<double>{x_star.omega(0), x_star.omega(1), x_star.omega(2)};
+  node["v_star"] = std::vector<double>{x_star(U), x_star(V), x_star(W)};
+  node["q_star"] = std::vector<double>{q.w(), q.x(), q.y(), q.z()};
+  node["omega_star"] = std::vector<double>{x_star(P), x_star(Q), x_star(R)};
   node["u_star"] = std::vector<double>{u_star(AIL), u_star(ELE), u_star(THR), u_star(RUD)};
 
   std::stringstream ss;
