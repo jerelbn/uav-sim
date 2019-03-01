@@ -10,6 +10,7 @@ FixedWing::FixedWing()  : t_prev_(0.0) {}
 FixedWing::FixedWing(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
   : t_prev_(0.0), id_(id)
 {
+  load_base(filename);
   load(filename, env, use_random_seed);
 }
 

@@ -7,6 +7,7 @@ namespace fixedwing
 
 DynamicsCost::DynamicsCost(const std::string &filename)
 {
+  load_base(filename);
   load(filename);
 }
 
@@ -24,39 +25,27 @@ void DynamicsCost::load(const std::string &filename)
   common::get_yaml_node("Jxz", filename, Jxz_);
 
   common::get_yaml_node("rho", filename, rho_);
-  common::get_yaml_node("wing_S", filename, wing_S_);
-  common::get_yaml_node("wing_b", filename, wing_b_);
   common::get_yaml_node("wing_c", filename, wing_c_);
-  common::get_yaml_node("wing_M", filename, wing_M_);
   common::get_yaml_node("wing_epsilon", filename, wing_epsilon_);
-  common::get_yaml_node("wing_alpha0", filename, wing_alpha0_);
 
   common::get_yaml_node("k_motor", filename, k_motor_);
   common::get_yaml_node("k_T_p", filename, k_T_p_);
   common::get_yaml_node("k_Omega", filename, k_Omega_);
 
-  common::get_yaml_node("prop_e", filename, prop_e_);
   common::get_yaml_node("prop_S", filename, prop_S_);
   common::get_yaml_node("prop_C", filename, prop_C_);
 
-  common::get_yaml_node("C_L_0", filename, C_L_0_);
-  common::get_yaml_node("C_L_alpha", filename, C_L_alpha_);
   common::get_yaml_node("C_L_beta", filename, C_L_beta_);
   common::get_yaml_node("C_L_p", filename, C_L_p_);
-  common::get_yaml_node("C_L_q", filename, C_L_q_);
   common::get_yaml_node("C_L_r", filename, C_L_r_);
   common::get_yaml_node("C_L_delta_a", filename, C_L_delta_a_);
-  common::get_yaml_node("C_L_delta_e", filename, C_L_delta_e_);
   common::get_yaml_node("C_L_delta_r", filename, C_L_delta_r_);
 
   common::get_yaml_node("C_D_0", filename, C_D_0_);
   common::get_yaml_node("C_D_alpha", filename, C_D_alpha_);
   common::get_yaml_node("C_D_beta", filename, C_D_beta_);
-  common::get_yaml_node("C_D_p", filename, C_D_p_);
-  common::get_yaml_node("C_D_q", filename, C_D_q_);
   common::get_yaml_node("C_D_r", filename, C_D_r_);
   common::get_yaml_node("C_D_delta_a", filename, C_D_delta_a_);
-  common::get_yaml_node("C_D_delta_e", filename, C_D_delta_e_);
   common::get_yaml_node("C_D_delta_r", filename, C_D_delta_r_);
 
   common::get_yaml_node("C_el_0", filename, C_el_0_);
