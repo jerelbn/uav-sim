@@ -4,8 +4,8 @@
 
 #include "common_cpp/common.h"
 #include "vehicle.h"
-#include "lin_alg_tools/care.h"
 #include "fixed_wing_base.h"
+#include "fw_p_lqr.h"
 
 using namespace Eigen;
 
@@ -22,7 +22,7 @@ public:
   ~Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
-  void computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u,
+  void computeControl(const vehicle::State<double> &x, const double t, uVector& u,
                       const Vector3d &p_target, const Vector3d &vw);
   inline vehicle::State<double> getCommandedState() const { return xc_; }
 
@@ -37,7 +37,6 @@ private:
   };
 
   // Parameters
-  double throttle_eq_;
   double mass_;
   int path_type_;
   std::default_random_engine rng_;
@@ -61,6 +60,9 @@ private:
   double traj_north_freq_;
   double traj_east_freq_;
   double traj_alt_freq_;
+
+  // Controllers
+  PLQR plqr_;
 
   // Memory for sharing information between functions
   bool initialized_;

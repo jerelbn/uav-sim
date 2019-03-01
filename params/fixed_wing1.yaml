@@ -4,7 +4,7 @@ accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters
-x0: [0, 0, -10,    # POS
+x0: [0, 0, -5,    # POS
      16.3696, 0, 0.584703,    # VEL
      0, 0, 0,    # LIN ACC
      0.999841, 0, 0.0178509, 0, # ATT
@@ -106,8 +106,20 @@ delta_a_max: 1.0
 delta_e_max: 1.0
 delta_r_max: 1.0
 
-# Controller
-throttle_eq: 0.5
+# Waypoint LQR Controller
+plqr_v_ref: [16.3696, 0, 0.584703]
+plqr_q_ref: [0.999841, 0, 0.0178509, 0]
+plqr_omega_ref: [0, 0, 0]
+plqr_u_ref: [0, 0.0216435, 0.171139, 0]
+plqr_max_p_error: 0.5
+plqr_max_v_error: 0.5
+plqr_max_q_error: 0.1
+plqr_max_omega_error: 0.1
+plqr_Q: [1, 1, 1, # position
+         1, 1, 1, # velocity
+         1, 1, 1, # attitude
+         1, 1, 1] # angular rate
+plqr_R: [1, 1, 1, 1] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
@@ -121,7 +133,7 @@ waypoints: [40, 0, -10,
             0, -40, -15,
             -40, 0, -10,
             0, 40, -15]
-waypoint_threshold: 5.0
+waypoint_threshold: 1.0
 
 traj_delta_north: 50
 traj_delta_east: 50

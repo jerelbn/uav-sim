@@ -36,6 +36,7 @@ add_executable(uav_sim
   src/sensors.cpp
   src/quad_control.cpp
   src/fixed_wing_control.cpp
+  src/fw_p_lqr.cpp
   )
 target_link_libraries(uav_sim
   common_cpp

@@ -31,7 +31,6 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   rng_ = std::default_random_engine(seed);
   srand(seed);
 
-  common::get_yaml_node("throttle_eq", filename, throttle_eq_);
   common::get_yaml_node("mass", filename, mass_);
   // need to load more physical parameters for LQR jacobian calculations
 
@@ -60,6 +59,9 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   traj_east_freq_ = 2.0 * M_PI / traj_east_period;
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
 
+  // Initialize controllers
+  plqr_.init(filename);
+
   // Initialize loggers
   std::stringstream ss;
   ss << "/tmp/" << name << "_command.log";
@@ -68,7 +70,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 
 
 // need to pass in wind
-void Controller::computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u,
+void Controller::computeControl(const vehicle::State<double> &x, const double t, uVector& u,
                                 const Vector3d& p_target, const Vector3d& vw)
 {
   // Copy the current state
@@ -90,15 +92,12 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
       updateWaypointManager();
     else
       updateTrajectoryManager(t);
+
+    // Compute control
+    plqr_.computeControl(xhat_, vw, xc_, u);
   }
   else
     throw std::runtime_error("Undefined path type in fixed wing controller.");
-
-  // Calculate the Final Output Torques using PID
-  u(AIL) = 0.0;
-  u(ELE) = 0.0216435;
-  u(THR) = 0.171139;
-  u(RUD) = 0.0;
 
   // Log all data
   log(t);
