@@ -4,16 +4,16 @@ accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters
-x0: [0, 0, -5,    # POS
-     16.35891506789656, -0.177656353271725, 0.8116255426544281,    # VEL
+x0: [0, 0, -10,    # POS
+     16.3696, 0, 0.584703,    # VEL
      0, 0, 0,    # LIN ACC
-     0.9687134920508766, 0.2469411375494792, 0.02401593792128931, -0.006122060937796236, # ATT
-     -0.01623346568673814, 0.1566374745834265, 0.2872680562609145,    # OMEGA
+     0.999841, 0, 0.0178509, 0, # ATT
+     0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
-compute_trim: true
+compute_trim: false
 Va_star: 16.38 # desired air speed
-R_star: 50 # desired turn radius
+R_star: 1e16 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
 
 mass: 3.92
@@ -114,32 +114,21 @@ throttle_eq: 0.5
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [0, 0, -4, 0,
-            10, 0, -4, 0,
-            10, 0, -8, 1.57,
-            10, 10, -8, 1.57,
-            10, 10, -4, 3.14,
-            -10, 10, -4, 3.14,
-            -10, 10, -8, -1.57,
-            -10, -10, -8, -1.57,
-            -10, -10, -4, 0,
-            10, -10, -4, 0,
-            10, 0, -4, 1.57]
-waypoint_threshold: 0.1
-waypoint_velocity_threshold: 0.5
+waypoints: [30, 0, -10,
+            0, -30, -15,
+            -30, 0, -10,
+            0, 30, -15]
+waypoint_threshold: 5.0
 
-traj_delta_north: 10
-traj_delta_east: 10
-traj_delta_alt: -4
-traj_delta_yaw: 1.5
+traj_delta_north: 50
+traj_delta_east: 50
+traj_delta_alt: -10
 traj_nom_north: 0
 traj_nom_east: 0
 traj_nom_alt: 5
-traj_nom_yaw: 0
 traj_north_period: 20
 traj_east_period: 20
-traj_alt_period: 20
-traj_yaw_period: 20
+traj_alt_period: 1e16
 
 circ_rd: 5.0
 circ_hd: 5.0

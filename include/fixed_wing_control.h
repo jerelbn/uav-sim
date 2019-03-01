@@ -48,15 +48,12 @@ private:
   double traj_delta_north_;
   double traj_delta_east_;
   double traj_delta_alt_;
-  double traj_delta_yaw_;
   double traj_nom_north_;
   double traj_nom_east_;
   double traj_nom_alt_;
-  double traj_nom_yaw_;
   double traj_north_freq_;
   double traj_east_freq_;
   double traj_alt_freq_;
-  double traj_yaw_freq_;
 
   // Memory for sharing information between functions
   bool initialized_;

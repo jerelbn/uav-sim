@@ -31,28 +31,24 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   if (common::get_yaml_node("waypoints", filename, loaded_wps))
   {
     int num_waypoints = std::floor(loaded_wps.size()/4.0);
-    waypoints_ = Map<MatrixXd>(loaded_wps.data(), 4, num_waypoints);
+    waypoints_ = Map<MatrixXd>(loaded_wps.data(), 3, num_waypoints);
     current_waypoint_id_ = 0;
   }
   common::get_yaml_node("waypoint_threshold", filename, waypoint_threshold_);
 
-  double traj_north_period, traj_east_period, traj_alt_period, traj_yaw_period;
+  double traj_north_period, traj_east_period, traj_alt_period;
   common::get_yaml_node("traj_delta_north", filename, traj_delta_north_);
   common::get_yaml_node("traj_delta_east", filename, traj_delta_east_);
   common::get_yaml_node("traj_delta_alt", filename, traj_delta_alt_);
-  common::get_yaml_node("traj_delta_yaw", filename, traj_delta_yaw_);
   common::get_yaml_node("traj_nom_north", filename, traj_nom_north_);
   common::get_yaml_node("traj_nom_east", filename, traj_nom_east_);
   common::get_yaml_node("traj_nom_alt", filename, traj_nom_alt_);
-  common::get_yaml_node("traj_nom_yaw", filename, traj_nom_yaw_);
   common::get_yaml_node("traj_north_period", filename, traj_north_period);
   common::get_yaml_node("traj_east_period", filename, traj_east_period);
   common::get_yaml_node("traj_alt_period", filename, traj_alt_period);
-  common::get_yaml_node("traj_yaw_period", filename, traj_yaw_period);
   traj_north_freq_ = 2.0 * M_PI / traj_north_period;
   traj_east_freq_ = 2.0 * M_PI / traj_east_period;
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
-  traj_yaw_freq_ = 2.0 * M_PI / traj_yaw_period;
 }
 
 
@@ -84,10 +80,10 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
     throw std::runtime_error("Undefined path type in fixed wing controller.");
 
   // Calculate the Final Output Torques using PID
-  u(AIL) = -0.01146250476123955;
-  u(ELE) = 0.009054369420580166;
-  u(THR) = 0.2035736781976917  ;
-  u(RUD) = -0.03181209079966326;
+  u(AIL) = 0.0;
+  u(ELE) = 0.0216435;
+  u(THR) = 0.171139;
+  u(RUD) = 0.0;
 }
 
 
