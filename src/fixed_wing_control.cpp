@@ -11,8 +11,17 @@ Controller::Controller() :
 {}
 
 
+Controller::~Controller()
+{
+  command_log_.close();
+}
+
+
 void Controller::load(const std::string& filename, const bool& use_random_seed, const std::string& name)
 {
+  // Initialize base class variables
+  load_base(filename);
+
   // Initialize random number generator
   int seed;
   if (use_random_seed)
@@ -50,6 +59,11 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   traj_north_freq_ = 2.0 * M_PI / traj_north_period;
   traj_east_freq_ = 2.0 * M_PI / traj_east_period;
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
+
+  // Initialize loggers and log initial data
+  std::stringstream ss;
+  ss << "/tmp/" << name << "_command.log";
+  command_log_.open(ss.str());
 }
 
 
@@ -111,6 +125,8 @@ void Controller::computeControl(const vehicle::State<double> &x, const double t,
   u(ELE) = 0.0216435;
   u(THR) = 0.171139;
   u(RUD) = 0.0;
+
+  log(t);
 }
 
 
@@ -148,6 +164,15 @@ void Controller::updateTrajectoryManager(const double& t)
   xc_.p = Vector3d(traj_nom_north_ + traj_delta_north_ / 2.0 * cos(traj_north_freq_ * t),
                    traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * t),
                    -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * t)));
+}
+
+
+void Controller::log(const double &t)
+{
+  // Write data to binary files and plot in another program
+  vehicle::xVector commanded_state = xc_.toEigen();
+  command_log_.write((char*)&t, sizeof(double));
+  command_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
 }
 
 

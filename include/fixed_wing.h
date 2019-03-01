@@ -70,7 +70,6 @@ private:
   double delta_a_max_, delta_e_max_, delta_r_max_;
 
   std::ofstream state_log_;
-  std::ofstream command_log_;
 
 };
 

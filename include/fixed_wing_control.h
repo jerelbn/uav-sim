@@ -5,6 +5,7 @@
 #include "common_cpp/common.h"
 #include "vehicle.h"
 #include "lin_alg_tools/care.h"
+#include "fixed_wing_base.h"
 
 using namespace Eigen;
 
@@ -12,17 +13,17 @@ using namespace Eigen;
 namespace fixedwing
 {
 
-class Controller
+class Controller : public FixedWingBase
 {
 
 public:
 
   Controller();
+  ~Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
   void computeControl(const vehicle::State<double> &x, const double t, quadrotor::uVector& u,
                       const Vector3d &p_target, const Vector3d &vw);
-  void log(const double& t);
   inline vehicle::State<double> getCommandedState() const { return xc_; }
 
 private:
@@ -41,6 +42,9 @@ private:
   int path_type_;
   std::default_random_engine rng_;
   uVector u_prev_;
+
+  // Logging
+  std::ofstream command_log_;
 
   // Waypoint Parameters
   MatrixXd waypoints_;
@@ -68,6 +72,7 @@ private:
   // Functions
   void updateWaypointManager();
   void updateTrajectoryManager(const double& t);
+  void log(const double &t);
 };
 
 } // namespace fixedwing
