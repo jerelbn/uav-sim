@@ -1,18 +1,18 @@
 clear, close all
 
-rho = 1.2;
+rho = 1.2682;
 S_prop = 0.0314;
 C_prop = 1.0;
 k_motor = 40;
+C_F_t = 19.2089;
 
 Va = linspace(0,30,100);
 delta_t = linspace(0,1,100);
-C_Va = 0.1 * Va .^ 2;
 
 [Va_,delta_t_] = meshgrid(Va,delta_t);
 % thrust = 0.5 * rho * S_prop * C_prop * ((k_motor * delta_t_).^2 - Va_.^2);
 thrust = rho * S_prop * C_prop * (Va_ + delta_t_ .* (k_motor - Va_)) .* delta_t_ .* (k_motor - Va_);
-thrust_linear = 25 * delta_t_;
+thrust_linear = C_F_t * delta_t_;
 
 figure(1), clf, grid on
 surf(Va, delta_t, thrust, 'facecolor', 'b', 'facealpha', 0.5), hold on

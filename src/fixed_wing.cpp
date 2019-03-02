@@ -64,7 +64,7 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta
-    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWing::f, this,
+    vehicle::rk4<COMMAND_SIZE>(std::bind(&FixedWingBase::f<double>, this,
                                std::placeholders::_1,std::placeholders::_2,
                                std::placeholders::_3,std::placeholders::_4),
                                dt, x_, u, vw, dx_);
@@ -87,28 +87,6 @@ void FixedWing::run(const double &t, const environment::Environment& env)
   controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw()); // Update control input with truth
   updateAccels(u_, env.get_vw()); // Update true acceleration
   log(t); // Log current data
-}
-
-
-void FixedWing::f(const vehicle::State<double>& x, const uVector& u, const Vector3d& vw, vehicle::dxVector& dx) const
-{
-
-  Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
-  double Va = v_r.norm();
-  double alpha = atan2(v_r(2), v_r(0));
-  double beta = asin(v_r(1) / Va);
-
-  Vector3d f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
-                 (C_F_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_F_omega(alpha) * x.omega + C_F_u(alpha) * u) +
-                 rho_ * prop_S_ * prop_C_ * (Va + u(THR) * (k_motor_ - Va)) * u(THR) * (k_motor_ - Va) * common::e1;
-  Vector3d tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc<double>() *
-                   (C_tau_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_tau_omega<double>() * x.omega + C_tau_u<double>() * u) -
-                   k_T_p_ * k_Omega_ * k_Omega_ * u(THR) * u(THR) * common::e1;
-
-  dx.template segment<3>(vehicle::DP) = x.q.rota(x.v);
-  dx.template segment<3>(vehicle::DV) = 1.0 / mass_ * f_b - x.omega.cross(x.v);
-  dx.template segment<3>(vehicle::DQ) = x.omega;
-  dx.template segment<3>(vehicle::DW) = J_inv_ * (tau_b - x.omega.cross(J_ * x.omega));
 }
 
 

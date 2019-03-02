@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include "common_cpp/common.h"
+#include "vehicle.h"
 
 using namespace Eigen;
 
@@ -32,6 +33,28 @@ protected:
   double delta_a_max_, delta_e_max_, delta_r_max_;
   double Va_star_, R_star_, gamma_star_;
   double C_F_t_, C_tau_t_;
+
+  template<typename T>
+  void f(const vehicle::State<T>& x, const Matrix<T,COMMAND_SIZE,1>& u,
+         const Matrix<T,3,1>& vw, Matrix<T,vehicle::NUM_DOF,1>& dx)
+  {
+    Matrix<T,3,1> v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
+    T Va = v_r.norm();
+    T alpha = atan2(v_r(2), v_r(0));
+    T beta = asin(v_r(1) / Va);
+
+    Matrix<T,3,1> f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
+                        (C_F_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_F_omega(alpha) * x.omega + C_F_u(alpha) * u) +
+                        rho_ * prop_S_ * prop_C_ * (Va + u(THR) * (k_motor_ - Va)) * u(THR) * (k_motor_ - Va) * common::e1;
+    Matrix<T,3,1> tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc<double>() *
+                          (C_tau_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_tau_omega<double>() * x.omega + C_tau_u<double>() * u) -
+                          k_T_p_ * k_Omega_ * k_Omega_ * u(THR) * u(THR) * common::e1;
+
+    dx.template segment<3>(vehicle::DP) = x.q.rota(x.v);
+    dx.template segment<3>(vehicle::DV) = 1.0 / mass_ * f_b - x.omega.cross(x.v);
+    dx.template segment<3>(vehicle::DQ) = x.omega;
+    dx.template segment<3>(vehicle::DW) = J_inv_ * (tau_b - x.omega.cross(J_ * x.omega));
+  }
 
   template<typename T>
   inline Matrix<T,3,4> C_F_ul(const T& alpha, const T& Va) const

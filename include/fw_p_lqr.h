@@ -37,7 +37,10 @@ private:
   Vector3d v_ref_;
   quat::Quatd q_ref_;
   Vector3d omega_ref_;
-  uVector u_ref_;
+  uVector u_ref_, u_prev_;
+
+  void analyticAB(const vehicle::State<double>& x, const Vector3d& vw);
+  void numericalAB(const vehicle::State<double>& x, const Vector3d& vw, const uVector &u);
 };
 
 

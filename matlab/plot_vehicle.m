@@ -49,6 +49,7 @@ for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
     plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.3)
+    plot(commanded_state(1,:), commanded_state(i + idx1, :), 'g--')
 end
 
 

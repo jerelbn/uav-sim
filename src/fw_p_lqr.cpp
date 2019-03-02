@@ -34,19 +34,31 @@ void PLQR::init(const std::string& filename)
   Q_ = Q_diag.asDiagonal();
   R_ = R_diag.asDiagonal();
   R_inv_ = R_.inverse();
+
+  u_prev_ = u_ref_;
 }
 
 
 void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicle::Stated& xc, uVector& u)
 {
   // Put reference velocity along direction of waypoint
-  v_ref_ = xhat.q.rotp(xc.p - xhat.p);
+  Vector3d wp_dir = (xc.p - xhat.p).normalized(); // direction of waypoint from aircraft
+  quat::Quatd q_chi(0, 0, atan2(wp_dir(1), wp_dir(0))); // heading rotation to waypoint direction
+
+  Vector3d vI = xhat.q.rota(xhat.v);
+  double theta = acos(vI.normalized().dot(wp_dir));
+  Vector3d aa = (vI.cross(wp_dir)).normalized();
+  quat::Quatd qv = quat::Quatd::exp(common::saturate(theta, 0.01745, -0.01745) * aa);
+
+  xc.v = xhat.q.rotp(qv.rota(vI));
+  xc.q = q_chi * q_ref_;
+  xc.omega = omega_ref_;
 
   // Calculate control error
   Vector3d p_err = xc.p - xhat.p;
-  Vector3d v_err = v_ref_ - xhat.v;
-  Vector3d q_err = q_ref_ - xhat.q;
-  Vector3d omega_err = omega_ref_ - xhat.omega;
+  Vector3d v_err = xc.v - xhat.v;
+  Vector3d q_err = xc.q - xhat.q;
+  Vector3d omega_err = xc.omega - xhat.omega;
 
   // Create error state
   Matrix<double,12,1> x_tilde;
@@ -56,23 +68,10 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
   x_tilde.segment<3>(9) = common::saturateVector<double,3>(omega_err_max_, omega_err);
 
   // Jacobians
-  Vector3d v_r = xhat.v - xhat.q.rotp(vw); // velocity w.r.t. air in body frame
-  double Va = v_r.norm();
-  double alpha = atan2(v_r(2), v_r(0));
-//  double beta = asin(v_r(1) / Va);
-
-  A_.block<3,3>(0,3) = xhat.q.inverse().R();
-  A_.block<3,3>(0,6) = -xhat.q.inverse().R() * common::skew(xhat.v);
-  A_.block<3,3>(3,3) = -common::skew(xhat.omega);
-  A_.block<3,3>(3,6) = common::skew(xhat.q.rotp(common::gravity * common::e3));
-  A_.block<3,3>(3,9) = 0.25 / mass_ * rho_ * Va * wing_S_ * C_F_omega(alpha) + common::skew(xhat.v);
-  A_.block<3,3>(6,6) = -common::skew(xhat.omega);
-  A_.block<3,3>(6,9) = common::I_3x3;
-  A_.block<3,3>(9,9) = J_inv_ * (0.25 * rho_ * Va * wing_S_ * C_bc<double>() * C_tau_omega<double>() +
-                       common::skew(J_ * xhat.omega) - common::skew(xhat.omega) * J_);
-
-  B_.block<3,4>(3,0) = 0.5 / mass_ * rho_ * Va * Va * wing_S_ * C_F_ul(alpha, Va);
-  B_.block<3,4>(9,0) = 0.5 * rho_ * Va * Va * wing_S_ * J_inv_ * C_bc<double>() * C_tau_ul(Va);
+//  analyticAB(xhat, vw);
+//  std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
+  numericalAB(xhat, vw, u_prev_);
+//  std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
 
   // Compute control
   care_solver.solve(P_, A_, B_, Q_, R_);
@@ -83,6 +82,56 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
   u(ELE) = common::saturate(u(ELE), 1.0, -1.0);
   u(THR) = common::saturate(u(THR), 1.0,  0.0);
   u(RUD) = common::saturate(u(RUD), 1.0, -1.0);
+
+  u_prev_ = u;
+}
+
+
+void PLQR::analyticAB(const vehicle::State<double> &x, const Vector3d &vw)
+{
+  Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
+  double Va = v_r.norm();
+  double alpha = atan2(v_r(2), v_r(0));
+//  double beta = asin(v_r(1) / Va);
+
+  A_.setZero();
+  A_.block<3,3>(0,3) = x.q.inverse().R();
+  A_.block<3,3>(0,6) = -x.q.inverse().R() * common::skew(x.v);
+  A_.block<3,3>(3,3) = -common::skew(x.omega);
+  A_.block<3,3>(3,6) = common::skew(x.q.rotp(common::gravity * common::e3));
+  A_.block<3,3>(3,9) = 0.25 * rho_ * Va * wing_S_ / mass_ * C_F_omega(alpha) + common::skew(x.v);
+  A_.block<3,3>(6,6) = -common::skew(x.omega);
+  A_.block<3,3>(6,9) = common::I_3x3;
+  A_.block<3,3>(9,9) = J_inv_ * (0.25 * rho_ * Va * wing_S_ * C_bc<double>() * C_tau_omega<double>() -
+                       common::skew(x.omega) * J_ + common::skew(J_ * x.omega));
+
+  B_.setZero();
+  B_.block<3,4>(3,0) = 0.5 * rho_ * Va * Va * wing_S_ / mass_ * C_F_ul(alpha, Va);
+  B_.block<3,4>(9,0) = 0.5 * rho_ * Va * Va * wing_S_ * J_inv_ * C_bc<double>() * C_tau_ul(Va);
+}
+
+
+void PLQR::numericalAB(const vehicle::State<double> &x, const Vector3d &vw, const uVector& u)
+{
+  double eps = 1e-5;
+  Matrix<double,12,12> I12 = Matrix<double,12,12>::Identity();
+  Matrix4d I4 = Matrix4d::Identity();
+  for (int i = 0; i < A_.cols(); ++i)
+  {
+    vehicle::dxVector dxpx, dxmx;
+    f(x + eps * I12.col(i), u, vw, dxpx);
+    f(x + -eps * I12.col(i), u, vw, dxmx);
+    A_.col(i) = (dxpx - dxmx) / (2.0 * eps);
+  }
+  for (int i = 0; i < B_.cols(); ++i)
+  {
+    vehicle::dxVector dxpu, dxmu;
+    Vector4d up = u + eps * I4.col(i);
+    Vector4d um = u + -eps * I4.col(i);
+    f(x, up, vw, dxpu);
+    f(x, um, vw, dxmu);
+    B_.col(i) = (dxpu - dxmu) / (2.0 * eps);
+  }
 }
 
 

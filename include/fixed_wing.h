@@ -38,7 +38,6 @@ public:
 private:
 
   void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
-  void f(const vehicle::State<double>& x, const uVector& u, const Vector3d& vw, vehicle::dxVector& dx) const;
   void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
   void getOtherVehicles(const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);

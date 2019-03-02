@@ -40,7 +40,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   std::vector<double> loaded_wps;
   if (common::get_yaml_node("waypoints", filename, loaded_wps))
   {
-    int num_waypoints = std::floor(loaded_wps.size()/4.0);
+    int num_waypoints = std::floor(loaded_wps.size()/3.0);
     waypoints_ = Map<MatrixXd>(loaded_wps.data(), 3, num_waypoints);
     current_waypoint_id_ = 0;
   }
