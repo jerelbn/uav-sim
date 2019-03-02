@@ -115,7 +115,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::State<double> &x, const Eigen::MatrixXd& lm)
+void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const Eigen::MatrixXd& lm)
 {
   // Update enabled sensor measurements
   if (imu_enabled_)
@@ -127,7 +127,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::State<double> &x
 }
 
 
-void Sensors::imu(const double t, const vehicle::State<double>& x)
+void Sensors::imu(const double t, const vehicle::Stated& x)
 {
   double dt = common::decRound(t - last_imu_update_, 1e6);
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
@@ -169,7 +169,7 @@ void Sensors::imu(const double t, const vehicle::State<double>& x)
 }
 
 
-void Sensors::camera(const double t, const vehicle::State<double> &x, const Eigen::MatrixXd &lm)
+void Sensors::camera(const double t, const vehicle::Stated &x, const Eigen::MatrixXd &lm)
 {
   double dt = common::decRound(t - last_camera_update_, 1e6);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
@@ -224,7 +224,7 @@ void Sensors::camera(const double t, const vehicle::State<double> &x, const Eige
 }
 
 
-void Sensors::mocap(const double t, const vehicle::State<double> &x)
+void Sensors::mocap(const double t, const vehicle::Stated &x)
 {
   double dt = common::decRound(t - last_mocap_update_, 1e6);
   if (t == 0 || dt >= 1.0 / mocap_update_rate_)
@@ -252,11 +252,11 @@ void Sensors::mocap(const double t, const vehicle::State<double> &x)
 }
 
 
-void Sensors::depth(const double t, const vehicle::State<double>& x) {}
-void Sensors::gps(const double t, const vehicle::State<double>& x) {}
-void Sensors::baro(const double t, const vehicle::State<double>& x) {}
-void Sensors::alt(const double t, const vehicle::State<double>& x) {}
-void Sensors::mag(const double t, const vehicle::State<double>& x) {}
+void Sensors::depth(const double t, const vehicle::Stated& x) {}
+void Sensors::gps(const double t, const vehicle::Stated& x) {}
+void Sensors::baro(const double t, const vehicle::Stated& x) {}
+void Sensors::alt(const double t, const vehicle::Stated& x) {}
+void Sensors::mag(const double t, const vehicle::Stated& x) {}
 
 
 }

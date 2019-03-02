@@ -30,7 +30,7 @@ public:
   void run(const double &t, const environment::Environment& env);
   void computeTrim(const std::string& filename) const;
 
-  const vehicle::State<double>& getState() const { return x_; }
+  const vehicle::Stated& getState() const { return x_; }
 
   int id_;
   std::string name_;
@@ -47,7 +47,7 @@ private:
   Controller controller_;
   sensors::Sensors sensors_;
 
-  vehicle::State<double> x_;
+  vehicle::Stated x_;
   vehicle::dxVector dx_;
   uVector u_;
 

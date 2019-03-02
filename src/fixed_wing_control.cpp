@@ -73,7 +73,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 
 
 // need to pass in wind
-void Controller::computeControl(const vehicle::State<double> &x, const double t, uVector& u,
+void Controller::computeControl(const vehicle::Stated &x, const double t, uVector& u,
                                 const Vector3d& p_target, const Vector3d& vw)
 {
   // Copy the current state

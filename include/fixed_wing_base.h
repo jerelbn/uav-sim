@@ -36,7 +36,7 @@ protected:
 
   template<typename T>
   void f(const vehicle::State<T>& x, const Matrix<T,COMMAND_SIZE,1>& u,
-         const Matrix<T,3,1>& vw, Matrix<T,vehicle::NUM_DOF,1>& dx)
+         const Matrix<T,3,1>& vw, Matrix<T,vehicle::NUM_DOF,1>& dx) const
   {
     Matrix<T,3,1> v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
     T Va = v_r.norm();

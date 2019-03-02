@@ -41,18 +41,8 @@ void PLQR::init(const std::string& filename)
 
 void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicle::Stated& xc, uVector& u)
 {
-  // Put reference velocity along direction of waypoint
-  Vector3d wp_dir = (xc.p - xhat.p).normalized(); // direction of waypoint from aircraft
-  quat::Quatd q_chi(0, 0, atan2(wp_dir(1), wp_dir(0))); // heading rotation to waypoint direction
-
-  Vector3d vI = xhat.q.rota(xhat.v);
-  double theta = acos(vI.normalized().dot(wp_dir));
-  Vector3d aa = (vI.cross(wp_dir)).normalized();
-  quat::Quatd qv = quat::Quatd::exp(common::saturate(theta, 0.01745, -0.01745) * aa);
-
-  xc.v = xhat.q.rotp(qv.rota(vI));
-  xc.q = q_chi * q_ref_;
-  xc.omega = omega_ref_;
+  // Get commanded state
+  computeCommandState(xhat, xc);
 
   // Calculate control error
   Vector3d p_err = xc.p - xhat.p;
@@ -70,14 +60,17 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
   // Jacobians
 //  analyticAB(xhat, vw);
 //  std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
-  numericalAB(xhat, vw, u_prev_);
+//  numericalAB(xhat, u_prev_, vw);
 //  std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
+  numericalAB2(xhat, xc, u_ref_, vw);
+//  std::cout << "\nAn2 = \n" << A_ << "\n\nBn2 = \n" << B_ << std::endl;
 
   // Compute control
   care_solver.solve(P_, A_, B_, Q_, R_);
   K_ = R_inv_ * B_.transpose() * P_;
-  uVector u_tilde = -K_ * x_tilde;
-  u = u_ref_ - u_tilde;
+  u = -K_ * x_tilde;
+//  uVector u_tilde = -K_ * x_tilde;
+//  u = u_ref_ - u_tilde;
   u(AIL) = common::saturate(u(AIL), 1.0, -1.0);
   u(ELE) = common::saturate(u(ELE), 1.0, -1.0);
   u(THR) = common::saturate(u(THR), 1.0,  0.0);
@@ -87,7 +80,25 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
 }
 
 
-void PLQR::analyticAB(const vehicle::State<double> &x, const Vector3d &vw)
+void PLQR::computeCommandState(const vehicle::Stated &x, vehicle::Stated &xc) const
+{
+  // Put reference velocity along direction of waypoint
+  Vector3d wp_dir = (xc.p - x.p).normalized(); // direction of waypoint from aircraft
+  quat::Quatd q_chi(0, 0, atan2(wp_dir(1), wp_dir(0))); // heading rotation to waypoint direction
+
+//  Vector3d vI = x.q.rota(x.v);
+//  double theta = acos(vI.normalized().dot(wp_dir));
+//  Vector3d aa = (vI.cross(wp_dir)).normalized();
+//  quat::Quatd qv = quat::Quatd::exp(common::saturate(theta, 0.01745, -0.01745) * aa);
+
+//  xc.v = v_ref_.norm() * x.q.rotp(qv.rotp(vI.normalized()));
+  xc.v = v_ref_.norm() * x.q.rotp(wp_dir);
+  xc.q = q_chi * q_ref_;
+  xc.omega = omega_ref_;
+}
+
+
+void PLQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
 {
   Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
   double Va = v_r.norm();
@@ -111,7 +122,7 @@ void PLQR::analyticAB(const vehicle::State<double> &x, const Vector3d &vw)
 }
 
 
-void PLQR::numericalAB(const vehicle::State<double> &x, const Vector3d &vw, const uVector& u)
+void PLQR::numericalAB(const vehicle::Stated &x, const uVector& u, const Vector3d &vw)
 {
   double eps = 1e-5;
   Matrix<double,12,12> I12 = Matrix<double,12,12>::Identity();
@@ -132,6 +143,76 @@ void PLQR::numericalAB(const vehicle::State<double> &x, const Vector3d &vw, cons
     f(x, um, vw, dxmu);
     B_.col(i) = (dxpu - dxmu) / (2.0 * eps);
   }
+}
+
+
+void PLQR::numericalAB2(const vehicle::Stated &x, const vehicle::Stated &x_ref,
+                        const uVector& u, const Vector3d &vw)
+{
+  double eps = 1e-5;
+  Matrix<double,12,12> I12 = Matrix<double,12,12>::Identity();
+  Matrix4d I4 = Matrix4d::Identity();
+
+  // Error state
+  vehicle::dxVector x_tilde = x_ref - x;
+
+  for (int i = 0; i < A_.cols(); ++i)
+  {
+    // Poke the error state
+    vehicle::dxVector x_tildep = x_tilde + eps * I12.col(i);
+    vehicle::dxVector x_tildem = x_tilde + -eps * I12.col(i);
+
+    // Error state derivatives
+    vehicle::dxVector x_tilde_dotp, x_tilde_dotm;
+    f_tilde(x_ref, x_tildep, u, vw, eps, x_tilde_dotp);
+    f_tilde(x_ref, x_tildem, u, vw, eps, x_tilde_dotm);
+
+    // Derivative of x_tilde_dot w.r.t. x_tilde
+    A_.col(i) = (x_tilde_dotp - x_tilde_dotm) / (2.0 * eps);
+  }
+  for (int i = 0; i < B_.cols(); ++i)
+  {
+    // Poke the command vector
+    Vector4d up = u + eps * I4.col(i);
+    Vector4d um = u + -eps * I4.col(i);
+
+    // Error state derivatives
+    vehicle::dxVector x_tilde_dotp, x_tilde_dotm;
+    f_tilde(x_ref, x_tilde, up, vw, eps, x_tilde_dotp);
+    f_tilde(x_ref, x_tilde, um, vw, eps, x_tilde_dotm);
+
+    // Derivative of x_tilde_dot w.r.t. u_ref
+    B_.col(i) = (x_tilde_dotp - x_tilde_dotm) / (2.0 * eps);
+  }
+}
+
+
+void PLQR::f_tilde(const vehicle::Stated &x_ref, const vehicle::dxVector &x_tilde,
+                   const uVector& u, const Vector3d& vw, const double& dt, vehicle::dxVector &x_tilde_dot) const
+{
+  // 'True state'
+  vehicle::Stated x = x_ref + -x_tilde;
+
+  // Derivative at current time
+  vehicle::dxVector dx;
+  f(x, u, vw, dx);
+
+  // Future and previous states
+  vehicle::Stated xp = x + dx * dt;
+  vehicle::Stated xm = x + -dx * dt;
+
+  // Future and previous reference states
+  vehicle::Stated x_refp = x_ref;
+  vehicle::Stated x_refm = x_ref;
+  computeCommandState(xp, x_refp);
+  computeCommandState(xm, x_refm);
+
+  // Future and previous error states
+  vehicle::dxVector x_tildep = x_refp - xp;
+  vehicle::dxVector x_tildem = x_refm - xm;
+
+  // Error state derivative
+  x_tilde_dot = (x_tildep - x_tildem) / (2.0 * dt);
 }
 
 

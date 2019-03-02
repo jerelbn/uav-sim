@@ -26,14 +26,14 @@ public:
   void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
   void run(const double &t, const environment::Environment& env);
 
-  const vehicle::State<double>& getState() const { return x_; }
+  const vehicle::Stated& getState() const { return x_; }
 
   int id_;
   std::string name_;
 
 private:
 
-  void f(const vehicle::State<double>& x, const uVector& u,
+  void f(const vehicle::Stated& x, const uVector& u,
          const Eigen::Vector3d& vw, vehicle::dxVector& dx);
   void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
   void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
@@ -44,7 +44,7 @@ private:
   Controller controller_;
   sensors::Sensors sensors_;
 
-  vehicle::State<double> x_;
+  vehicle::Stated x_;
   vehicle::dxVector dx_;
   uVector u_;
 

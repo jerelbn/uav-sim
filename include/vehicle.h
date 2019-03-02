@@ -79,6 +79,16 @@ struct State
     *this = *this + delta;
   }
 
+  dxVector operator-(const State<T> &x) const
+  {
+    dxVector dx;
+    dx.template segment<3>(DP) = p - x.p;
+    dx.template segment<3>(DV) = v - x.v;
+    dx.template segment<3>(DQ) = q - x.q;
+    dx.template segment<3>(DW) = omega - x.omega;
+    return dx;
+  }
+
   void setZero()
   {
     p.setZero();
@@ -109,8 +119,8 @@ typedef State<double> Stated;
 
 // 4th order integration for truth of each vehicle
 template<int U> // command vector size
-void rk4(std::function<void(const State<double>&, const Matrix<double,U,1>&, const Vector3d&, dxVector&)> f,
-                            const double& dt, const State<double>& x, const Matrix<double,U,1>& u,
+void rk4(std::function<void(const Stated&, const Matrix<double,U,1>&, const Vector3d&, dxVector&)> f,
+                            const double& dt, const Stated& x, const Matrix<double,U,1>& u,
                             const Vector3d& vw, vehicle::dxVector& dx)
 {
   dxVector k1, k2, k3, k4;

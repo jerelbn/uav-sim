@@ -20,7 +20,7 @@ public:
   ~Sensors();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
-  void updateMeasurements(const double t, const vehicle::State<double> &x, const Eigen::MatrixXd &lm);
+  void updateMeasurements(const double t, const vehicle::Stated &x, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;
   Eigen::Matrix<double, 7, 1> mocap_;
@@ -30,14 +30,14 @@ public:
 
 private:
 
-  void imu(const double t, const vehicle::State<double> &x);
-  void camera(const double t, const vehicle::State<double>& x, const Eigen::MatrixXd& lm);
-  void mocap(const double t, const vehicle::State<double>& x);
-  void depth(const double t, const vehicle::State<double>& x);
-  void gps(const double t, const vehicle::State<double>& x);
-  void baro(const double t, const vehicle::State<double>& x);
-  void alt(const double t, const vehicle::State<double>& x);
-  void mag(const double t, const vehicle::State<double>& x);
+  void imu(const double t, const vehicle::Stated &x);
+  void camera(const double t, const vehicle::Stated& x, const Eigen::MatrixXd& lm);
+  void mocap(const double t, const vehicle::Stated& x);
+  void depth(const double t, const vehicle::Stated& x);
+  void gps(const double t, const vehicle::Stated& x);
+  void baro(const double t, const vehicle::Stated& x);
+  void alt(const double t, const vehicle::Stated& x);
+  void mag(const double t, const vehicle::Stated& x);
 
   std::default_random_engine rng_;
 

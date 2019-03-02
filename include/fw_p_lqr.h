@@ -39,8 +39,13 @@ private:
   Vector3d omega_ref_;
   uVector u_ref_, u_prev_;
 
-  void analyticAB(const vehicle::State<double>& x, const Vector3d& vw);
-  void numericalAB(const vehicle::State<double>& x, const Vector3d& vw, const uVector &u);
+  void computeCommandState(const vehicle::Stated& x, vehicle::Stated& xc) const;
+  void analyticAB(const vehicle::Stated& x, const Vector3d& vw);
+  void numericalAB(const vehicle::Stated& x, const uVector &u, const Vector3d& vw);
+  void numericalAB2(const vehicle::Stated &x, const vehicle::Stated &x_ref,
+                    const uVector &u, const Vector3d &vw);
+  void f_tilde(const vehicle::Stated& x_ref, const vehicle::dxVector &x_tilde,
+               const uVector &u, const Vector3d &vw, const double &dt, vehicle::dxVector& x_tilde_dot) const;
 };
 
 

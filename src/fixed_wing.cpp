@@ -34,7 +34,7 @@ void FixedWing::load(const std::string &filename, const environment::Environment
 
   vehicle::xVector x0;
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
-  x_ = vehicle::State<double>(x0);
+  x_ = vehicle::Stated(x0);
 
   // Compute initial control and corresponding acceleration
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.get_vw());

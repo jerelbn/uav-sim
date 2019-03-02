@@ -22,9 +22,9 @@ public:
   ~Controller();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
-  void computeControl(const vehicle::State<double> &x, const double t, uVector& u,
+  void computeControl(const vehicle::Stated &x, const double t, uVector& u,
                       const Vector3d &p_target, const Vector3d &vw);
-  inline vehicle::State<double> getCommandedState() const { return xc_; }
+  inline vehicle::Stated getCommandedState() const { return xc_; }
 
 private:
 
@@ -66,8 +66,8 @@ private:
 
   // Memory for sharing information between functions
   bool initialized_;
-  vehicle::State<double> xhat_; // estimate
-  vehicle::State<double> xc_; // command
+  vehicle::Stated xhat_; // estimate
+  vehicle::Stated xc_; // command
   double prev_time_;
   uint8_t control_mode_;
 
