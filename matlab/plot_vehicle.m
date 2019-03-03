@@ -6,6 +6,8 @@ cam_max_feat = 10000;
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
 commanded_state = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []);
 command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 1 + 4, []);
+euler_angles = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []);
+euler_command = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_command.log']), 'r'), 'double'), 1 + 3, []);
 accel = reshape(fread(fopen(strcat(['/tmp/',name,'_accel.log']), 'r'), 'double'), 10, []);
 accel_bias = accel(5:7,:);
 accel_noise = accel(8:10,:);
@@ -30,6 +32,18 @@ end
 
 
 figure()
+set(gcf, 'name', 'Velocity', 'NumberTitle', 'off');
+titles = ['u','v','w'];
+idx1 = 4;
+for i=1:3
+    subplot(3, 1, i), hold on, grid on
+    title(titles(i))
+    plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.3)
+    plot(commanded_state(1,:), commanded_state(i + idx1, :), 'g--')
+end
+
+
+figure()
 set(gcf, 'name', 'Attitude', 'NumberTitle', 'off');
 titles = ["w","x","y","z"];
 idx1 = 10;
@@ -42,9 +56,20 @@ end
 
 
 figure()
-set(gcf, 'name', 'Velocity', 'NumberTitle', 'off');
-titles = ['u','v','w'];
-idx1 = 4;
+set(gcf, 'name', 'Euler Angles', 'NumberTitle', 'off');
+titles = ["Roll","Pitch","Yaw"];
+for i=1:3
+    subplot(3, 1, i), hold on, grid on
+    title(titles(i))
+    plot(euler_angles(1,:), euler_angles(i + 1, :), 'linewidth', 1.3)
+    plot(euler_command(1,:), euler_command(i + 1, :), 'g--')
+end
+
+
+figure()
+set(gcf, 'name', 'Angular Rate', 'NumberTitle', 'off');
+titles = ['p','q','r'];
+idx1 = 14;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))

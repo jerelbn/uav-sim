@@ -56,6 +56,7 @@ private:
   double t_prev_;
 
   std::ofstream state_log_;
+  std::ofstream euler_log_;
 
 };
 

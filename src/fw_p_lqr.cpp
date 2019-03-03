@@ -56,6 +56,7 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
   x_tilde.segment<3>(3) = common::saturateVector<double,3>(v_err_max_, v_err);
   x_tilde.segment<3>(6) = common::saturateVector<double,3>(q_err_max_, q_err);
   x_tilde.segment<3>(9) = common::saturateVector<double,3>(omega_err_max_, omega_err);
+  x_tilde.head<2>().setZero();
 
   // Jacobians
 //  analyticAB(xhat, vw);
@@ -82,19 +83,30 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
 
 void PLQR::computeCommandState(const vehicle::Stated &x, vehicle::Stated &xc) const
 {
-  // Put reference velocity along direction of waypoint
-  Vector3d wp_dir = (xc.p - x.p).normalized(); // direction of waypoint from aircraft
-  quat::Quatd q_chi(0, 0, atan2(wp_dir(1), wp_dir(0))); // heading rotation to waypoint direction
+  // Waypoint relative to aircraft
+  Vector3d p_wpI_I = xc.p - x.p;
 
-//  Vector3d vI = x.q.rota(x.v);
-//  double theta = acos(vI.normalized().dot(wp_dir));
-//  Vector3d aa = (vI.cross(wp_dir)).normalized();
-//  quat::Quatd qv = quat::Quatd::exp(common::saturate(theta, 0.01745, -0.01745) * aa);
+  // Attitude
+  double psi_ref = atan2(p_wpI_I(1), p_wpI_I(0));
+  double theta_ref = q_ref_.pitch() + atan(-p_wpI_I(2) / p_wpI_I.head<2>().norm());
+  double phi_ref = common::saturate(1.0 * (psi_ref - x.q.yaw()), 0.5236, -0.5236);
+  xc.q = quat::Quatd(phi_ref, theta_ref, psi_ref);
 
-//  xc.v = v_ref_.norm() * x.q.rotp(qv.rotp(vI.normalized()));
-  xc.v = v_ref_.norm() * x.q.rotp(wp_dir);
-  xc.q = q_chi * q_ref_;
-  xc.omega = omega_ref_;
+  // Velocity
+  xc.v = v_ref_;
+
+  // Angular rate
+  double phi_dot_ref = common::saturate(phi_ref, M_PI / 4.0, -M_PI / 4.0);
+  double theta_dot_ref = common::saturate(theta_ref, M_PI / 4.0, -M_PI / 4.0);
+  double psi_dot_ref = common::gravity / v_ref_.norm() * tan(phi_ref); // do tan(x.q.roll()) instead?
+  Matrix3d R = Matrix3d::Identity();
+  R(0,2) = -sin(phi_ref);
+  R(1,1) = cos(phi_ref);
+  R(1,2) = sin(phi_ref) * cos(theta_ref);
+  R(2,1) = -sin(phi_ref);
+  R(2,2) = cos(phi_ref) * cos(theta_ref);
+  Vector3d deuler(phi_dot_ref, theta_dot_ref, psi_dot_ref);
+  xc.omega = R * deuler;
 }
 
 

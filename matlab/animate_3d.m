@@ -44,6 +44,7 @@ function animate_3d(speed, name)
             set(gca,'ZDir','Reverse')
             
             plot3(env(1,:), env(2,:), env(3,:), 'k.', 'MarkerSize', 4.0)
+            plot3([air_state(2,1),air_command(2,1)], [air_state(3,1),air_command(3,1)], [air_state(4,1),air_command(4,1)], 'g--')
             body_handle = draw_body(i, points, air_state, []);
             true_path_handle = plot3(air_state(2,1:i), air_state(3,1:i), air_state(4,1:i), 'b', 'linewidth', 1.5);
             cmd_handle = plot3(air_command(2,1:i), air_command(3,1:i), air_command(4,1:i), 'g--', 'linewidth', 1.3);

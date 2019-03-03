@@ -15,6 +15,7 @@ Controller::~Controller()
 {
   command_state_log_.close();
   command_log_.close();
+  euler_command_log_.close();
 }
 
 
@@ -64,11 +65,13 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   plqr_.init(filename);
 
   // Initialize loggers
-  std::stringstream ss_cs, ss_c;
+  std::stringstream ss_cs, ss_c, ss_ec;
   ss_cs << "/tmp/" << name << "_commanded_state.log";
   ss_c << "/tmp/" << name << "_command.log";
+  ss_ec << "/tmp/" << name << "_euler_command.log";
   command_state_log_.open(ss_cs.str());
   command_log_.open(ss_c.str());
+  euler_command_log_.open(ss_ec.str());
 }
 
 
@@ -152,6 +155,8 @@ void Controller::log(const double &t, const uVector& u)
   command_state_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
   command_log_.write((char*)&t, sizeof(double));
   command_log_.write((char*)u.data(), u.rows() * sizeof(double));
+  euler_command_log_.write((char*)&t, sizeof(double));
+  euler_command_log_.write((char*)xc_.q.euler().data(), 3 * sizeof(double));
 }
 
 

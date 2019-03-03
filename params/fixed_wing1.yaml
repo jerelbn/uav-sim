@@ -5,9 +5,9 @@ control_using_estimates: false
 
 # Physical parameters
 x0: [0, 0, -10,    # POS
-     16.3696, 0, 0.584703,    # VEL
+     15, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
-     0.999841, 0, 0.0178509, 0, # ATT
+     1, 0, 0, 0, # ATT
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
@@ -111,15 +111,15 @@ plqr_v_ref: [16.3696, 0, 0.584703]
 plqr_q_ref: [0.999841, 0, 0.0178509, 0]
 plqr_omega_ref: [0, 0, 0]
 plqr_u_ref: [0, 0.0216435, 0.171139, 0]
-plqr_max_p_error: 3.0
-plqr_max_v_error: 1.0
-plqr_max_q_error: 0.175
-plqr_max_omega_error: 0.175
-plqr_Q: [1e0, 1e0, 1e3, # position
+plqr_max_p_error: 10.0
+plqr_max_v_error: 10.0
+plqr_max_q_error: 1.5
+plqr_max_omega_error: 1.5
+plqr_Q: [1e0, 1e0, 1e1, # position
          1e1, 1e1, 1e1, # velocity
-         1e1, 1e1, 1e1, # attitude
+         1e2, 1e2, 1e2, # attitude
          1e2, 1e2, 1e2] # angular rate
-plqr_R: [1e3, 1e3, 1e3, 1e3] # [aileron, elevator, throttle, rudder]
+plqr_R: [1e3, 1e3, 1e2, 1e3] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
@@ -129,10 +129,10 @@ plqr_R: [1e3, 1e3, 1e3, 1e3] # [aileron, elevator, throttle, rudder]
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [50, 0, -10,
-            50, 0, -10,
-            50, 50, -10,
-            0, 50, -10]
+waypoints: [50, 50, -15,
+            -50, 50, -10,
+            -50, -50, -15,
+            50, -50, -10]
 waypoint_threshold: 5.0
 
 traj_delta_north: 50
