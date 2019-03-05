@@ -38,6 +38,8 @@ private:
   quat::Quatd q_ref_;
   Vector3d omega_ref_;
   uVector u_ref_, u_prev_;
+  int update_count_;
+  int gain_matrix_update_iters_;
 
   void computeCommandState(const vehicle::Stated& x, vehicle::Stated& xc) const;
   void analyticAB(const vehicle::Stated& x, const Vector3d& vw);

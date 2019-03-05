@@ -33,11 +33,11 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   rng_ = std::default_random_engine(seed);
   srand(seed);
 
-  common::get_yaml_node("mass", filename, mass_);
-  // need to load more physical parameters for LQR jacobian calculations
-
+  // General parameters
+  common::get_yaml_node("controller_update_rate", filename, controller_update_rate_);
   common::get_yaml_node("path_type", filename, path_type_);
 
+  // Waypoint parameters
   std::vector<double> loaded_wps;
   if (common::get_yaml_node("waypoints", filename, loaded_wps))
   {
@@ -47,6 +47,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   }
   common::get_yaml_node("waypoint_threshold", filename, waypoint_threshold_);
 
+  // Trajectory parameters
   double traj_north_period, traj_east_period, traj_alt_period;
   common::get_yaml_node("traj_delta_north", filename, traj_delta_north_);
   common::get_yaml_node("traj_delta_east", filename, traj_delta_east_);
@@ -79,31 +80,28 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
 void Controller::computeControl(const vehicle::Stated &x, const double t, uVector& u,
                                 const Vector3d& p_target, const Vector3d& vw)
 {
-  // Copy the current state
-  xhat_ = x;
-
   double dt = t - prev_time_;
-  prev_time_ = t;
 
-  if (dt < 1e-7)
+  if (t == 0 || dt >= 1.0 / controller_update_rate_)
   {
-    u.setZero();
-    return;
-  }
+    // Copy the current state and time
+    xhat_ = x;
+    prev_time_ = t;
 
-  if (path_type_ == 0 || path_type_ == 1)
-  {
-    // Refresh the waypoint or trajectory
-    if (path_type_ == 0)
-      updateWaypointManager();
+    if (path_type_ == 0 || path_type_ == 1)
+    {
+      // Refresh the waypoint or trajectory
+      if (path_type_ == 0)
+        updateWaypointManager();
+      else
+        updateTrajectoryManager(t);
+
+      // Compute control
+      lqr_.computeControl(xhat_, vw, xc_, u);
+    }
     else
-      updateTrajectoryManager(t);
-
-    // Compute control
-    lqr_.computeControl(xhat_, vw, xc_, u);
+      throw std::runtime_error("Undefined path type in fixed wing controller.");
   }
-  else
-    throw std::runtime_error("Undefined path type in fixed wing controller.");
 
   // Log all data
   log(t, u);

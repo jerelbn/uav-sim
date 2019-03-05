@@ -37,8 +37,8 @@ private:
   };
 
   // Parameters
-  double mass_;
   int path_type_;
+  int controller_update_rate_;
   std::default_random_engine rng_;
 
   // Logging

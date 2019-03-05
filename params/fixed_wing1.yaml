@@ -2,6 +2,7 @@
 name: wing1
 accurate_integration: true
 control_using_estimates: false
+controller_update_rate: 50
 
 # Physical parameters
 x0: [0, 0, 0,    # POS
@@ -107,6 +108,7 @@ delta_e_max: 0.7854
 delta_r_max: 0.7854
 
 # Waypoint LQR Controller
+lqr_gain_update_iters: 1 # number if iterations before updating LQR gain matrix
 lqr_v_ref: [16.3696, 0, 0.584703]
 lqr_q_ref: [0.999841, 0, 0.0178509, 0]
 lqr_omega_ref: [0, 0, 0]
@@ -119,7 +121,7 @@ lqr_Q: [1e0, 1e0, 1e1, # position
          1e1, 1e1, 1e1, # velocity
          1e2, 1e2, 1e2, # attitude
          1e2, 1e2, 1e2] # angular rate
-lqr_R: [1e4, 1e4, 1e3, 1e4] # [aileron, elevator, throttle, rudder]
+lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory

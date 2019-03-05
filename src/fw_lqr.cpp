@@ -4,7 +4,7 @@ namespace fixedwing
 {
 
 
-LQR::LQR()
+LQR::LQR() : update_count_(0)
 {
   A_.setZero();
   B_.setZero();
@@ -15,6 +15,7 @@ void LQR::init(const std::string& filename)
 {
   load_base(filename);
 
+  common::get_yaml_node("lqr_gain_update_iters", filename, gain_matrix_update_iters_);
   common::get_yaml_node("lqr_max_p_error", filename, p_err_max_);
   common::get_yaml_node("lqr_max_v_error", filename, v_err_max_);
   common::get_yaml_node("lqr_max_q_error", filename, q_err_max_);
@@ -58,15 +59,24 @@ void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicl
   x_tilde.segment<3>(9) = common::saturateVector<double,3>(omega_err_max_, omega_err);
   x_tilde.head<2>().setZero();
 
-  // Jacobians
-//  analyticAB(xhat, vw);
-//  std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
-  numericalAB(xhat, xc, u_ref_, vw);
-//  std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
+  if (update_count_ % gain_matrix_update_iters_ == 0)
+  {
+    // Update Jacobians
+//    analyticAB(xhat, vw);
+//    std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
+    numericalAB(xhat, xc, u_ref_, vw);
+//    std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
 
-  // Compute control
-  care_solver.solve(P_, A_, B_, Q_, R_);
-  K_ = R_inv_ * B_.transpose() * P_;
+    // Update gain matrix
+    care_solver.solve(P_, A_, B_, Q_, R_);
+    K_ = R_inv_ * B_.transpose() * P_;
+
+    // Reset update counter
+    update_count_ = 0;
+  }
+  update_count_++;
+
+  // Compute control vector
   u = -K_ * x_tilde;
 //  uVector u_tilde = -K_ * x_tilde;
 //  u = u_ref_ - u_tilde;
