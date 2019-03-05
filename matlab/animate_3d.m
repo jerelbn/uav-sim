@@ -9,13 +9,14 @@ function animate_3d(speed, name)
     persistent body_handle true_path_handle cmd_handle bike_trail_handle bike_handle
 
     % body vertices
-    points = [0.7, 0, 0;
-              1.0, 0, 0.1;
-              -0.3, 0.3, 0;
-              -0.5, 0.5, 0.1;
-              -0.3, -0.3, 0;
-              -0.5, -0.5, 0.1];
-    s = 1.2; % axis scale factor
+    s_pts = 2.0; % model scale factor
+    points = s_pts * [0.7, 0, 0;
+                      1.0, 0, 0.1;
+                      -0.3, 0.3, 0;
+                      -0.5, 0.5, 0.1;
+                      -0.3, -0.3, 0;
+                      -0.5, -0.5, 0.1];
+    s_ax = 1.2; % axis scale factor
     air_history = 10000;
     bike_history = 30000;
     for i =1:speed:length(air_state)
@@ -33,9 +34,9 @@ function animate_3d(speed, name)
             figure(), grid on, hold on, axis equal
             set(gcf, 'name', '3D Animation', 'NumberTitle', 'off')
             set(gcf, 'color', 'w')
-            axis([s*min([air_state(2,:),bike_state(2,:)]) s*max([air_state(2,:),bike_state(2,:)]),... % x
-                  s*min([air_state(3,:),bike_state(3,:)]) s*max([air_state(3,:),bike_state(3,:)]),... % y
-                  s*min([air_state(4,:),bike_state(4,:)]) s*max([air_state(4,:),bike_state(4,:)])])   % z
+            axis([s_ax*min([air_state(2,:),bike_state(2,:)]) s_ax*max([air_state(2,:),bike_state(2,:)]),... % x
+                  s_ax*min([air_state(3,:),bike_state(3,:)]) s_ax*max([air_state(3,:),bike_state(3,:)]),... % y
+                  s_ax*min([air_state(4,:),bike_state(4,:)]) s_ax*max([air_state(4,:),bike_state(4,:)])])   % z
             xlabel('North axis');
             ylabel('East axis');
             zlabel('Down axis');

@@ -40,7 +40,7 @@ protected:
   {
     Matrix<T,3,1> v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
     T Va = v_r.norm();
-    T alpha = atan2(v_r(2), v_r(0));
+    T alpha = atan(v_r(2) / v_r(0));
     T beta = asin(v_r(1) / Va);
 
     Matrix<T,3,1> f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *

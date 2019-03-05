@@ -62,7 +62,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
 
   // Initialize controllers
-  plqr_.init(filename);
+  lqr_.init(filename);
 
   // Initialize loggers
   std::stringstream ss_cs, ss_c, ss_ec;
@@ -100,7 +100,7 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, uVecto
       updateTrajectoryManager(t);
 
     // Compute control
-    plqr_.computeControl(xhat_, vw, xc_, u);
+    lqr_.computeControl(xhat_, vw, xc_, u);
   }
   else
     throw std::runtime_error("Undefined path type in fixed wing controller.");

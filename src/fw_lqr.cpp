@@ -1,36 +1,36 @@
-#include "fw_p_lqr.h"
+#include "fw_lqr.h"
 
 namespace fixedwing
 {
 
 
-PLQR::PLQR()
+LQR::LQR()
 {
   A_.setZero();
   B_.setZero();
 }
 
 
-void PLQR::init(const std::string& filename)
+void LQR::init(const std::string& filename)
 {
   load_base(filename);
 
-  common::get_yaml_node("plqr_max_p_error", filename, p_err_max_);
-  common::get_yaml_node("plqr_max_v_error", filename, v_err_max_);
-  common::get_yaml_node("plqr_max_q_error", filename, q_err_max_);
-  common::get_yaml_node("plqr_max_omega_error", filename, omega_err_max_);
+  common::get_yaml_node("lqr_max_p_error", filename, p_err_max_);
+  common::get_yaml_node("lqr_max_v_error", filename, v_err_max_);
+  common::get_yaml_node("lqr_max_q_error", filename, q_err_max_);
+  common::get_yaml_node("lqr_max_omega_error", filename, omega_err_max_);
 
   Vector4d q_ref;
-  common::get_yaml_eigen("plqr_v_ref", filename, v_ref_);
-  common::get_yaml_eigen("plqr_q_ref", filename, q_ref);
-  common::get_yaml_eigen("plqr_omega_ref", filename, omega_ref_);
-  common::get_yaml_eigen("plqr_u_ref", filename, u_ref_);
+  common::get_yaml_eigen("lqr_v_ref", filename, v_ref_);
+  common::get_yaml_eigen("lqr_q_ref", filename, q_ref);
+  common::get_yaml_eigen("lqr_omega_ref", filename, omega_ref_);
+  common::get_yaml_eigen("lqr_u_ref", filename, u_ref_);
   q_ref_ = quat::Quatd(q_ref);
 
   Matrix<double,12,1> Q_diag;
   Matrix<double,4,1> R_diag;
-  common::get_yaml_eigen("plqr_Q", filename, Q_diag);
-  common::get_yaml_eigen("plqr_R", filename, R_diag);
+  common::get_yaml_eigen("lqr_Q", filename, Q_diag);
+  common::get_yaml_eigen("lqr_R", filename, R_diag);
   Q_ = Q_diag.asDiagonal();
   R_ = R_diag.asDiagonal();
   R_inv_ = R_.inverse();
@@ -39,7 +39,7 @@ void PLQR::init(const std::string& filename)
 }
 
 
-void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicle::Stated& xc, uVector& u)
+void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicle::Stated& xc, uVector& u)
 {
   // Get commanded state
   computeCommandState(xhat, xc);
@@ -81,7 +81,7 @@ void PLQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehic
 }
 
 
-void PLQR::computeCommandState(const vehicle::Stated &x, vehicle::Stated &xc) const
+void LQR::computeCommandState(const vehicle::Stated &x, vehicle::Stated &xc) const
 {
   // Waypoint relative to aircraft
   Vector3d p_wpI_I = xc.p - x.p;
@@ -89,16 +89,16 @@ void PLQR::computeCommandState(const vehicle::Stated &x, vehicle::Stated &xc) co
   // Attitude
   double psi_ref = atan2(p_wpI_I(1), p_wpI_I(0));
   double theta_ref = q_ref_.pitch() + atan(-p_wpI_I(2) / p_wpI_I.head<2>().norm());
-  double phi_ref = common::saturate(1.0 * (psi_ref - x.q.yaw()), 0.5236, -0.5236);
+  double phi_ref = common::saturate(1.0 * common::wrapAngle(psi_ref - x.q.yaw(), M_PI), 0.175, -0.175);
   xc.q = quat::Quatd(phi_ref, theta_ref, psi_ref);
 
   // Velocity
   xc.v = v_ref_;
 
   // Angular rate
-  double phi_dot_ref = common::saturate(phi_ref, M_PI / 4.0, -M_PI / 4.0);
-  double theta_dot_ref = common::saturate(theta_ref, M_PI / 4.0, -M_PI / 4.0);
-  double psi_dot_ref = common::gravity / v_ref_.norm() * tan(phi_ref); // do tan(x.q.roll()) instead?
+  double phi_dot_ref = common::saturate(phi_ref - x.q.roll(), M_PI / 4.0, -M_PI / 4.0);
+  double theta_dot_ref = common::saturate(theta_ref - x.q.pitch(), M_PI / 4.0, -M_PI / 4.0);
+  double psi_dot_ref = common::gravity / v_ref_.norm() * tan(phi_ref);
   Matrix3d R = Matrix3d::Identity();
   R(0,2) = -sin(phi_ref);
   R(1,1) = cos(phi_ref);
@@ -110,7 +110,7 @@ void PLQR::computeCommandState(const vehicle::Stated &x, vehicle::Stated &xc) co
 }
 
 
-void PLQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
+void LQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
 {
   Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
   double Va = v_r.norm();
@@ -134,7 +134,7 @@ void PLQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
 }
 
 
-void PLQR::numericalAB(const vehicle::Stated &x, const uVector& u, const Vector3d &vw)
+void LQR::numericalAB(const vehicle::Stated &x, const uVector& u, const Vector3d &vw)
 {
   double eps = 1e-5;
   Matrix<double,12,12> I12 = Matrix<double,12,12>::Identity();
@@ -158,7 +158,7 @@ void PLQR::numericalAB(const vehicle::Stated &x, const uVector& u, const Vector3
 }
 
 
-void PLQR::numericalAB2(const vehicle::Stated &x, const vehicle::Stated &x_ref,
+void LQR::numericalAB2(const vehicle::Stated &x, const vehicle::Stated &x_ref,
                         const uVector& u, const Vector3d &vw)
 {
   double eps = 1e-5;
@@ -199,7 +199,7 @@ void PLQR::numericalAB2(const vehicle::Stated &x, const vehicle::Stated &x_ref,
 }
 
 
-void PLQR::f_tilde(const vehicle::Stated &x_ref, const vehicle::dxVector &x_tilde,
+void LQR::f_tilde(const vehicle::Stated &x_ref, const vehicle::dxVector &x_tilde,
                    const uVector& u, const Vector3d& vw, const double& dt, vehicle::dxVector &x_tilde_dot) const
 {
   // 'True state'

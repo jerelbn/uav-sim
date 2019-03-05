@@ -5,7 +5,7 @@
 #include "common_cpp/common.h"
 #include "vehicle.h"
 #include "fixed_wing_base.h"
-#include "fw_p_lqr.h"
+#include "fw_lqr.h"
 
 using namespace Eigen;
 
@@ -63,7 +63,7 @@ private:
   double traj_alt_freq_;
 
   // Controllers
-  PLQR plqr_;
+  LQR lqr_;
 
   // Memory for sharing information between functions
   bool initialized_;

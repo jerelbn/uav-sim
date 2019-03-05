@@ -4,14 +4,14 @@ accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters
-x0: [0, 0, -10,    # POS
-     15, 0, 0,    # VEL
+x0: [0, 0, 0,    # POS
+     16, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
-compute_trim: true
+compute_trim: false
 Va_star: 16.38 # desired air speed
 R_star: 1e16 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
@@ -107,19 +107,19 @@ delta_e_max: 0.7854
 delta_r_max: 0.7854
 
 # Waypoint LQR Controller
-plqr_v_ref: [16.3696, 0, 0.584703]
-plqr_q_ref: [0.999841, 0, 0.0178509, 0]
-plqr_omega_ref: [0, 0, 0]
-plqr_u_ref: [0, 0.0216435, 0.171139, 0]
-plqr_max_p_error: 10.0
-plqr_max_v_error: 10.0
-plqr_max_q_error: 1.5
-plqr_max_omega_error: 1.5
-plqr_Q: [1e0, 1e0, 1e1, # position
+lqr_v_ref: [16.3696, 0, 0.584703]
+lqr_q_ref: [0.999841, 0, 0.0178509, 0]
+lqr_omega_ref: [0, 0, 0]
+lqr_u_ref: [0, 0.0216435, 0.171139, 0]
+lqr_max_p_error: 10.0
+lqr_max_v_error: 10.0
+lqr_max_q_error: 1.5
+lqr_max_omega_error: 1.5
+lqr_Q: [1e0, 1e0, 1e1, # position
          1e1, 1e1, 1e1, # velocity
          1e2, 1e2, 1e2, # attitude
          1e2, 1e2, 1e2] # angular rate
-plqr_R: [1e3, 1e3, 1e2, 1e3] # [aileron, elevator, throttle, rudder]
+lqr_R: [1e4, 1e4, 1e3, 1e4] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
@@ -129,10 +129,10 @@ plqr_R: [1e3, 1e3, 1e2, 1e3] # [aileron, elevator, throttle, rudder]
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [50, 50, -15,
-            -50, 50, -10,
-            -50, -50, -15,
-            50, -50, -10]
+waypoints: [100, 100, -15,
+            -100, 100, -15,
+            -100, -100, -15,
+            100, -100, -15]
 waypoint_threshold: 5.0
 
 traj_delta_north: 50

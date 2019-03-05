@@ -11,12 +11,12 @@ namespace fixedwing
 {
 
 
-class PLQR : public FixedWingBase
+class LQR : public FixedWingBase
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  PLQR();
+  LQR();
   void init(const std::string &filename);
   void computeControl(const vehicle::Stated& xhat, const Vector3d &vw, vehicle::Stated& xc, uVector &u);
 
