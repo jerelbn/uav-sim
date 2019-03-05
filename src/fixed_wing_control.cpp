@@ -81,6 +81,8 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, uVecto
                                 const Vector3d& p_target, const Vector3d& vw)
 {
   double dt = t - prev_time_;
+  if (t == 0)
+    wp_prev_ = x.p;
 
   if (t == 0 || dt >= 1.0 / controller_update_rate_)
   {
@@ -97,7 +99,7 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, uVecto
         updateTrajectoryManager(t);
 
       // Compute control
-      lqr_.computeControl(xhat_, vw, xc_, u);
+      lqr_.computeControl(xhat_, vw, wp_prev_, wp_, xc_, u);
     }
     else
       throw std::runtime_error("Undefined path type in fixed wing controller.");
@@ -114,9 +116,9 @@ void Controller::updateWaypointManager()
   {
     initialized_ = true;
     Map<Vector3d> new_waypoint(waypoints_.block<3,1>(0, 0).data());
-    xc_.p = Vector3d(new_waypoint(PX),
-                     new_waypoint(PY),
-                     new_waypoint(PZ));
+    wp_ = Vector3d(new_waypoint(PX),
+                   new_waypoint(PY),
+                   new_waypoint(PZ));
   }
 
   // Find the distance to the desired waypoint
@@ -128,20 +130,21 @@ void Controller::updateWaypointManager()
     // increment waypoint
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();
 
-    // Update The commanded State
+    // Save current waypoint and pdate the commanded state
+    wp_prev_ = wp_;
     Map<Vector3d> new_waypoint(waypoints_.block<3,1>(0, current_waypoint_id_).data());
-    xc_.p = Vector3d(new_waypoint(PX),
-                     new_waypoint(PY),
-                     new_waypoint(PZ));
+    wp_ = Vector3d(new_waypoint(PX),
+                   new_waypoint(PY),
+                   new_waypoint(PZ));
   }
 }
 
 
 void Controller::updateTrajectoryManager(const double& t)
 {
-  xc_.p = Vector3d(traj_nom_north_ + traj_delta_north_ / 2.0 * cos(traj_north_freq_ * t),
-                   traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * t),
-                   -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * t)));
+  wp_ = Vector3d(traj_nom_north_ + traj_delta_north_ / 2.0 * cos(traj_north_freq_ * t),
+                 traj_nom_east_ + traj_delta_east_ / 2.0 * sin(traj_east_freq_ * t),
+                 -(traj_nom_alt_ + traj_delta_alt_ / 2.0 * sin(traj_alt_freq_ * t)));
 }
 
 

@@ -18,7 +18,8 @@ public:
 
   LQR();
   void init(const std::string &filename);
-  void computeControl(const vehicle::Stated& xhat, const Vector3d &vw, vehicle::Stated& xc, uVector &u);
+  void computeControl(const vehicle::Stated& xhat, const Vector3d &vw, const Vector3d &wp_prev,
+                      const Vector3d &wp, vehicle::Stated &xc, uVector &u);
 
 private:
 
@@ -41,12 +42,13 @@ private:
   int update_count_;
   int gain_matrix_update_iters_;
 
-  void computeCommandState(const vehicle::Stated& x, vehicle::Stated& xc) const;
+  void computeCommandState(const vehicle::Stated& x, const Vector3d &wp_prev, const Vector3d &wp, vehicle::Stated& xc) const;
   void analyticAB(const vehicle::Stated& x, const Vector3d& vw);
   void numericalAB(const vehicle::Stated &x, const vehicle::Stated &x_ref,
-                    const uVector &u, const Vector3d &vw);
+                   const uVector &u, const Vector3d &vw, const Vector3d &wp_prev, const Vector3d &wp);
   void f_tilde(const vehicle::Stated& x_ref, const vehicle::dxVector &x_tilde,
-               const uVector &u, const Vector3d &vw, const double &dt, vehicle::dxVector& x_tilde_dot) const;
+               const uVector &u, const Vector3d &vw, const Vector3d &wp_prev, const Vector3d& wp,
+               const double &dt, vehicle::dxVector& x_tilde_dot) const;
 };
 
 

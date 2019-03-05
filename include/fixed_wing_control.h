@@ -48,6 +48,8 @@ private:
 
   // Waypoint Parameters
   MatrixXd waypoints_;
+  Vector3d wp_;
+  Vector3d wp_prev_; // previously commanded waypoint position
   int current_waypoint_id_;
   double waypoint_threshold_;
 
