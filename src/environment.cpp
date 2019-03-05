@@ -33,12 +33,22 @@ void Environment::load(const std::string filename)
     rng_ = std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count());
 
   // Initialize wind and its walk parameters
-  double vw_init_var, vw_walk_stdev;
-  common::get_yaml_node("wind_init_stdev", filename, vw_init_var);
-  common::get_yaml_node("wind_walk_stdev", filename, vw_walk_stdev);
+  double vw_north_init_var, vw_east_init_var, vw_down_init_var;
+  double vw_north_walk_stdev, vw_east_walk_stdev, vw_down_walk_stdev;
   common::get_yaml_node("enable_wind", filename, enable_wind_);
-  vw_ = vw_init_var * Eigen::Vector3d::Random();
-  vw_walk_dist_ = std::normal_distribution<double>(0.0,vw_walk_stdev);
+  common::get_yaml_node("wind_north_init_stdev", filename, vw_north_init_var);
+  common::get_yaml_node("wind_east_init_stdev", filename, vw_east_init_var);
+  common::get_yaml_node("wind_down_init_stdev", filename, vw_down_init_var);
+  common::get_yaml_node("wind_north_walk_stdev", filename, vw_north_walk_stdev);
+  common::get_yaml_node("wind_east_walk_stdev", filename, vw_east_walk_stdev);
+  common::get_yaml_node("wind_down_walk_stdev", filename, vw_down_walk_stdev);
+  vw_ = Eigen::Vector3d::Random();
+  vw_(0) *= vw_north_init_var;
+  vw_(1) *= vw_east_init_var;
+  vw_(2) *= vw_down_init_var;
+  vw_north_walk_dist_ = std::normal_distribution<double>(0.0,vw_north_walk_stdev);
+  vw_east_walk_dist_ = std::normal_distribution<double>(0.0,vw_east_walk_stdev);
+  vw_down_walk_dist_ = std::normal_distribution<double>(0.0,vw_down_walk_stdev);
   if (!enable_wind_)
     vw_.setZero();
 
@@ -185,7 +195,10 @@ void Environment::updateWind(const double t)
 {
   if (enable_wind_)
   {
-    common::randomNormal(vw_walk_, vw_walk_dist_, rng_);
+    double north_walk = vw_north_walk_dist_(rng_);
+    double east_walk = vw_east_walk_dist_(rng_);
+    double down_walk = vw_down_walk_dist_(rng_);
+    vw_walk_ << north_walk, east_walk, down_walk;
     vw_ += vw_walk_ * (t - t_prev_);
   }
   t_prev_ = t;

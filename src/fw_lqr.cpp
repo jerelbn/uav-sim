@@ -61,10 +61,8 @@ void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, vehicl
   // Jacobians
 //  analyticAB(xhat, vw);
 //  std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
-//  numericalAB(xhat, u_prev_, vw);
+  numericalAB(xhat, xc, u_ref_, vw);
 //  std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
-  numericalAB2(xhat, xc, u_ref_, vw);
-//  std::cout << "\nAn2 = \n" << A_ << "\n\nBn2 = \n" << B_ << std::endl;
 
   // Compute control
   care_solver.solve(P_, A_, B_, Q_, R_);
@@ -134,31 +132,7 @@ void LQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
 }
 
 
-void LQR::numericalAB(const vehicle::Stated &x, const uVector& u, const Vector3d &vw)
-{
-  double eps = 1e-5;
-  Matrix<double,12,12> I12 = Matrix<double,12,12>::Identity();
-  Matrix4d I4 = Matrix4d::Identity();
-  for (int i = 0; i < A_.cols(); ++i)
-  {
-    vehicle::dxVector dxpx, dxmx;
-    f(x + eps * I12.col(i), u, vw, dxpx);
-    f(x + -eps * I12.col(i), u, vw, dxmx);
-    A_.col(i) = (dxpx - dxmx) / (2.0 * eps);
-  }
-  for (int i = 0; i < B_.cols(); ++i)
-  {
-    vehicle::dxVector dxpu, dxmu;
-    Vector4d up = u + eps * I4.col(i);
-    Vector4d um = u + -eps * I4.col(i);
-    f(x, up, vw, dxpu);
-    f(x, um, vw, dxmu);
-    B_.col(i) = (dxpu - dxmu) / (2.0 * eps);
-  }
-}
-
-
-void LQR::numericalAB2(const vehicle::Stated &x, const vehicle::Stated &x_ref,
+void LQR::numericalAB(const vehicle::Stated &x, const vehicle::Stated &x_ref,
                         const uVector& u, const Vector3d &vw)
 {
   double eps = 1e-5;

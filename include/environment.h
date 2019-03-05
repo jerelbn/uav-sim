@@ -48,7 +48,9 @@ private:
 
   bool enable_wind_;
   Eigen::Vector3d vw_, vw_walk_;
-  std::normal_distribution<double> vw_walk_dist_;
+  std::normal_distribution<double> vw_north_walk_dist_;
+  std::normal_distribution<double> vw_east_walk_dist_;
+  std::normal_distribution<double> vw_down_walk_dist_;
 
   std::ofstream environment_log_;
   std::ofstream wind_log_;
