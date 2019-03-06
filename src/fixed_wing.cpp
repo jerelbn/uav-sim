@@ -85,7 +85,7 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
 void FixedWing::run(const double &t, const environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
-  sensors_.updateMeasurements(t, x_, env.get_points()); // Update sensor measurements
+  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points()); // Update sensor measurements
   propagate(t, u_, env.get_vw()); // Propagate truth to next time step
   controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw()); // Update control input with truth
   updateAccels(u_, env.get_vw()); // Update true acceleration

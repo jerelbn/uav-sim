@@ -21,7 +21,9 @@ C_F_t: 19.2089
 C_tau_t: 0
 
 mass: 3.92
-origin_altitude: 1387 # altitude of inertial frame above sea level (Provo, UT = 1387 meters)
+origin_latitude: 0.702443501891 # (radians) latitude at flight location
+origin_longitude: -1.9486196478 # (radians) longitude at flight location
+origin_altitude: 1387.998309 # (meters) altitude above sea level at flight location
 origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
 
 Jx: 0.213
@@ -118,7 +120,7 @@ lqr_max_p_error: 10.0
 lqr_max_v_error: 10.0
 lqr_max_q_error: 1.5
 lqr_max_omega_error: 1.5
-lqr_Q: [1e0, 1e0, 1e1, # position
+lqr_Q: [1e0, 1e0, 5e1, # position
          1e1, 1e0, 1e1, # velocity
          1e2, 1e0, 1e2, # attitude
          1e2, 1e2, 1e2] # angular rate
@@ -197,9 +199,9 @@ q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 
 ## Barometer
 baro_update_rate: 50
-baro_noise_stdev: 0.5
-baro_bias_init_bound: 1.0
-baro_walk_stdev: 0.01
+baro_noise_stdev: 5.0
+baro_bias_init_bound: 10.0
+baro_walk_stdev: 0.1
 
 ## Depth
 ## Altimeter

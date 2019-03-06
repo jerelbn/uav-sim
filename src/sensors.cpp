@@ -30,6 +30,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   srand(seed);
 
   // General parameters
+  t_round_off_ = 1e6;
   common::get_yaml_node("origin_altitude", filename, origin_alt_);
 
   // IMU
@@ -140,7 +141,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const Eigen::MatrixXd& lm)
+void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d &vw, const Eigen::MatrixXd& lm)
 {
   // Update enabled sensor measurements
   if (imu_enabled_)
@@ -156,7 +157,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const
 
 void Sensors::imu(const double t, const vehicle::Stated& x)
 {
-  double dt = common::decRound(t - last_imu_update_, 1e6);
+  double dt = common::decRound(t - last_imu_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
   {
     new_imu_meas_ = true;
@@ -198,7 +199,7 @@ void Sensors::imu(const double t, const vehicle::Stated& x)
 
 void Sensors::camera(const double t, const vehicle::Stated &x, const Eigen::MatrixXd &lm)
 {
-  double dt = common::decRound(t - last_camera_update_, 1e6);
+  double dt = common::decRound(t - last_camera_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
     new_camera_meas_ = true;
@@ -253,7 +254,7 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const Eigen::Matr
 
 void Sensors::mocap(const double t, const vehicle::Stated &x)
 {
-  double dt = common::decRound(t - last_mocap_update_, 1e6);
+  double dt = common::decRound(t - last_mocap_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / mocap_update_rate_)
   {
     new_mocap_meas_ = true;
@@ -281,7 +282,7 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
 
 void Sensors::baro(const double t, const vehicle::Stated& x)
 {
-  double dt = common::decRound(t - last_baro_update_, 1e6);
+  double dt = common::decRound(t - last_baro_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / baro_update_rate_)
   {
     new_baro_meas_ = true;
@@ -309,10 +310,9 @@ void Sensors::baro(const double t, const vehicle::Stated& x)
 }
 
 
-void Sensors::depth(const double t, const vehicle::Stated& x) {}
+void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw) {}
+void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw) {}
 void Sensors::gps(const double t, const vehicle::Stated& x) {}
-void Sensors::alt(const double t, const vehicle::Stated& x) {}
-void Sensors::mag(const double t, const vehicle::Stated& x) {}
 
 
 }

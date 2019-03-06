@@ -20,27 +20,36 @@ public:
   ~Sensors();
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
-  void updateMeasurements(const double t, const vehicle::Stated &x, const Eigen::MatrixXd &lm);
+  void updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d& vw, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;
   Eigen::Matrix<double, 7, 1> mocap_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
   double baro_;
+  double pitot_;
+  double wvane_;
+  Eigen::Matrix<double, 6, 1> gps_;
 
-  bool new_imu_meas_, new_camera_meas_, new_mocap_meas_, new_baro_meas_;
+  bool new_imu_meas_;
+  bool new_camera_meas_;
+  bool new_mocap_meas_;
+  bool new_baro_meas_;
+  bool new_pitot_meas_;
+  bool new_wvane_meas_;
+  bool new_gps_meas_;
 
 private:
 
   void imu(const double t, const vehicle::Stated &x);
   void camera(const double t, const vehicle::Stated& x, const Eigen::MatrixXd& lm);
   void mocap(const double t, const vehicle::Stated& x);
-  void depth(const double t, const vehicle::Stated& x);
-  void gps(const double t, const vehicle::Stated& x);
   void baro(const double t, const vehicle::Stated& x);
-  void alt(const double t, const vehicle::Stated& x);
-  void mag(const double t, const vehicle::Stated& x);
+  void pitot(const double t, const vehicle::Stated& x, const Vector3d& vw);
+  void wvane(const double t, const vehicle::Stated& x, const Vector3d& vw);
+  void gps(const double t, const vehicle::Stated& x);
 
   std::default_random_engine rng_;
+  double t_round_off_; // number of decimals to round off for time stamps
   double origin_alt_; // altitude above sea level at flight location (meters)
 
   // IMU
@@ -51,6 +60,8 @@ private:
   Eigen::Vector3d gyro_bias_, gyro_noise_, gyro_walk_;
   std::normal_distribution<double> accel_noise_dist_, accel_walk_dist_;
   std::normal_distribution<double> gyro_noise_dist_, gyro_walk_dist_;
+  quat::Quatd q_bu_; // rotations body-to-IMU
+  Eigen::Vector3d p_bu_; // translations body-to-IMU in body frame
   std::ofstream accel_log_, gyro_log_;
 
   // Camera
@@ -62,8 +73,8 @@ private:
   Eigen::Vector2d pixel_noise_;
   Eigen::Matrix3d K_, K_inv_;
   Eigen::Vector2d image_size_;
-  quat::Quatd q_bc_, q_bu_; // rotations body-to-camera and body-to-IMU
-  Eigen::Vector3d p_bc_, p_bu_; // translations body-to-camera and body-to-IMU in body frame
+  quat::Quatd q_bc_; // rotations body-to-camera
+  Eigen::Vector3d p_bc_; // translations body-to-camera in body frame
   std::ofstream cam_log_;
 
   // Motion Capture
@@ -84,6 +95,39 @@ private:
   std::normal_distribution<double> baro_noise_dist_;
   double baro_bias_, baro_walk_, baro_noise_;
   std::ofstream baro_log_;
+
+  // Pitot Tube (for air speed along some axis)
+  bool use_pitot_truth_, pitot_enabled_;
+  double last_pitot_update_;
+  double pitot_update_rate_;
+  std::normal_distribution<double> pitot_walk_dist_;
+  std::normal_distribution<double> pitot_noise_dist_;
+  double pitot_bias_, pitot_walk_, pitot_noise_;
+  double pitot_az_, pitot_el_; // azimuth and elevation angles from body x axis to pitot tube axis
+  std::ofstream pitot_log_;
+
+  // Weather vane (for sideslip angle)
+  bool use_wvane_truth_, wvane_enabled_;
+  double last_wvane_update_;
+  double wvane_update_rate_;
+  std::normal_distribution<double> wvane_noise_dist_;
+  int resolution; // rotary encoder discrete measurement steps
+  double wvane_noise_;
+  double wvane_roll_; // azimuth and elevation angles from body x axis to pitot tube axis
+  std::ofstream wvane_log_;
+
+  // GPS
+  bool use_gps_truth_, gps_enabled_;
+  double last_gps_update_;
+  double gps_update_rate_;
+  std::normal_distribution<double> gps_horizontal_walk_dist_;
+  std::normal_distribution<double> gps_horizontal_noise_dist_;
+  std::normal_distribution<double> gps_vertical_walk_dist_;
+  std::normal_distribution<double> gps_vertical_noise_dist_;
+  std::normal_distribution<double> gps_velocity_noise_dist_;
+  double gps_horizontal_walk_, gps_vertical_walk_;
+  double gps_horizontal_noise_, gps_vertical_noise_;
+  std::ofstream gps_log_;
 
 };
 
