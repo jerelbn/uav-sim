@@ -123,13 +123,20 @@ private:
   bool use_gps_truth_, gps_enabled_;
   double last_gps_update_;
   double gps_update_rate_;
-  std::normal_distribution<double> gps_horizontal_walk_dist_;
-  std::normal_distribution<double> gps_horizontal_noise_dist_;
-  std::normal_distribution<double> gps_vertical_walk_dist_;
-  std::normal_distribution<double> gps_vertical_noise_dist_;
-  std::normal_distribution<double> gps_velocity_noise_dist_;
-  double gps_horizontal_walk_, gps_vertical_walk_;
-  double gps_horizontal_noise_, gps_vertical_noise_;
+  std::normal_distribution<double> gps_hpos_walk_dist_;
+  std::normal_distribution<double> gps_hpos_noise_dist_;
+  std::normal_distribution<double> gps_hvel_walk_dist_;
+  std::normal_distribution<double> gps_hvel_noise_dist_;
+  std::normal_distribution<double> gps_vpos_walk_dist_;
+  std::normal_distribution<double> gps_vpos_noise_dist_;
+  std::normal_distribution<double> gps_vvel_walk_dist_;
+  std::normal_distribution<double> gps_vvel_noise_dist_;
+  Vector2d gps_hpos_walk_, gps_hvel_walk_;
+  Vector2d gps_hpos_bias_, gps_hvel_bias_;
+  Vector2d gps_hpos_noise_, gps_hvel_noise_;
+  double gps_vpos_walk_, gps_vvel_walk_;
+  double gps_vpos_bias_, gps_vvel_bias_;
+  double gps_vpos_noise_, gps_vvel_noise_;
   std::ofstream gps_log_;
 
 };

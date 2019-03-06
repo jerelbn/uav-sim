@@ -95,9 +95,10 @@ circ_hd: 5.0
 imu_enabled: true
 camera_enabled: false
 mocap_enabled: false
-baro_enabled: true
-pitot_enabled: true
-wvane_enabled: true
+baro_enabled: false
+pitot_enabled: false
+wvane_enabled: false
+gps_enabled: false
 
 use_accel_truth: false
 use_gyro_truth: false
@@ -106,6 +107,7 @@ use_mocap_truth: false
 use_baro_truth: false
 use_pitot_truth: false
 use_wvane_truth: false
+use_gps_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -159,7 +161,19 @@ wvane_resolution: 1024 # number of rotary encoder ticks
 wvane_roll: 0 # relative angle about body z axis to weather vane vertical direction
 
 ## GPS
-
+gps_update_rate: 10
+gps_horizontal_position_noise_stdev: 1.0
+gps_horizontal_velocity_noise_stdev: 0.1
+gps_horizontal_position_walk_stdev: 0.01
+gps_horizontal_velocity_walk_stdev: 0.03
+gps_horizontal_position_bias_init_bound: 1.0
+gps_horizontal_velocity_bias_init_bound: 0.1
+gps_vertical_position_noise_stdev: 2.0
+gps_vertical_velocity_noise_stdev: 0.2
+gps_vertical_position_walk_stdev: 0.02
+gps_vertical_velocity_walk_stdev: 0.06
+gps_vertical_position_bias_init_bound: 2.0
+gps_vertical_velocity_bias_init_bound: 0.2
 
 # Target estimator parameters
 bearing_only: true

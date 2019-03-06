@@ -57,8 +57,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   q_bu_.normalize();
   accel_noise_dist_ = std::normal_distribution<double>(0.0, accel_noise_stdev);
   accel_walk_dist_ = std::normal_distribution<double>(0.0, accel_walk_stdev);
-  accel_bias_.setRandom();
-  accel_bias_ *= accel_bias_init_bound;
+  accel_bias_ = accel_bias_init_bound * Vector3d::Random();
   accel_noise_.setZero();
   if (use_accel_truth_)
     accel_bias_.setZero();
@@ -73,8 +72,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("gyro_bias_init_bound", filename, gyro_bias_init_bound);
   gyro_noise_dist_ = std::normal_distribution<double>(0.0, gyro_noise_stdev);
   gyro_walk_dist_ = std::normal_distribution<double>(0.0, gyro_walk_stdev);
-  gyro_bias_.setRandom();
-  gyro_bias_ *= gyro_bias_init_bound;
+  gyro_bias_ = gyro_bias_init_bound * Vector3d::Random();
   gyro_noise_.setZero();
   if (use_gyro_truth_)
     gyro_bias_.setZero();
@@ -188,6 +186,58 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   last_wvane_update_ = 0.0;
   ss_wvane << "/tmp/" << name << "_wvane.log";
   wvane_log_.open(ss_wvane.str());
+
+  // GPS
+  std::stringstream ss_gps;
+  double gps_hpos_noise_stdev, gps_hvel_noise_stdev;
+  double gps_vpos_noise_stdev, gps_vvel_noise_stdev;
+  double gps_hpos_walk_stdev, gps_hvel_walk_stdev;
+  double gps_vpos_walk_stdev, gps_vvel_walk_stdev;
+  double gps_hpos_bias_init_bound, gps_hvel_bias_init_bound;
+  double gps_vpos_bias_init_bound, gps_vvel_bias_init_bound;
+  common::get_yaml_node("gps_enabled", filename, gps_enabled_);
+  common::get_yaml_node("use_gps_truth", filename, use_gps_truth_);
+  common::get_yaml_node("gps_update_rate", filename, gps_update_rate_);
+  common::get_yaml_node("gps_horizontal_position_noise_stdev", filename, gps_hpos_noise_stdev);
+  common::get_yaml_node("gps_horizontal_velocity_noise_stdev", filename, gps_hvel_noise_stdev);
+  common::get_yaml_node("gps_horizontal_position_walk_stdev", filename, gps_hpos_walk_stdev);
+  common::get_yaml_node("gps_horizontal_velocity_walk_stdev", filename, gps_hvel_walk_stdev);
+  common::get_yaml_node("gps_horizontal_position_bias_init_bound", filename, gps_hpos_bias_init_bound);
+  common::get_yaml_node("gps_horizontal_velocity_bias_init_bound", filename, gps_hvel_bias_init_bound);
+  common::get_yaml_node("gps_vertical_position_noise_stdev", filename, gps_vpos_noise_stdev);
+  common::get_yaml_node("gps_vertical_velocity_noise_stdev", filename, gps_vvel_noise_stdev);
+  common::get_yaml_node("gps_vertical_position_walk_stdev", filename, gps_vpos_walk_stdev);
+  common::get_yaml_node("gps_vertical_velocity_walk_stdev", filename, gps_vvel_walk_stdev);
+  common::get_yaml_node("gps_vertical_position_bias_init_bound", filename, gps_vpos_bias_init_bound);
+  common::get_yaml_node("gps_vertical_velocity_bias_init_bound", filename, gps_vvel_bias_init_bound);
+  gps_hpos_noise_dist_ = std::normal_distribution<double>(0.0, gps_hpos_noise_stdev);
+  gps_hvel_noise_dist_ = std::normal_distribution<double>(0.0, gps_hvel_noise_stdev);
+  gps_hpos_walk_dist_ = std::normal_distribution<double>(0.0, gps_hpos_walk_stdev);
+  gps_hvel_walk_dist_ = std::normal_distribution<double>(0.0, gps_hvel_walk_stdev);
+  gps_vpos_noise_dist_ = std::normal_distribution<double>(0.0, gps_vpos_noise_stdev);
+  gps_vvel_noise_dist_ = std::normal_distribution<double>(0.0, gps_vvel_noise_stdev);
+  gps_vpos_walk_dist_ = std::normal_distribution<double>(0.0, gps_vpos_walk_stdev);
+  gps_vvel_walk_dist_ = std::normal_distribution<double>(0.0, gps_vvel_walk_stdev);
+  gps_hpos_noise_.setZero();
+  gps_hvel_noise_.setZero();
+  gps_vpos_noise_ = 0;
+  gps_vvel_noise_ = 0;
+  gps_hpos_bias_ = gps_hpos_bias_init_bound * Vector2d::Random();
+  gps_hvel_bias_ = gps_hvel_bias_init_bound * Vector2d::Random();
+  gps_vpos_bias_ = 2.0 * gps_vpos_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  gps_vvel_bias_ = 2.0 * gps_vvel_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  accel_bias_ *= accel_bias_init_bound;
+  if (use_pitot_truth_)
+  {
+    gps_hpos_bias_.setZero();
+    gps_hvel_bias_.setZero();
+    gps_vpos_bias_ = 0;
+    gps_vvel_bias_ = 0;
+  }
+  new_gps_meas_ = false;
+  last_gps_update_ = 0.0;
+  ss_gps << "/tmp/" << name << "_gps.log";
+  gps_log_.open(ss_gps.str());
 
 }
 
@@ -411,13 +461,13 @@ void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw
     // Populate weather vane measurement
     Vector3d v_aI_b = x.v - x.q.rotp(vw);
     double wvane_true = asin(common::e2.dot(q_b2wv_.rotp(v_aI_b)) / v_aI_b.norm());
-    int num_ticks = std::round(wvane_true * wvane_resolution_ / (2.0 * M_PI));
-    wvane_ = 2.0 * M_PI * num_ticks / wvane_resolution_ + wvane_noise_;
+    int num_ticks = std::round((wvane_true + wvane_noise_) * wvane_resolution_ / (2.0 * M_PI));
+    wvane_ = 2.0 * M_PI * num_ticks / wvane_resolution_;
 
     // Log Mocap data
     wvane_log_.write((char*)&t, sizeof(double));
     wvane_log_.write((char*)&wvane_, sizeof(double));
-    wvane_log_.write((char*)&wvane_noise_, sizeof(double));
+    wvane_log_.write((char*)&wvane_true, sizeof(double));
   }
   else
   {
@@ -428,7 +478,51 @@ void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw
 
 void Sensors::gps(const double t, const vehicle::Stated& x)
 {
-  //
+  double dt = common::decRound(t - last_gps_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / gps_update_rate_)
+  {
+    new_gps_meas_ = true;
+    last_gps_update_ = t;
+    if (!use_gps_truth_)
+    {
+      common::randomNormal(gps_hpos_noise_,gps_hpos_noise_dist_,rng_);
+      common::randomNormal(gps_hpos_walk_,gps_hpos_walk_dist_,rng_);
+      gps_hpos_bias_ += gps_hpos_walk_ * dt;
+      common::randomNormal(gps_hvel_noise_,gps_hvel_noise_dist_,rng_);
+      common::randomNormal(gps_hvel_walk_,gps_hvel_walk_dist_,rng_);
+      gps_hvel_bias_ += gps_hvel_walk_ * dt;
+      gps_vpos_noise_ = gps_vpos_noise_dist_(rng_);
+      gps_vpos_walk_ = gps_vpos_walk_dist_(rng_);
+      gps_vpos_bias_ += gps_vpos_walk_ * dt;
+      gps_vvel_noise_ = gps_vvel_noise_dist_(rng_);
+      gps_vvel_walk_ = gps_vvel_walk_dist_(rng_);
+      gps_vvel_bias_ += gps_vvel_walk_ * dt;
+    }
+
+    // Populate GPS measurement
+    Vector3d gps_pos = x.p;
+    Vector3d gps_vel = x.q.rota(x.v);
+    gps_.head<2>() = gps_pos.head<2>() + gps_hpos_bias_ + gps_hpos_noise_;
+    gps_(2) = gps_pos(2) + gps_vpos_bias_ + gps_vpos_noise_;
+    gps_.segment<2>(3) = gps_vel.head<2>() + gps_hvel_bias_ + gps_hvel_noise_;
+    gps_(5) = gps_vel(2) + gps_vvel_bias_ + gps_vvel_noise_;
+
+    // Log Mocap data
+    gps_log_.write((char*)&t, sizeof(double));
+    gps_log_.write((char*)gps_.data(), gps_.rows() * sizeof(double));
+    gps_log_.write((char*)gps_hpos_bias_.data(), gps_hpos_bias_.rows() * sizeof(double));
+    gps_log_.write((char*)&gps_vpos_bias_, sizeof(double));
+    gps_log_.write((char*)gps_hvel_bias_.data(), gps_hvel_bias_.rows() * sizeof(double));
+    gps_log_.write((char*)&gps_vvel_bias_, sizeof(double));
+    gps_log_.write((char*)gps_hpos_noise_.data(), gps_hpos_noise_.rows() * sizeof(double));
+    gps_log_.write((char*)&gps_vpos_noise_, sizeof(double));
+    gps_log_.write((char*)gps_hvel_noise_.data(), gps_hvel_noise_.rows() * sizeof(double));
+    gps_log_.write((char*)&gps_vvel_noise_, sizeof(double));
+  }
+  else
+  {
+    new_gps_meas_ = false;
+  }
 }
 
 
