@@ -8,6 +8,10 @@ namespace fixedwing
 
 void FixedWingBase::load_base(const std::string &filename)
 {
+  common::get_yaml_node("origin_altitude", filename, origin_alt_);
+  common::get_yaml_node("origin_temperature", filename, origin_temp_);
+  rho_ = common::airDense(origin_alt_, origin_temp_);
+
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("Jx", filename, Jx_);
   common::get_yaml_node("Jy", filename, Jy_);
@@ -16,7 +20,6 @@ void FixedWingBase::load_base(const std::string &filename)
   J_ << Jx_, 0, -Jxz_, 0, Jy_, 0, -Jxz_, 0, Jz_;
   J_inv_ = J_.inverse();
 
-  common::get_yaml_node("rho", filename, rho_);
   common::get_yaml_node("wing_S", filename, wing_S_);
   common::get_yaml_node("wing_b", filename, wing_b_);
   common::get_yaml_node("wing_c", filename, wing_c_);

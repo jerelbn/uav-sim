@@ -17,10 +17,13 @@ protected:
 
   void load_base(const std::string& filename);
 
+  double origin_alt_; // altitude above sea level at flight location
+  double origin_temp_; // temperature at flight location (degrees Fahrenheit)
+  double rho_; // air density at flight location (computed from altitude and temperature)
+
   double mass_;
   Eigen::Matrix3d J_, J_inv_;
   double Jx_, Jy_, Jz_, Jxz_;
-  double rho_;
   double wing_S_, wing_b_, wing_c_, wing_M_, wing_epsilon_, wing_alpha0_;
   double k_motor_, k_T_p_, k_Omega_;
   double prop_e_, prop_S_, prop_C_;

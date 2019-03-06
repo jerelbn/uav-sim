@@ -25,8 +25,9 @@ public:
   Eigen::Vector3d gyro_, accel_;
   Eigen::Matrix<double, 7, 1> mocap_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
+  double baro_;
 
-  bool new_imu_meas_, new_camera_meas_, new_mocap_meas_;
+  bool new_imu_meas_, new_camera_meas_, new_mocap_meas_, new_baro_meas_;
 
 private:
 
@@ -40,6 +41,7 @@ private:
   void mag(const double t, const vehicle::Stated& x);
 
   std::default_random_engine rng_;
+  double origin_alt_; // altitude above sea level at flight location (meters)
 
   // IMU
   bool use_accel_truth_, use_gyro_truth_, imu_enabled_;
@@ -73,6 +75,15 @@ private:
   Eigen::Vector3d p_bm_; // translation body-to-mocap-body in body frame
   quat::Quatd q_bm_; // rotation body-to-mocap-body
   std::ofstream mocap_log_;
+
+  // Barometer
+  bool use_baro_truth_, baro_enabled_;
+  double last_baro_update_;
+  double baro_update_rate_;
+  std::normal_distribution<double> baro_walk_dist_;
+  std::normal_distribution<double> baro_noise_dist_;
+  double baro_bias_, baro_walk_, baro_noise_;
+  std::ofstream baro_log_;
 
 };
 

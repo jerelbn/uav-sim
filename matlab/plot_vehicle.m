@@ -14,6 +14,7 @@ accel_noise = accel(8:10,:);
 gyro = reshape(fread(fopen(strcat(['/tmp/',name,'_gyro.log']), 'r'), 'double'), 10, []);
 gyro_bias = gyro(5:7,:);
 gyro_noise = gyro(8:10,:);
+baro = reshape(fread(fopen(strcat(['/tmp/',name,'_baro.log']), 'r'), 'double'), 4, []);
 mocap = reshape(fread(fopen(strcat(['/tmp/',name,'_mocap.log']), 'r'), 'double'), 21, []);
 pix = reshape(fread(fopen(strcat(['/tmp/',name,'_camera.log']), 'r'), 'double'), 3*cam_max_feat+1, []);
 
@@ -99,8 +100,15 @@ end
 
 
 figure()
+set(gcf, 'name', 'Barometer Bias', 'NumberTitle', 'off');
+title("Barometer Bias")
+grid on
+plot(baro(1,:), baro(3,:), 'linewidth', 1.3)
+
+
+figure()
 set(gcf, 'name', 'Commands', 'NumberTitle', 'off');
-if name(1:4) == 'wing'
+if name(1:4) == "wing"
     titles = ["Aileron","Elevator","Throttle","Rudder"];
 else
     titles = ["Throttle","Rate X","Rate Y","Rate Z"];

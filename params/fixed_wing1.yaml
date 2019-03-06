@@ -12,7 +12,7 @@ x0: [0, 0, 0,    # POS
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
-compute_trim: false
+compute_trim: true
 Va_star: 16.38 # desired air speed
 R_star: 1e16 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
@@ -21,13 +21,14 @@ C_F_t: 19.2089
 C_tau_t: 0
 
 mass: 3.92
+origin_altitude: 1387 # altitude of inertial frame above sea level (Provo, UT = 1387 meters)
+origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
 
 Jx: 0.213
 Jy: 0.171
 Jz: 0.350
 Jxz: 0.04
 
-rho: 1.2682
 wing_S: 0.468
 wing_b: 1.8
 wing_c: 0.26
@@ -118,8 +119,8 @@ lqr_max_v_error: 10.0
 lqr_max_q_error: 1.5
 lqr_max_omega_error: 1.5
 lqr_Q: [1e0, 1e0, 1e1, # position
-         1e1, 1e1, 1e1, # velocity
-         1e2, 1e2, 1e2, # attitude
+         1e1, 1e0, 1e1, # velocity
+         1e2, 1e0, 1e2, # attitude
          1e2, 1e2, 1e2] # angular rate
 lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
 
@@ -155,11 +156,13 @@ circ_hd: 5.0
 imu_enabled: true
 camera_enabled: false
 mocap_enabled: false
+baro_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
 use_camera_truth: false
 use_mocap_truth: false
+use_baro_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -192,8 +195,13 @@ mocap_noise_stdev: 0.001
 p_bm: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
 q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 
+## Barometer
+baro_update_rate: 50
+baro_noise_stdev: 0.5
+baro_bias_init_bound: 1.0
+baro_walk_stdev: 0.01
+
 ## Depth
 ## Altimeter
-## Barometer
 ## Magnetometer
 ## GPS

@@ -14,6 +14,7 @@ Sensors::~Sensors()
   gyro_log_.close();
   cam_log_.close();
   mocap_log_.close();
+  baro_log_.close();
 }
 
 
@@ -28,7 +29,11 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   rng_ = std::default_random_engine(seed);
   srand(seed);
 
+  // General parameters
+  common::get_yaml_node("origin_altitude", filename, origin_alt_);
+
   // IMU
+  std::stringstream ss_accel;
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
   Eigen::Vector4d q_bu;
   common::get_yaml_node("imu_enabled", filename, imu_enabled_);
@@ -39,7 +44,6 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("accel_noise_stdev", filename, accel_noise_stdev);
   common::get_yaml_node("accel_walk_stdev", filename, accel_walk_stdev);
   common::get_yaml_node("accel_bias_init_bound", filename, accel_bias_init_bound);
-  last_imu_update_ = 0.0;
   q_bu_ = quat::Quatd(q_bu.data());
   q_bu_.normalize();
   accel_noise_dist_ = std::normal_distribution<double>(0.0, accel_noise_stdev);
@@ -49,7 +53,10 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   accel_noise_.setZero();
   if (use_accel_truth_)
     accel_bias_.setZero();
+  ss_accel << "/tmp/" << name << "_accel.log";
+  accel_log_.open(ss_accel.str());
 
+  std::stringstream ss_gyro;
   double gyro_bias_init_bound, gyro_noise_stdev, gyro_walk_stdev;
   common::get_yaml_node("use_gyro_truth", filename, use_gyro_truth_);
   common::get_yaml_node("gyro_noise_stdev", filename, gyro_noise_stdev);
@@ -62,10 +69,13 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   gyro_noise_.setZero();
   if (use_gyro_truth_)
     gyro_bias_.setZero();
-
   new_imu_meas_ = false;
+  last_imu_update_ = 0.0;
+  ss_gyro << "/tmp/" << name << "_gyro.log";
+  gyro_log_.open(ss_gyro.str());
 
   // Camera
+  std::stringstream ss_cam;
   double pixel_noise_stdev;
   Eigen::Vector4d q_bc;
   common::get_yaml_node("camera_enabled", filename, camera_enabled_);
@@ -78,16 +88,19 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_eigen("camera_matrix", filename, K_);
   common::get_yaml_eigen("q_bc", filename, q_bc);
   common::get_yaml_eigen("p_bc", filename, p_bc_);
-  last_camera_update_ = 0.0;
   pixel_noise_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
   K_inv_ = K_.inverse();
   q_bc_ = quat::Quatd(q_bc.data());
   q_bc_.normalize();
   pixel_noise_.setZero();
   new_camera_meas_ = false;
+  last_camera_update_ = 0.0;
   cam_.reserve(cam_max_feat_);
+  ss_cam << "/tmp/" << name << "_camera.log";
+  cam_log_.open(ss_cam.str());
 
   // Motion Capture
+  std::stringstream ss_mocap;
   double mocap_noise_stdev;
   Eigen::Vector4d q_bm;
   common::get_yaml_node("mocap_enabled", filename, mocap_enabled_);
@@ -101,17 +114,29 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   mocap_noise_dist_ = std::normal_distribution<double>(0.0, mocap_noise_stdev);
   mocap_noise_.setZero();
   new_mocap_meas_ = false;
+  last_mocap_update_ = 0.0;
+  ss_mocap << "/tmp/" << name << "_mocap.log";
+  mocap_log_.open(ss_mocap.str());
 
-  // Initialize loggers
-  std::stringstream ss_a, ss_g, ss_c, ss_m;
-  ss_a << "/tmp/" << name << "_accel.log";
-  ss_g << "/tmp/" << name << "_gyro.log";
-  ss_c << "/tmp/" << name << "_camera.log";
-  ss_m << "/tmp/" << name << "_mocap.log";
-  accel_log_.open(ss_a.str());
-  gyro_log_.open(ss_g.str());
-  cam_log_.open(ss_c.str());
-  mocap_log_.open(ss_m.str());
+  // Barometer
+  std::stringstream ss_baro;
+  double baro_noise_stdev, baro_walk_stdev, baro_bias_init_bound;
+  common::get_yaml_node("baro_enabled", filename, baro_enabled_);
+  common::get_yaml_node("use_baro_truth", filename, use_baro_truth_);
+  common::get_yaml_node("baro_update_rate", filename, baro_update_rate_);
+  common::get_yaml_node("baro_noise_stdev", filename, baro_noise_stdev);
+  common::get_yaml_node("baro_walk_stdev", filename, baro_walk_stdev);
+  common::get_yaml_node("baro_bias_init_bound", filename, baro_bias_init_bound);
+  baro_noise_dist_ = std::normal_distribution<double>(0.0, baro_noise_stdev);
+  baro_noise_ = 0;
+  baro_walk_dist_ = std::normal_distribution<double>(0.0, baro_walk_stdev);
+  baro_bias_ = 2.0 * baro_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  if (use_baro_truth_)
+    baro_bias_ = 0;
+  new_baro_meas_ = false;
+  last_baro_update_ = 0.0;
+  ss_baro << "/tmp/" << name << "_baro.log";
+  baro_log_.open(ss_baro.str());
 }
 
 
@@ -124,6 +149,8 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const
     camera(t, x, lm);
   if (mocap_enabled_)
     mocap(t, x);
+  if (baro_enabled_)
+    baro(t, x);
 }
 
 
@@ -252,9 +279,38 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
 }
 
 
+void Sensors::baro(const double t, const vehicle::Stated& x)
+{
+  double dt = common::decRound(t - last_baro_update_, 1e6);
+  if (t == 0 || dt >= 1.0 / baro_update_rate_)
+  {
+    new_baro_meas_ = true;
+    last_baro_update_ = t;
+    if (!use_baro_truth_)
+    {
+      baro_noise_ = baro_noise_dist_(rng_);
+      baro_walk_ = baro_walk_dist_(rng_);
+      baro_bias_ += baro_walk_ * dt;
+    }
+
+    // Populate barometer measurement
+    baro_ = common::airPres(origin_alt_ + -x.p(2)) + baro_bias_ + baro_noise_;
+
+    // Log Mocap data
+    baro_log_.write((char*)&t, sizeof(double));
+    baro_log_.write((char*)&baro_, sizeof(double));
+    baro_log_.write((char*)&baro_bias_, sizeof(double));
+    baro_log_.write((char*)&baro_noise_, sizeof(double));
+  }
+  else
+  {
+    new_baro_meas_ = false;
+  }
+}
+
+
 void Sensors::depth(const double t, const vehicle::Stated& x) {}
 void Sensors::gps(const double t, const vehicle::Stated& x) {}
-void Sensors::baro(const double t, const vehicle::Stated& x) {}
 void Sensors::alt(const double t, const vehicle::Stated& x) {}
 void Sensors::mag(const double t, const vehicle::Stated& x) {}
 

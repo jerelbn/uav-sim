@@ -11,6 +11,9 @@ x0: [0, 0, -5,    # POS
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
+origin_altitude: 1387 # altitude of inertial frame above sea level (Provo, UT = 1387 meters)
+origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
+
 mass: 10.0
 inertia: [0.6271, 0.6271, 1.25]
 linear_drag: [0.1, 0.1, 0.001]
@@ -90,11 +93,13 @@ circ_hd: 5.0
 imu_enabled: true
 camera_enabled: false
 mocap_enabled: false
+baro_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
 use_camera_truth: false
 use_mocap_truth: false
+use_baro_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -127,9 +132,14 @@ mocap_noise_stdev: 0.001
 p_bm: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
 q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 
+## Barometer
+baro_update_rate: 50
+baro_noise_stdev: 0.5
+baro_bias_init_bound: 1.0
+baro_walk_stdev: 0.01
+
 ## Depth
 ## Altimeter
-## Barometer
 ## Magnetometer
 ## GPS
 
