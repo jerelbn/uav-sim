@@ -114,9 +114,9 @@ private:
   double last_wvane_update_;
   double wvane_update_rate_;
   std::normal_distribution<double> wvane_noise_dist_;
-  int resolution; // rotary encoder discrete measurement steps
+  int wvane_resolution_; // rotary encoder discrete measurement steps
   double wvane_noise_;
-  double wvane_roll_; // azimuth and elevation angles from body x axis to pitot tube axis
+  quat::Quatd q_b2wv_; // rotation from body to weather vane frame
   std::ofstream wvane_log_;
 
   // GPS

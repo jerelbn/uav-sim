@@ -160,6 +160,7 @@ camera_enabled: false
 mocap_enabled: false
 baro_enabled: true
 pitot_enabled: true
+wvane_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
@@ -167,6 +168,7 @@ use_camera_truth: false
 use_mocap_truth: false
 use_baro_truth: false
 use_pitot_truth: false
+use_wvane_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -214,4 +216,9 @@ pitot_azimuth: 0 # relative angle about body z axis to pitot tube direction
 pitot_elevation: 0 # relative angle about body y axis to pitot tube direction
 
 ## Weather Vane
+wvane_update_rate: 100
+wvane_noise_stdev: 0.001
+wvane_resolution: 1024 # number of rotary encoder ticks
+wvane_roll: 0 # relative angle about body z axis to weather vane vertical direction
+
 ## GPS

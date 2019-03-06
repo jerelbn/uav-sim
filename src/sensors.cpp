@@ -170,6 +170,25 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   last_pitot_update_ = 0.0;
   ss_pitot << "/tmp/" << name << "_pitot.log";
   pitot_log_.open(ss_pitot.str());
+
+  // Weather Vane
+  std::stringstream ss_wvane;
+  double wvane_noise_stdev;
+  double wvane_roll;
+  common::get_yaml_node("wvane_enabled", filename, wvane_enabled_);
+  common::get_yaml_node("use_wvane_truth", filename, use_wvane_truth_);
+  common::get_yaml_node("wvane_update_rate", filename, wvane_update_rate_);
+  common::get_yaml_node("wvane_noise_stdev", filename, wvane_noise_stdev);
+  common::get_yaml_node("wvane_resolution", filename, wvane_resolution_);
+  common::get_yaml_node("wvane_roll", filename, wvane_roll);
+  q_b2wv_ = quat::Quatd(wvane_roll, 0, 0);
+  wvane_noise_dist_ = std::normal_distribution<double>(0.0, wvane_noise_stdev);
+  wvane_noise_ = 0;
+  new_wvane_meas_ = false;
+  last_wvane_update_ = 0.0;
+  ss_wvane << "/tmp/" << name << "_wvane.log";
+  wvane_log_.open(ss_wvane.str());
+
 }
 
 
@@ -381,7 +400,29 @@ void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw
 
 void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw)
 {
-  //
+  double dt = common::decRound(t - last_wvane_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / wvane_update_rate_)
+  {
+    new_wvane_meas_ = true;
+    last_wvane_update_ = t;
+    if (!use_wvane_truth_)
+      wvane_noise_ = wvane_noise_dist_(rng_);
+
+    // Populate weather vane measurement
+    Vector3d v_aI_b = x.v - x.q.rotp(vw);
+    double wvane_true = asin(common::e2.dot(q_b2wv_.rotp(v_aI_b)) / v_aI_b.norm());
+    int num_ticks = std::round(wvane_true * wvane_resolution_ / (2.0 * M_PI));
+    wvane_ = 2.0 * M_PI * num_ticks / wvane_resolution_ + wvane_noise_;
+
+    // Log Mocap data
+    wvane_log_.write((char*)&t, sizeof(double));
+    wvane_log_.write((char*)&wvane_, sizeof(double));
+    wvane_log_.write((char*)&wvane_noise_, sizeof(double));
+  }
+  else
+  {
+    new_wvane_meas_ = false;
+  }
 }
 
 

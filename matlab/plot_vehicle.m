@@ -12,6 +12,7 @@ accel = reshape(fread(fopen(strcat(['/tmp/',name,'_accel.log']), 'r'), 'double')
 gyro = reshape(fread(fopen(strcat(['/tmp/',name,'_gyro.log']), 'r'), 'double'), 10, []); % [time;gyro;bias;noise]
 baro = reshape(fread(fopen(strcat(['/tmp/',name,'_baro.log']), 'r'), 'double'), 4, []); % [time;baro;bias;noise]
 pitot = reshape(fread(fopen(strcat(['/tmp/',name,'_pitot.log']), 'r'), 'double'), 4, []); % [time;pitot;bias;noise]
+wvane = reshape(fread(fopen(strcat(['/tmp/',name,'_wvane.log']), 'r'), 'double'), 3, []); % [time;wvane;noise]
 mocap = reshape(fread(fopen(strcat(['/tmp/',name,'_mocap.log']), 'r'), 'double'), 21, []); % [time;pos;att;pos_body2mocap;att_body2mocap;pos_noise;att_noise]
 pix = reshape(fread(fopen(strcat(['/tmp/',name,'_camera.log']), 'r'), 'double'), 3*cam_max_feat+1, []); % [pix_x;pix_y;pix_id]
 
@@ -138,6 +139,15 @@ title("Pitot Tube")
 grid on, hold on
 plot(pitot(1,:), pitot(2,:), 'r-', 'linewidth', 1.5)
 plot(pitot(1,:), pitot(2,:)-pitot(3,:)-pitot(4,:), 'linewidth', 1.5)
+legend('Measured', 'True')
+
+
+figure()
+set(gcf, 'name', 'Weather Vane', 'NumberTitle', 'off');
+title("Weather Vane")
+grid on, hold on
+plot(wvane(1,:), wvane(2,:), 'r-', 'linewidth', 1.5)
+plot(wvane(1,:), wvane(2,:)-wvane(3,:), 'linewidth', 1.5)
 legend('Measured', 'True')
 
 
