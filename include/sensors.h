@@ -50,7 +50,10 @@ private:
 
   std::default_random_engine rng_;
   double t_round_off_; // number of decimals to round off for time stamps
+  double origin_lat_; // latitude at flight location (radians)
+  double origin_lon_; // longitude at flight location (radians)
   double origin_alt_; // altitude above sea level at flight location (meters)
+  double rho_; // air density at flight location
 
   // IMU
   bool use_accel_truth_, use_gyro_truth_, imu_enabled_;
@@ -103,7 +106,7 @@ private:
   std::normal_distribution<double> pitot_walk_dist_;
   std::normal_distribution<double> pitot_noise_dist_;
   double pitot_bias_, pitot_walk_, pitot_noise_;
-  double pitot_az_, pitot_el_; // azimuth and elevation angles from body x axis to pitot tube axis
+  quat::Quatd q_b2pt_; // rotation from body to pitot tube frame
   std::ofstream pitot_log_;
 
   // Weather vane (for sideslip angle)

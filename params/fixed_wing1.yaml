@@ -121,8 +121,8 @@ lqr_max_v_error: 10.0
 lqr_max_q_error: 1.5
 lqr_max_omega_error: 1.5
 lqr_Q: [1e0, 1e0, 5e1, # position
-         1e1, 1e0, 1e1, # velocity
-         1e2, 1e0, 1e2, # attitude
+         1e1, 1e1, 1e1, # velocity
+         1e2, 1e2, 1e2, # attitude
          1e2, 1e2, 1e2] # angular rate
 lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
 
@@ -159,12 +159,14 @@ imu_enabled: true
 camera_enabled: false
 mocap_enabled: false
 baro_enabled: true
+pitot_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
 use_camera_truth: false
 use_mocap_truth: false
 use_baro_truth: false
+use_pitot_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -203,7 +205,13 @@ baro_noise_stdev: 5.0
 baro_bias_init_bound: 10.0
 baro_walk_stdev: 0.1
 
-## Depth
-## Altimeter
-## Magnetometer
+## Pitot Tube
+pitot_update_rate: 50
+pitot_noise_stdev: 1.0
+pitot_bias_init_bound: 2.0
+pitot_walk_stdev: 0.1
+pitot_azimuth: 0 # relative angle about body z axis to pitot tube direction
+pitot_elevation: 0 # relative angle about body y axis to pitot tube direction
+
+## Weather Vane
 ## GPS

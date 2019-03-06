@@ -15,6 +15,9 @@ Sensors::~Sensors()
   cam_log_.close();
   mocap_log_.close();
   baro_log_.close();
+  pitot_log_.close();
+  wvane_log_.close();
+  gps_log_.close();
 }
 
 
@@ -30,8 +33,13 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   srand(seed);
 
   // General parameters
+  double origin_temp;
   t_round_off_ = 1e6;
+  common::get_yaml_node("origin_latitude", filename, origin_lat_);
+  common::get_yaml_node("origin_longitude", filename, origin_lon_);
   common::get_yaml_node("origin_altitude", filename, origin_alt_);
+  common::get_yaml_node("origin_temperature", filename, origin_temp);
+  rho_ = common::airDense(origin_alt_, origin_temp);
 
   // IMU
   std::stringstream ss_accel;
@@ -138,6 +146,30 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   last_baro_update_ = 0.0;
   ss_baro << "/tmp/" << name << "_baro.log";
   baro_log_.open(ss_baro.str());
+
+  // Pitot Tube
+  std::stringstream ss_pitot;
+  double pitot_noise_stdev, pitot_walk_stdev, pitot_bias_init_bound;
+  double pitot_azimuth, pitot_elevation;
+  common::get_yaml_node("pitot_enabled", filename, pitot_enabled_);
+  common::get_yaml_node("use_pitot_truth", filename, use_pitot_truth_);
+  common::get_yaml_node("pitot_update_rate", filename, pitot_update_rate_);
+  common::get_yaml_node("pitot_noise_stdev", filename, pitot_noise_stdev);
+  common::get_yaml_node("pitot_walk_stdev", filename, pitot_walk_stdev);
+  common::get_yaml_node("pitot_bias_init_bound", filename, pitot_bias_init_bound);
+  common::get_yaml_node("pitot_azimuth", filename, pitot_azimuth);
+  common::get_yaml_node("pitot_elevation", filename, pitot_elevation);
+  q_b2pt_ = quat::Quatd(0, pitot_elevation, pitot_azimuth);
+  pitot_noise_dist_ = std::normal_distribution<double>(0.0, pitot_noise_stdev);
+  pitot_noise_ = 0;
+  pitot_walk_dist_ = std::normal_distribution<double>(0.0, pitot_walk_stdev);
+  pitot_bias_ = 2.0 * pitot_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  if (use_pitot_truth_)
+    pitot_bias_ = 0;
+  new_pitot_meas_ = false;
+  last_pitot_update_ = 0.0;
+  ss_pitot << "/tmp/" << name << "_pitot.log";
+  pitot_log_.open(ss_pitot.str());
 }
 
 
@@ -152,6 +184,12 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const
     mocap(t, x);
   if (baro_enabled_)
     baro(t, x);
+  if (pitot_enabled_)
+    pitot(t, x, vw);
+  if (wvane_enabled_)
+    wvane(t, x, vw);
+  if (gps_enabled_)
+    gps(t, x);
 }
 
 
@@ -295,7 +333,7 @@ void Sensors::baro(const double t, const vehicle::Stated& x)
     }
 
     // Populate barometer measurement
-    baro_ = common::airPres(origin_alt_ + -x.p(2)) + baro_bias_ + baro_noise_;
+    baro_ = rho_ * common::gravity * -x.p(2) + baro_bias_ + baro_noise_;
 
     // Log Mocap data
     baro_log_.write((char*)&t, sizeof(double));
@@ -310,9 +348,47 @@ void Sensors::baro(const double t, const vehicle::Stated& x)
 }
 
 
-void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw) {}
-void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw) {}
-void Sensors::gps(const double t, const vehicle::Stated& x) {}
+void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw)
+{
+  double dt = common::decRound(t - last_pitot_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / pitot_update_rate_)
+  {
+    new_pitot_meas_ = true;
+    last_pitot_update_ = t;
+    if (!use_pitot_truth_)
+    {
+      pitot_noise_ = pitot_noise_dist_(rng_);
+      pitot_walk_ = pitot_walk_dist_(rng_);
+      pitot_bias_ += pitot_walk_ * dt;
+    }
+
+    // Populate pitot tube measurement
+    double Va = common::e1.dot(q_b2pt_.rotp(x.v - x.q.rotp(vw)));
+    pitot_ = 0.5 * rho_ * Va * Va + pitot_bias_ + pitot_noise_;
+
+    // Log Mocap data
+    pitot_log_.write((char*)&t, sizeof(double));
+    pitot_log_.write((char*)&pitot_, sizeof(double));
+    pitot_log_.write((char*)&pitot_bias_, sizeof(double));
+    pitot_log_.write((char*)&pitot_noise_, sizeof(double));
+  }
+  else
+  {
+    new_pitot_meas_ = false;
+  }
+}
+
+
+void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw)
+{
+  //
+}
+
+
+void Sensors::gps(const double t, const vehicle::Stated& x)
+{
+  //
+}
 
 
 }
