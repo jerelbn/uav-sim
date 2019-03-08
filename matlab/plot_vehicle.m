@@ -201,4 +201,9 @@ for i=1:4
     subplot(4, 1, i), hold on, grid on
     title(titles(i))
     plot(command(1,:), command(i + 1, :), 'linewidth', 1.5)
+    if i == 3
+        ylim([0 1])
+    else
+        ylim([-1 1])
+    end
 end

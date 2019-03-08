@@ -6,13 +6,13 @@ controller_update_rate: 50
 
 # Physical parameters
 x0: [0, 0, 0,    # POS
-     16, 0, 0,    # VEL
+     20, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
      0, 0, 0,    # OMEGA
      0, 0, 0]    # ANG ACC
 
-compute_trim: true
+compute_trim: false
 Va_star: 16.38 # desired air speed
 R_star: 1e16 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
@@ -117,18 +117,18 @@ lqr_q_ref: [0.999841, 0, 0.0178509, 0]
 lqr_omega_ref: [0, 0, 0]
 lqr_u_ref: [0, 0.0216435, 0.171139, 0]
 lqr_max_p_error: 10.0
-lqr_max_v_error: 10.0
-lqr_max_q_error: 1.5
-lqr_max_omega_error: 1.5
-lqr_chi_inf: 0.78 # relative course angle command far from line
+lqr_max_v_error: 1.0
+lqr_max_q_error: 0.78
+lqr_max_omega_error: 3.14
+lqr_chi_inf: 1.0472 # relative course angle command far from line
 lqr_gamma_inf: 0.52 # relative flight path angle command far from line
-lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
+lqr_k_chi: 0.06 # gain on transition from chi_inf to chi_desired
 lqr_k_gamma: 2.0 # gain on transition from gamma_inf to gamma_desired
 lqr_Q: [1e0, 1e0, 1e0, # position NOT USED
         1e2, 1e1, 1e1, # velocity
-        1e2, 1e1, 1e1, # attitude
-        1e1, 1e1, 1e1] # angular rate
-lqr_R: [1e2, 1e2, 1e2, 1e2] # [aileron, elevator, throttle, rudder]
+        1e2, 1e2, 1e0, # attitude
+        1e0, 1e0, 1e2] # angular rate
+lqr_R: [1e3, 1e3, 1e1, 1e3] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
@@ -138,10 +138,11 @@ lqr_R: [1e2, 1e2, 1e2, 1e2] # [aileron, elevator, throttle, rudder]
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [100, 100, -15,
-            -100, 100, -15,
-            -100, -100, -15,
-            100, -100, -15]
+waypoints: [150, 0, -20,
+            150, 150, -20,
+            -150, 150, -20,
+            -150, -150, -20,
+            150, -150, -20]
 waypoint_threshold: 10.0
 
 traj_delta_north: 50

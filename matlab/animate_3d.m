@@ -9,7 +9,7 @@ function animate_3d(speed, name)
     persistent body_handle true_path_handle cmd_handle bike_trail_handle bike_handle
 
     % body vertices
-    s_pts = 2.0; % model scale factor
+    s_pts = 5.0; % model scale factor
     points = s_pts * [0.7, 0, 0;
                       1.0, 0, 0.1;
                       -0.3, 0.3, 0;
