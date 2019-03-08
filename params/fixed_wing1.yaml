@@ -17,7 +17,7 @@ Va_star: 16.38 # desired air speed
 R_star: 1e16 # desired turn radius
 gamma_star: 0.0 # desired flight path angle
 
-C_F_t: 19.2089
+C_F_t: 15.8159
 C_tau_t: 0
 
 mass: 3.92
@@ -112,10 +112,10 @@ delta_r_max: 0.7854
 
 # Waypoint LQR Controller
 lqr_gain_update_iters: 1 # number if iterations before updating LQR gain matrix
-lqr_v_ref: [16.3696, 0, 0.584703]
-lqr_q_ref: [0.999841, 0, 0.0178509, 0]
+lqr_v_ref: [16.351, 0, 0.974303]
+lqr_q_ref: [0.999557, 0.0297538, 0]
 lqr_omega_ref: [0, 0, 0]
-lqr_u_ref: [0, 0.0216435, 0.171139, 0]
+lqr_u_ref: [0, 0.0211299, 0.196131, 0]
 lqr_max_p_error: 10.0
 lqr_max_v_error: 1.0
 lqr_max_q_error: 0.7854
