@@ -111,24 +111,24 @@ delta_e_max: 0.7854
 delta_r_max: 0.7854
 
 # Waypoint LQR Controller
-lqr_gain_update_iters: 2 # number if iterations before updating LQR gain matrix
+lqr_gain_update_iters: 1 # number if iterations before updating LQR gain matrix
 lqr_v_ref: [16.3696, 0, 0.584703]
 lqr_q_ref: [0.999841, 0, 0.0178509, 0]
 lqr_omega_ref: [0, 0, 0]
 lqr_u_ref: [0, 0.0216435, 0.171139, 0]
 lqr_max_p_error: 10.0
 lqr_max_v_error: 1.0
-lqr_max_q_error: 0.78
-lqr_max_omega_error: 3.14
-lqr_chi_inf: 1.0472 # relative course angle command far from line
-lqr_gamma_inf: 0.52 # relative flight path angle command far from line
-lqr_k_chi: 0.06 # gain on transition from chi_inf to chi_desired
-lqr_k_gamma: 2.0 # gain on transition from gamma_inf to gamma_desired
+lqr_max_q_error: 0.7854
+lqr_max_omega_error: 3.1415
+lqr_chi_inf: 0.7854 # relative course angle command far from line
+lqr_gamma_inf: 0.5236 # relative flight path angle command far from line
+lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
+lqr_k_gamma: 1.0 # gain on transition from gamma_inf to gamma_desired
 lqr_Q: [1e0, 1e0, 1e0, # position NOT USED
         1e2, 1e1, 1e1, # velocity
         1e2, 1e2, 1e0, # attitude
         1e0, 1e0, 1e2] # angular rate
-lqr_R: [1e3, 1e3, 1e1, 1e3] # [aileron, elevator, throttle, rudder]
+lqr_R: [1e3, 1e3, 1e2, 1e3] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
@@ -140,9 +140,9 @@ path_type: 0
 
 waypoints: [150, 0, -20,
             150, 150, -20,
-            -150, 150, -20,
+            -150, 150, -30,
             -150, -150, -20,
-            150, -150, -20]
+            150, -150, -10]
 waypoint_threshold: 10.0
 
 traj_delta_north: 50
