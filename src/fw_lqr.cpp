@@ -28,6 +28,11 @@ void LQR::init(const std::string& filename)
   common::get_yaml_eigen("lqr_u_ref", filename, u_ref_);
   q_ref_ = quat::Quatd(q_ref);
 
+  common::get_yaml_node("lqr_chi_inf", filename, chi_inf_);
+  common::get_yaml_node("lqr_gamma_inf", filename, gamma_inf_);
+  common::get_yaml_node("lqr_k_chi", filename, k_chi_);
+  common::get_yaml_node("lqr_k_gamma", filename, k_gamma_);
+
   Matrix<double,12,1> Q_diag;
   Matrix<double,4,1> R_diag;
   common::get_yaml_eigen("lqr_Q", filename, Q_diag);
@@ -44,10 +49,10 @@ void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, const 
                          const Vector3d& wp, vehicle::Stated &xc, uVector& u)
 {
   // Get commanded state
-  computeCommandState(xhat, wp_prev, wp, xc);
+  computeCommandState(xhat, vw, wp_prev, wp, xc);
 
   // Calculate control error
-  Vector3d p_err = xc.p - xhat.p;
+  Vector3d p_err = Vector3d::Zero();
   Vector3d v_err = xc.v - xhat.v;
   Vector3d q_err = xc.q - xhat.q;
   Vector3d omega_err = xc.omega - xhat.omega;
@@ -90,7 +95,7 @@ void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, const 
 }
 
 
-void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& wp_prev, const Vector3d& wp, vehicle::Stated &xc) const
+void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& vw, const Vector3d& wp_prev, const Vector3d& wp, vehicle::Stated &xc) const
 {
   // Compute line path parameters
   Vector3d line_dir = (wp - wp_prev).normalized(); // direction
@@ -98,35 +103,40 @@ void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& wp_prev,
 
   // Altitude
   xc.p = wp;
-  xc.p(2) = common::e3.dot(wp_prev + line_dir * line_dir.dot(x.p - wp_prev));
-
+//  xc.p(2) = common::e3.dot(wp_prev + line_dir * line_dir.dot(x.p - wp_prev));
 
   // Attitude
+  Vector3d vI = x.q.rota(x.v);
   double chi_l = atan2(line_dir(1), line_dir(0)); // course angle of line path
+  double gamma_l = atan(-line_dir(2) / line_dir.head<2>().norm()); // flight path angle of line path
+  double chi = atan2(vI(1), vI(0)); // aircraft course angle
+  double gamma = atan(-vI(2) / vI.head<2>().norm()); // flight path angle of aircraft
   Matrix3d R_I2l = Matrix3d::Identity(); // rotation from inertial to path frame
   R_I2l(0,0) = cos(chi_l);
   R_I2l(0,1) = sin(chi_l);
   R_I2l(1,0) = -sin(chi_l);
   R_I2l(1,1) = cos(chi_l);
 
-  Vector3d vI = x.q.rota(x.v);
-  double chi = atan2(vI(1), vI(0));
-  double chi_inf = M_PI / 3.0;
-  double k_chi = 0.05;
+  double chi_ref = chi_l - chi_inf_ * 2.0 / M_PI * atan(k_chi_ * common::e2.dot(R_I2l * line_err));
+  double gamma_ref = gamma_l + gamma_inf_ * 2.0 / M_PI * atan(k_gamma_ * common::e3.dot(R_I2l * line_err));
 
-  double chi_ref = chi_l - chi_inf * 2.0 / M_PI * atan(k_chi * common::e2.dot(R_I2l * line_err));
-  double theta_ref = q_ref_.pitch();// + atan(-line_dir(2) / line_dir.head<2>().norm());
-  double phi_ref = common::saturate(1.0 * common::wrapAngle(chi_ref - chi, M_PI), 0.175, -0.175);
+  double phi_ref = common::saturate(1.0 * common::wrapAngle(chi_ref - chi, M_PI), 1.0472, -1.0472);
+  double theta_ref = common::saturate(1.0 * (gamma_ref - gamma), 0.7854, -0.7854);
+  double psi_ref = x.q.yaw();
 
-  xc.q = quat::Quatd(phi_ref, theta_ref, chi_ref);
+  xc.q = quat::Quatd(phi_ref, theta_ref, psi_ref);
 
   // Velocity
-  xc.v = v_ref_;
+  Vector3d v_aI_b = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
+  double Va_ref = v_ref_.norm();
+  double alpha = atan(v_aI_b(2) / v_aI_b(0));
+  double gamma_a = x.q.pitch() - alpha;
+  xc.v = x.q.rotp(Va_ref * Vector3d(cos(x.q.yaw()) * cos(gamma_a), sin(x.q.yaw()) * cos(gamma_a), -sin(gamma_a)) + vw);
 
   // Angular rate
-  double phi_dot_ref = common::saturate(phi_ref - x.q.roll(), M_PI / 4.0, -M_PI / 4.0);
-  double theta_dot_ref = common::saturate(theta_ref - x.q.pitch(), M_PI / 4.0, -M_PI / 4.0);
-  double psi_dot_ref = common::gravity / v_ref_.norm() * tan(phi_ref);
+  double phi_dot_ref = 0.0;
+  double theta_dot_ref = 0.0;
+  double psi_dot_ref = common::gravity / Va_ref * tan(phi_ref);
   Matrix3d R = Matrix3d::Identity();
   R(0,2) = -sin(phi_ref);
   R(1,1) = cos(phi_ref);
@@ -221,8 +231,8 @@ void LQR::f_tilde(const vehicle::Stated &x_ref, const vehicle::dxVector &x_tilde
   // Future and previous reference states
   vehicle::Stated x_refp = x_ref;
   vehicle::Stated x_refm = x_ref;
-  computeCommandState(xp, wp_prev, wp, x_refp);
-  computeCommandState(xm, wp_prev, wp, x_refm);
+  computeCommandState(xp, vw, wp_prev, wp, x_refp);
+  computeCommandState(xm, vw, wp_prev, wp, x_refm);
 
   // Future and previous error states
   vehicle::dxVector x_tildep = x_refp - xp;

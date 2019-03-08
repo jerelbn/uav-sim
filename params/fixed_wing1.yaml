@@ -120,11 +120,15 @@ lqr_max_p_error: 10.0
 lqr_max_v_error: 10.0
 lqr_max_q_error: 1.5
 lqr_max_omega_error: 1.5
-lqr_Q: [1e0, 1e0, 5e1, # position
-         1e1, 1e1, 1e1, # velocity
-         1e2, 1e2, 1e2, # attitude
-         1e2, 1e2, 1e2] # angular rate
-lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
+lqr_chi_inf: 0.78 # relative course angle command far from line
+lqr_gamma_inf: 0.52 # relative flight path angle command far from line
+lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
+lqr_k_gamma: 2.0 # gain on transition from gamma_inf to gamma_desired
+lqr_Q: [1e0, 1e0, 1e0, # position NOT USED
+        1e2, 1e1, 1e1, # velocity
+        1e2, 1e1, 1e1, # attitude
+        1e1, 1e1, 1e1] # angular rate
+lqr_R: [1e2, 1e2, 1e2, 1e2] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory

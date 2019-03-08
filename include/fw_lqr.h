@@ -35,6 +35,11 @@ private:
   double q_err_max_;
   double omega_err_max_;
 
+  double chi_inf_;
+  double gamma_inf_;
+  double k_chi_;
+  double k_gamma_;
+
   Vector3d v_ref_;
   quat::Quatd q_ref_;
   Vector3d omega_ref_;
@@ -42,7 +47,7 @@ private:
   int update_count_;
   int gain_matrix_update_iters_;
 
-  void computeCommandState(const vehicle::Stated& x, const Vector3d &wp_prev, const Vector3d &wp, vehicle::Stated& xc) const;
+  void computeCommandState(const vehicle::Stated& x, const Vector3d &vw, const Vector3d &wp_prev, const Vector3d &wp, vehicle::Stated& xc) const;
   void analyticAB(const vehicle::Stated& x, const Vector3d& vw);
   void numericalAB(const vehicle::Stated &x, const vehicle::Stated &x_ref,
                    const uVector &u, const Vector3d &vw, const Vector3d &wp_prev, const Vector3d &wp);
