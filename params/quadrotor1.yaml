@@ -111,8 +111,8 @@ use_gps_truth: false
 
 ## IMU
 imu_update_rate: 250
-p_bu: [0.0, 0.0, 0.0] # translation from body to IMU in body frame
-q_bu: [1.0, 0.0, 0.0, 0.0] # rotation from body to IMU frame
+p_ub: [0.0, 0.0, 0.0] # translation from body to IMU in body frame
+q_ub: [1.0, 0.0, 0.0, 0.0] # rotation from body to IMU frame
 
 accel_noise_stdev: 0.5
 accel_bias_init_bound: 0.5
@@ -130,15 +130,15 @@ image_size: [640, 480]
 camera_matrix: [480,   0, 320,
                   0, 480, 240,
                   0,   0,   1]
-p_bc: [0.1, 0, 0.05] # translation from body to camera in body frame
-q_bc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
+p_uc: [0.1, 0, 0.05] # translation from body to camera in body frame
+q_uc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
 save_pixel_measurements: true
 
 ## Motion Capture
 mocap_update_rate: 50
 mocap_noise_stdev: 0.001
-p_bm: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
-q_bm: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
+p_um: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
+q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
 
 ## Barometer
 baro_update_rate: 50

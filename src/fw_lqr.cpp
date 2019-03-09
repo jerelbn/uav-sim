@@ -63,7 +63,6 @@ void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, const 
   x_tilde.segment<3>(3) = common::saturateVector<double,3>(v_err_max_, v_err);
   x_tilde.segment<3>(6) = common::saturateVector<double,3>(q_err_max_, q_err);
   x_tilde.segment<3>(9) = common::saturateVector<double,3>(omega_err_max_, omega_err);
-  x_tilde.head<2>().setZero();
 
   if (update_count_ % gain_matrix_update_iters_ == 0)
   {

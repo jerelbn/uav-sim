@@ -23,6 +23,7 @@ public:
   void updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d& vw, const Eigen::MatrixXd &lm);
 
   Eigen::Vector3d gyro_, accel_;
+  Eigen::Matrix<double, 6, 1> imu_;
   Eigen::Matrix<double, 7, 1> mocap_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > cam_; // 3rd row contains labels
   double baro_;
@@ -63,8 +64,8 @@ private:
   Eigen::Vector3d gyro_bias_, gyro_noise_, gyro_walk_;
   std::normal_distribution<double> accel_noise_dist_, accel_walk_dist_;
   std::normal_distribution<double> gyro_noise_dist_, gyro_walk_dist_;
-  quat::Quatd q_bu_; // rotations body-to-IMU
-  Eigen::Vector3d p_bu_; // translations body-to-IMU in body frame
+  quat::Quatd q_ub_; // rotations body-to-IMU
+  Eigen::Vector3d p_ub_; // translations body-to-IMU in body frame
   std::ofstream accel_log_, gyro_log_;
 
   // Camera
@@ -76,8 +77,8 @@ private:
   Eigen::Vector2d pixel_noise_;
   Eigen::Matrix3d K_, K_inv_;
   Eigen::Vector2d image_size_;
-  quat::Quatd q_bc_; // rotations body-to-camera
-  Eigen::Vector3d p_bc_; // translations body-to-camera in body frame
+  quat::Quatd q_uc_; // rotations body-to-camera
+  Eigen::Vector3d p_uc_; // translations body-to-camera in body frame
   std::ofstream cam_log_;
 
   // Motion Capture
@@ -86,8 +87,8 @@ private:
   double mocap_update_rate_;
   std::normal_distribution<double> mocap_noise_dist_;
   Eigen::Matrix<double, 6, 1> mocap_noise_;
-  Eigen::Vector3d p_bm_; // translation body-to-mocap-body in body frame
-  quat::Quatd q_bm_; // rotation body-to-mocap-body
+  Eigen::Vector3d p_um_; // translation body-to-mocap-body in body frame
+  quat::Quatd q_um_; // rotation body-to-mocap-body
   std::ofstream mocap_log_;
 
   // Barometer

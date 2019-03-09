@@ -9,6 +9,7 @@
 #include "fixed_wing_trim.h"
 #include "sensors.h"
 #include "environment.h"
+#include "fw_ekf.h"
 
 using namespace Eigen;
 
@@ -46,6 +47,7 @@ private:
 
   Controller controller_;
   sensors::Sensors sensors_;
+  ekf::EKF ekf_;
 
   vehicle::Stated x_;
   vehicle::dxVector dx_;

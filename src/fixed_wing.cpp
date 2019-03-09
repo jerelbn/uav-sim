@@ -28,6 +28,7 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   common::get_yaml_node("name", filename, name_);
   controller_.load(filename, use_random_seed, name_);
   sensors_.load(filename, use_random_seed, name_);
+  ekf_.load(filename, name_);
 
   // Load all FixedWing parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -37,9 +38,10 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
   x_ = vehicle::Stated(x0);
 
-  // Compute initial control and corresponding acceleration
+  // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.get_vw());
   updateAccels(u_, env.get_vw());
+  sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
 
   // Compute trim
   bool compute_trim;
@@ -85,10 +87,11 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
 void FixedWing::run(const double &t, const environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
-  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points()); // Update sensor measurements
-  propagate(t, u_, env.get_vw()); // Propagate truth to next time step
-  controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw()); // Update control input with truth
+  propagate(t, u_, env.get_vw()); // Propagate truth to current time step
+  controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw());
   updateAccels(u_, env.get_vw()); // Update true acceleration
+  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
+  ekf_.run(t, sensors_);
   log(t); // Log current data
 }
 
