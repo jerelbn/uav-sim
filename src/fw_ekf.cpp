@@ -11,6 +11,7 @@ EKF::EKF() : t_prev_(0) {}
 EKF::~EKF()
 {
   state_log_.close();
+  euler_log_.close();
   cov_log_.close();
 }
 
@@ -39,10 +40,12 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2b_ = quat::Quatd(q_ub);
 
   // Logging
-  std::stringstream ss_s, ss_c;
+  std::stringstream ss_s, ss_e, ss_c;
   ss_s << "/tmp/" << name << "_ekf_state.log";
+  ss_e << "/tmp/" << name << "_ekf_euler.log";
   ss_c << "/tmp/" << name << "_ekf_cov.log";
   state_log_.open(ss_s.str());
+  euler_log_.open(ss_e.str());
   cov_log_.open(ss_c.str());
 }
 
@@ -121,9 +124,12 @@ void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
 void EKF::log(const double &t)
 {
   xVector x = x_.toEigen();
+  Vector3d euler = x_.q.euler();
   dxVector P_diag = P_.diagonal();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+  euler_log_.write((char*)&t, sizeof(double));
+  euler_log_.write((char*)euler.data(), euler.rows() * sizeof(double));
   cov_log_.write((char*)&t, sizeof(double));
   cov_log_.write((char*)P_diag.data(), P_diag.rows() * sizeof(double));
 }

@@ -1,9 +1,12 @@
-function plot_vehicle(name)
+function plot_vehicle(name, plot_cov)
 
 cam_max_feat = 10000;
 
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
+ekf_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_state.log']), 'r'), 'double'), 1 + 20, []); % [time;pos;vel;att;acc_bias;gyro_bias;wind_inertial;baro_bias]
+ekf_euler = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_euler.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
+ekf_cov = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_cov.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;att;acc_bias;gyro_bias;wind_inertial;baro_bias]
 commanded_state = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 1 + 4, []); % [time;aileron;elevator;throttle;rudder]
 euler_angles = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
@@ -25,15 +28,15 @@ idx = 1;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    if i < 3
-        plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.5)
-        plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
-    else
-        plot(true_state(1,:), -true_state(i + idx, :), 'linewidth', 1.5)
-        plot(commanded_state(1,:), -commanded_state(i + idx, :), 'g--')
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 3)
+    plot(ekf_state(1,:), ekf_state(i + idx, :), 'r-', 'linewidth', 1.5)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
+    if plot_cov == true
+        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
     end
     if i == 1
-        legend('True', 'Command')
+        legend('True', 'EKF', 'Command')
     end
 end
 
@@ -41,14 +44,19 @@ end
 figure()
 set(gcf, 'name', 'Velocity', 'NumberTitle', 'off');
 titles = ['u','v','w'];
-idx1 = 4;
+idx = 4;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx1, :), 'g--')
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 3)
+    plot(ekf_state(1,:), ekf_state(i + idx, :), 'r-', 'linewidth', 1.5)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
+    if plot_cov == true
+        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+    end
     if i == 1
-        legend('True', 'Command')
+        legend('True', 'EKF', 'Command')
     end
 end
 
@@ -56,12 +64,12 @@ end
 figure()
 set(gcf, 'name', 'Attitude', 'NumberTitle', 'off');
 titles = ["w","x","y","z"];
-idx1 = 10;
+idx = 10;
 for i=1:4
     subplot(4, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx1, :), 'g--')
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.5)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
     if i == 1
         legend('True', 'Command')
     end
@@ -74,10 +82,15 @@ titles = ["Roll","Pitch","Yaw"];
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(euler_angles(1,:), euler_angles(i + 1, :), 'linewidth', 1.5)
+    plot(euler_angles(1,:), euler_angles(i + 1, :), 'linewidth', 3.0)
+    plot(ekf_euler(1,:), ekf_euler(i + 1, :), 'linewidth', 1.5)
+    if plot_cov == true
+        plot(ekf_euler(1,:), ekf_euler(i + 1, :) + sqrt(ekf_cov(i + 7, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_euler(1,:), ekf_euler(i + 1, :) - sqrt(ekf_cov(i + 7, :)), 'r-', 'linewidth', 0.5)
+    end
     plot(euler_command(1,:), euler_command(i + 1, :), 'g--')
     if i == 1
-        legend('True', 'Command')
+        legend('True', 'EKF', 'Command')
     end
 end
 
@@ -85,12 +98,12 @@ end
 figure()
 set(gcf, 'name', 'Angular Rate', 'NumberTitle', 'off');
 titles = ['p','q','r'];
-idx1 = 14;
+idx = 14;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx1, :), 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx1, :), 'g--')
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.5)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
     if i == 1
         legend('True', 'Command')
     end

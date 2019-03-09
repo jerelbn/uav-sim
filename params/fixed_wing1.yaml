@@ -258,12 +258,12 @@ ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
          1e-1, 1e-1, 1e-1, # WIND
          1e-1]             # BARO BIAS
-ekf_Qx: [1e-1, 1e-1, 1e-1, # POS
-         1e-1, 1e-1, 1e-1, # VEL
-         1e-1, 1e-1, 1e-1, # ATT
-         1e-1, 1e-1, 1e-1, # GYRO BIAS
-         1e-1, 1e-1, 1e-1, # ACCEL BIAS
-         1e-1, 1e-1, 1e-1, # WIND
-         1e-1]             # BARO BIAS
+ekf_Qx: [1e-9, 1e-9, 1e-9, # POS
+         1e-9, 1e-9, 1e-9, # VEL
+         1e-9, 1e-9, 1e-9, # ATT
+         1e-9, 1e-9, 1e-9, # GYRO BIAS
+         1e-9, 1e-9, 1e-9, # ACCEL BIAS
+         1e-9, 1e-9, 1e-9, # WIND
+         1e-9]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO

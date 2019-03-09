@@ -194,6 +194,7 @@ private:
 
   // Logging
   ofstream state_log_;
+  ofstream euler_log_;
   ofstream cov_log_;
 
 };
