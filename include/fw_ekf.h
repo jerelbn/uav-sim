@@ -171,7 +171,7 @@ public:
   void run(const double &t, const sensors::Sensors &sensors);
   static void f(const Stated &x, const uVector& u, dxVector& dx);
   static void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
-  const xVector getState() const { return x_.toEigen(); }
+  vehicle::Stated getState() const;
 
 private:
 

@@ -93,9 +93,9 @@ void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
   Vector3d omega = u.segment<3>(UG) - x.bg;
 
   dx.setZero();
-  dx.segment<3>(P) = x.q.rota(x.v);
-  dx.segment<3>(V) = acc + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
-  dx.segment<3>(Q) = omega;
+  dx.segment<3>(DP) = x.q.rota(x.v);
+  dx.segment<3>(DV) = acc + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
+  dx.segment<3>(DQ) = omega;
 }
 
 
@@ -126,6 +126,17 @@ void EKF::log(const double &t)
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
   cov_log_.write((char*)&t, sizeof(double));
   cov_log_.write((char*)P_diag.data(), P_diag.rows() * sizeof(double));
+}
+
+
+vehicle::Stated EKF::getState() const
+{
+  vehicle::Stated x;
+  x.p = x_.p;
+  x.v = x_.v;
+  x.q = x_.q;
+  x.omega = xdot_.segment<3>(DQ);
+  return x;
 }
 
 
