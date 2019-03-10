@@ -35,9 +35,12 @@ void EKF::load(const string &filename, const std::string& name)
 
   // Load sensor parameters
   Vector4d q_ub;
+  Matrix<double,6,1> R_gps_diag;
+  common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
   q_u2b_ = quat::Quatd(q_ub);
+  R_gps_ = R_gps_diag.asDiagonal();
 
   // Logging
   std::stringstream ss_t, ss_e, ss_c;
@@ -57,6 +60,8 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     propagate(t, sensors.imu_);
 
   // Apply updates
+  if (sensors.new_gps_meas_)
+    updateGPS(sensors.gps_);
 
   // Log data
   logTruth(t, sensors, vw, x_true);
@@ -88,6 +93,24 @@ void EKF::propagate(const double &t, const uVector& imu)
 
   // Save current kinematics for next iteration
   xdot_prev_ = xdot_;
+}
+
+
+void EKF::updateGPS(const Matrix<double,6,1> &z)
+{
+  // Measurement model and matrix
+  Matrix<double,6,1> h;
+  h.head<3>() = x_.p;
+  h.tail<3>() = x_.v;
+
+  Matrix<double,6,NUM_DOF> H = Matrix<double,6,NUM_DOF>::Zero();
+  H.block<3,3>(0,DP).setIdentity();
+  H.block<3,3>(3,DV).setIdentity();
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_gps_ + H * P_ * H.transpose()).inverse();
+  x_ += K * (z - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_gps_ * K.transpose();
 }
 
 

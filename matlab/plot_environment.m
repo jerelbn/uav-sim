@@ -4,7 +4,7 @@ function plot_environment(name)
 env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []);
 vw = reshape(fread(fopen(strcat('/tmp/wind.log'), 'r'), 'double'), 4, []);
 air_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
-air_est = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_state.log']), 'r'), 'double'), 1 + 20, []);
+air_est = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 19, []);
 air_command = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []);
 bike_state = reshape(fread(fopen('/tmp/bike1_true_state.log', 'r'), 'double'), 7, []);
 
