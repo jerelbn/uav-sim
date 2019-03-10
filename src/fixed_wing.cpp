@@ -42,7 +42,7 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.get_vw());
   updateAccels(u_, env.get_vw());
   sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
-  ekf_.run(0, sensors_);
+  ekf_.run(0, sensors_, env.get_vw(), getState());
 
   // Compute trim
   bool compute_trim;
@@ -95,7 +95,7 @@ void FixedWing::run(const double &t, const environment::Environment& env)
     controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw());
   updateAccels(u_, env.get_vw()); // Update true acceleration
   sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
-  ekf_.run(t, sensors_);
+  ekf_.run(t, sensors_, env.get_vw(), getState());
   log(t); // Log current data
 }
 

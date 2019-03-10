@@ -10,8 +10,8 @@ EKF::EKF() : t_prev_(0) {}
 
 EKF::~EKF()
 {
-  state_log_.close();
-  euler_log_.close();
+  true_state_log_.close();
+  ekf_state_log_.close();
   cov_log_.close();
 }
 
@@ -40,17 +40,17 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2b_ = quat::Quatd(q_ub);
 
   // Logging
-  std::stringstream ss_s, ss_e, ss_c;
-  ss_s << "/tmp/" << name << "_ekf_state.log";
-  ss_e << "/tmp/" << name << "_ekf_euler.log";
+  std::stringstream ss_t, ss_e, ss_c;
+  ss_t << "/tmp/" << name << "_ekf_truth.log";
+  ss_e << "/tmp/" << name << "_ekf_est.log";
   ss_c << "/tmp/" << name << "_ekf_cov.log";
-  state_log_.open(ss_s.str());
-  euler_log_.open(ss_e.str());
+  true_state_log_.open(ss_t.str());
+  ekf_state_log_.open(ss_e.str());
   cov_log_.open(ss_c.str());
 }
 
 
-void EKF::run(const double &t, const sensors::Sensors &sensors)
+void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
   // Propagate the state and covariance to the current time step
   if (sensors.new_imu_meas_)
@@ -59,7 +59,8 @@ void EKF::run(const double &t, const sensors::Sensors &sensors)
   // Apply updates
 
   // Log data
-  log(t);
+  logTruth(t, sensors, vw, x_true);
+  logEst(t);
 }
 
 
@@ -92,44 +93,53 @@ void EKF::propagate(const double &t, const uVector& imu)
 
 void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 {
-  Vector3d acc = u.segment<3>(UA) - x.ba;
-  Vector3d omega = u.segment<3>(UG) - x.bg;
-
   dx.setZero();
-  dx.segment<3>(DP) = x.q.rota(x.v);
-  dx.segment<3>(DV) = acc + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
-  dx.segment<3>(DQ) = omega;
+  dx.segment<3>(DP) = x.v;
+  dx.segment<3>(DV) = x.q.rota(u.segment<3>(UA) - x.ba) + common::gravity * common::e3;
+  dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
 }
 
 
 void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
 {
   F.setZero();
-  F.block<3,3>(DP,DV) = x.q.inverse().R();
-  F.block<3,3>(DP,DQ) = -x.q.inverse().R() * common::skew(x.v);
-  F.block<3,3>(DV,DV) = -common::skew(u.segment<3>(UG) - x.bg);
-  F.block<3,3>(DV,DQ) = common::skew(common::gravity * x.q.rotp(common::e3));
-  F.block<3,3>(DV,DBA) = -common::I_3x3;
-  F.block<3,3>(DV,DBG) = -common::skew(x.v);
+  F.block<3,3>(DP,DV) = common::I_3x3;
+  F.block<3,3>(DV,DQ) = -x.q.inverse().R() * common::skew(u.segment<3>(UA) - x.ba);
+  F.block<3,3>(DV,DBA) = -x.q.inverse().R();
   F.block<3,3>(DQ,DQ) = -common::skew(u.segment<3>(UG) - x.bg);
   F.block<3,3>(DQ,DBG) = -common::I_3x3;
 
   G.setZero();
-  G.block<3,3>(DV,UA) = -common::I_3x3;
-  G.block<3,3>(DV,UG) = -common::skew(x.v);
+  G.block<3,3>(DV,UA) = -x.q.inverse().R();
   G.block<3,3>(DQ,UG) = -common::I_3x3;
 }
 
 
-void EKF::log(const double &t)
+void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
-  xVector x = x_.toEigen();
-  Vector3d euler = x_.q.euler();
+  true_state_log_.write((char*)&t, sizeof(double));
+  true_state_log_.write((char*)x_true.p.data(), 3 * sizeof(double));
+  true_state_log_.write((char*)x_true.q.rota(x_true.v).data(), 3 * sizeof(double));
+  true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
+  true_state_log_.write((char*)sensors.getAccelBias().data(), 3 * sizeof(double));
+  true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
+  true_state_log_.write((char*)vw.data(), 3 * sizeof(double));
+  true_state_log_.write((char*)&sensors.getBaroBias(), sizeof(double));
+}
+
+
+void EKF::logEst(const double &t)
+{
+  ekf_state_log_.write((char*)&t, sizeof(double));
+  ekf_state_log_.write((char*)x_.p.data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)x_.v.data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)x_.vw.data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)&x_.bb, sizeof(double));
+
   dxVector P_diag = P_.diagonal();
-  state_log_.write((char*)&t, sizeof(double));
-  state_log_.write((char*)x.data(), x.rows() * sizeof(double));
-  euler_log_.write((char*)&t, sizeof(double));
-  euler_log_.write((char*)euler.data(), euler.rows() * sizeof(double));
   cov_log_.write((char*)&t, sizeof(double));
   cov_log_.write((char*)P_diag.data(), P_diag.rows() * sizeof(double));
 }
@@ -139,7 +149,7 @@ vehicle::Stated EKF::getState() const
 {
   vehicle::Stated x;
   x.p = x_.p;
-  x.v = x_.v;
+  x.v = x_.q.rotp(x_.v);
   x.q = x_.q;
   x.omega = xdot_.segment<3>(DQ);
   return x;

@@ -168,7 +168,7 @@ public:
   ~EKF();
 
   void load(const string &filename, const string &name);
-  void run(const double &t, const sensors::Sensors &sensors);
+  void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
   static void f(const Stated &x, const uVector& u, dxVector& dx);
   static void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
   vehicle::Stated getState() const;
@@ -176,7 +176,8 @@ public:
 private:
 
   void propagate(const double &t, const uVector &imu);
-  void log(const double &t);
+  void logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true);
+  void logEst(const double &t);
 
   // Primary variables
   double t_prev_;
@@ -193,8 +194,8 @@ private:
   quat::Quatd q_u2b_, q_u2pt_, q_u2wv_;
 
   // Logging
-  ofstream state_log_;
-  ofstream euler_log_;
+  ofstream true_state_log_;
+  ofstream ekf_state_log_;
   ofstream cov_log_;
 
 };

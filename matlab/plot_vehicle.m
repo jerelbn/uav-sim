@@ -1,15 +1,12 @@
-function plot_vehicle(name, plot_cov)
+function plot_vehicle(name)
 
 cam_max_feat = 10000;
 
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
-ekf_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_state.log']), 'r'), 'double'), 1 + 20, []); % [time;pos;vel;att;acc_bias;gyro_bias;wind_inertial;baro_bias]
-ekf_euler = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_euler.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
-ekf_cov = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_cov.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;att;acc_bias;gyro_bias;wind_inertial;baro_bias]
+true_euler = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
 commanded_state = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 1 + 4, []); % [time;aileron;elevator;throttle;rudder]
-euler_angles = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
 euler_command = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_command.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
 accel = reshape(fread(fopen(strcat(['/tmp/',name,'_accel.log']), 'r'), 'double'), 10, []); % [time;accel;bias;noise]
 gyro = reshape(fread(fopen(strcat(['/tmp/',name,'_gyro.log']), 'r'), 'double'), 10, []); % [time;gyro;bias;noise]
@@ -28,15 +25,15 @@ idx = 1;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 3)
-    plot(ekf_state(1,:), ekf_state(i + idx, :), 'r-', 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
-    if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+    if i < 3
+        plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
+        plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--', 'linewidth', 1.5)
+    else
+        plot(true_state(1,:), -true_state(i + idx, :), 'linewidth', 2.0)
+        plot(commanded_state(1,:), -commanded_state(i + idx, :), 'g--', 'linewidth', 1.5)
     end
     if i == 1
-        legend('True', 'EKF', 'Command')
+        legend('True', 'Command')
     end
 end
 
@@ -48,15 +45,10 @@ idx = 4;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 3)
-    plot(ekf_state(1,:), ekf_state(i + idx, :), 'r-', 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
-    if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-    end
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--', 'linewidth', 1.5)
     if i == 1
-        legend('True', 'EKF', 'Command')
+        legend('True', 'Command')
     end
 end
 
@@ -68,8 +60,8 @@ idx = 10;
 for i=1:4
     subplot(4, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--', 'linewidth', 1.5)
     if i == 1
         legend('True', 'Command')
     end
@@ -82,15 +74,10 @@ titles = ["Roll","Pitch","Yaw"];
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(euler_angles(1,:), euler_angles(i + 1, :), 'linewidth', 3.0)
-    plot(ekf_euler(1,:), ekf_euler(i + 1, :), 'linewidth', 1.5)
-    if plot_cov == true
-        plot(ekf_euler(1,:), ekf_euler(i + 1, :) + sqrt(ekf_cov(i + 7, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_euler(1,:), ekf_euler(i + 1, :) - sqrt(ekf_cov(i + 7, :)), 'r-', 'linewidth', 0.5)
-    end
-    plot(euler_command(1,:), euler_command(i + 1, :), 'g--')
+    plot(true_euler(1,:), true_euler(i + 1, :), 'linewidth', 2.0)
+    plot(euler_command(1,:), euler_command(i + 1, :), 'g--', 'linewidth', 1.5)
     if i == 1
-        legend('True', 'EKF', 'Command')
+        legend('True', 'Command')
     end
 end
 
@@ -102,8 +89,8 @@ idx = 14;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 1.5)
-    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--')
+    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
+    plot(commanded_state(1,:), commanded_state(i + idx, :), 'g--', 'linewidth', 1.5)
     if i == 1
         legend('True', 'Command')
     end
@@ -116,10 +103,10 @@ titles = ["x","y","z"];
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
+    plot(accel(1,:), accel(i+1,:)-accel(i+4,:)-accel(i+7,:), 'b-', 'linewidth', 2.0)
     plot(accel(1,:), accel(i+1,:), 'r-', 'linewidth', 1.5)
-    plot(accel(1,:), accel(i+1,:)-accel(i+4,:)-accel(i+7,:), 'b-', 'linewidth', 1.5)
     if i == 1
-        legend('Measured', 'True')
+        legend('True', 'Measured')
     end
 end
 
@@ -130,10 +117,10 @@ titles = ["x","y","z"];
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
+    plot(gyro(1,:), gyro(i+1,:)-gyro(i+4,:)-gyro(i+7,:), 'b-', 'linewidth', 2.0)
     plot(gyro(1,:), gyro(i+1,:), 'r-', 'linewidth', 1.5)
-    plot(gyro(1,:), gyro(i+1,:)-gyro(i+4,:)-gyro(i+7,:), 'b-', 'linewidth', 1.5)
     if i == 1
-        legend('Measured', 'True')
+        legend('True', 'Measured')
     end
 end
 
@@ -142,27 +129,27 @@ figure()
 set(gcf, 'name', 'Barometer', 'NumberTitle', 'off');
 title("Barometer")
 grid on, hold on
+plot(baro(1,:), baro(2,:)-baro(3,:)-baro(4,:), 'b-', 'linewidth', 2.0)
 plot(baro(1,:), baro(2,:), 'r-', 'linewidth', 1.5)
-plot(baro(1,:), baro(2,:)-baro(3,:)-baro(4,:), 'b-', 'linewidth', 1.5)
-legend('Measured', 'True')
+legend('True', 'Measured')
 
 
 figure()
 set(gcf, 'name', 'Pitot Tube', 'NumberTitle', 'off');
 title("Pitot Tube")
 grid on, hold on
+plot(pitot(1,:), pitot(2,:)-pitot(3,:)-pitot(4,:), 'b-', 'linewidth', 2.0)
 plot(pitot(1,:), pitot(2,:), 'r-', 'linewidth', 1.5)
-plot(pitot(1,:), pitot(2,:)-pitot(3,:)-pitot(4,:), 'b-', 'linewidth', 1.5)
-legend('Measured', 'True')
+legend('True', 'Measured')
 
 
 figure()
 set(gcf, 'name', 'Weather Vane', 'NumberTitle', 'off');
 title("Weather Vane")
 grid on, hold on
+plot(wvane(1,:), wvane(3,:), 'b-', 'linewidth', 2.0)
 plot(wvane(1,:), wvane(2,:), 'r-', 'linewidth', 1.5)
-plot(wvane(1,:), wvane(3,:), 'b-', 'linewidth', 1.5)
-legend('Measured', 'True')
+legend('True', 'Measured')
 
 
 figure()
@@ -172,14 +159,14 @@ for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
     if i < 3
+        plot(gps(1,:), gps(i+1,:)-gps(i+7,:)-gps(i+13,:), 'b-', 'linewidth', 2.0)
         plot(gps(1,:), gps(i+1,:), 'r-', 'linewidth', 1.5)
-        plot(gps(1,:), gps(i+1,:)-gps(i+7,:)-gps(i+13,:), 'b-', 'linewidth', 1.5)
     else
+        plot(gps(1,:), -gps(i+1,:)+gps(i+7,:)+gps(i+13,:), 'b-', 'linewidth', 2.0)
         plot(gps(1,:), -gps(i+1,:), 'r-', 'linewidth', 1.5)
-        plot(gps(1,:), -gps(i+1,:)+gps(i+7,:)+gps(i+13,:), 'b-', 'linewidth', 1.5)
     end
     if i == 1
-        legend('Measured', 'True')
+        legend('True', 'Measured')
     end
 end
 
@@ -191,14 +178,14 @@ for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
     if i < 3
+        plot(gps(1,:), gps(i+4,:)-gps(i+10,:)-gps(i+16,:), 'b-', 'linewidth', 2.0)
         plot(gps(1,:), gps(i+4,:), 'r-', 'linewidth', 1.5)
-        plot(gps(1,:), gps(i+4,:)-gps(i+10,:)-gps(i+16,:), 'b-', 'linewidth', 1.5)
     else
+        plot(gps(1,:), -gps(i+4,:)+gps(i+10,:)+gps(i+16,:), 'b-', 'linewidth', 2.0)
         plot(gps(1,:), -gps(i+4,:), 'r-', 'linewidth', 1.5)
-        plot(gps(1,:), -gps(i+4,:)+gps(i+10,:)+gps(i+16,:), 'b-', 'linewidth', 1.5)
     end
     if i == 1
-        legend('Measured', 'True')
+        legend('True', 'Measured')
     end
 end
 
@@ -213,7 +200,7 @@ end
 for i=1:4
     subplot(4, 1, i), hold on, grid on
     title(titles(i))
-    plot(command(1,:), command(i + 1, :), 'linewidth', 1.5)
+    plot(command(1,:), command(i + 1, :), 'linewidth', 2.0)
     if i == 3
         ylim([0 1])
     else

@@ -21,6 +21,9 @@ public:
 
   void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
   void updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d& vw, const Eigen::MatrixXd &lm);
+  const Vector3d& getAccelBias() const { return accel_bias_; }
+  const Vector3d& getGyroBias() const { return gyro_bias_; }
+  const double& getBaroBias() const { return baro_bias_; }
 
   Eigen::Vector3d gyro_, accel_;
   Eigen::Matrix<double, 6, 1> imu_;
