@@ -34,11 +34,17 @@ void EKF::load(const string &filename, const std::string& name)
   I_NUM_DOF_.setIdentity();
 
   // Load sensor parameters
+  double origin_alt, origin_temp;
+  common::get_yaml_node("origin_altitude", filename, origin_alt);
+  common::get_yaml_node("origin_temperature", filename, origin_temp);
+  rho_ = common::airDense(origin_alt, origin_temp);
+
   Vector4d q_ub;
   Matrix<double,6,1> R_gps_diag;
   common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
+  common::get_yaml_node("ekf_R_baro", filename, R_baro_);
   q_u2b_ = quat::Quatd(q_ub);
   R_gps_ = R_gps_diag.asDiagonal();
 
@@ -62,6 +68,8 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
   // Apply updates
   if (sensors.new_gps_meas_)
     updateGPS(sensors.gps_);
+  if (sensors.new_baro_meas_)
+    updateBaro(sensors.baro_);
 
   // Log data
   logTruth(t, sensors, vw, x_true);
@@ -111,6 +119,22 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
   Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_gps_ + H * P_ * H.transpose()).inverse();
   x_ += K * (z - h);
   P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_gps_ * K.transpose();
+}
+
+
+void EKF::updateBaro(const double &z)
+{
+  // Measurement model and matrix
+  double h = rho_ * common::gravity * -x_.p(2) + x_.bb;
+
+  Matrix<double,1,NUM_DOF> H = Matrix<double,1,NUM_DOF>::Zero();
+  H(DP+2) = -rho_ * common::gravity;
+  H(DBB) = 1.0;
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,1> K = P_ * H.transpose() / (R_baro_ + H * P_ * H.transpose());
+  x_ += K * (z - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_baro_ * K.transpose();
 }
 
 

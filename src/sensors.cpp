@@ -227,7 +227,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   gps_vpos_bias_ = 2.0 * gps_vpos_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
   gps_vvel_bias_ = 2.0 * gps_vvel_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
   accel_bias_ *= accel_bias_init_bound;
-  if (use_pitot_truth_)
+  if (use_gps_truth_)
   {
     gps_hpos_bias_.setZero();
     gps_hvel_bias_.setZero();

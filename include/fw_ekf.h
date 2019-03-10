@@ -177,6 +177,7 @@ private:
 
   void propagate(const double &t, const uVector &imu);
   void updateGPS(const Matrix<double,6,1>& z);
+  void updateBaro(const double& z);
   void logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true);
   void logEst(const double &t);
 
@@ -191,7 +192,9 @@ private:
   dxMatrix I_NUM_DOF_;
 
   // Sensor parameters
+  double rho_;
   Matrix<double,6,6> R_gps_;
+  double R_baro_;
   Vector3d p_ub_;
   quat::Quatd q_u2b_, q_u2pt_, q_u2wv_;
 
