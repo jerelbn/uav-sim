@@ -1,7 +1,7 @@
 # Fixed Wing 1 configuration
 name: wing1
 accurate_integration: true
-control_using_estimates: false
+control_using_estimates: true
 controller_update_rate: 50
 
 # Physical parameters
@@ -247,24 +247,24 @@ gps_vertical_velocity_bias_init_bound: 0.2
 ekf_x0: [0, 0, 0,    # POS
          20, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
-         0, 0, 0,    # GYRO BIAS
          0, 0, 0,    # ACCEL BIAS
+         0, 0, 0,    # GYRO BIAS
          0, 0, 0,    # WIND
          0]    # BARO BIAS
 ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # VEL
          1e-1, 1e-1, 1e-1, # ATT
-         1e-1, 1e-1, 1e-1, # GYRO BIAS
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
-         1e-1, 1e-1, 1e-1, # WIND
-         50e0]             # BARO BIAS
-ekf_Qx: [1e-9, 1e-9, 1e-9, # POS
-         1e-9, 1e-9, 1e-9, # VEL
-         1e-9, 1e-9, 1e-9, # ATT
-         1e-9, 1e-9, 1e-9, # GYRO BIAS
-         1e-9, 1e-9, 1e-9, # ACCEL BIAS
-         1e-9, 1e-9, 1e-9, # WIND
-         1e-9]             # BARO BIAS
+         1e-1, 1e-1, 1e-1, # GYRO BIAS
+         100e0, 100e0, 100e0, # WIND
+         100e0]             # BARO BIAS
+ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
+         1e-8, 1e-8, 1e-8, # VEL
+         1e-8, 1e-8, 1e-8, # ATT
+         1e-7, 1e-7, 1e-7, # ACCEL BIAS
+         1e-8, 1e-8, 1e-8, # GYRO BIAS
+         1e-6, 1e-6, 1e-6, # WIND
+         1e-8]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01, # GYRO
          0.01, 0.01, 0.01, # ACCEL WALK
@@ -272,3 +272,5 @@ ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
 ekf_R_gps: [1.0, 1.0, 4.0, # POSITION
             0.01, 0.01, 0.04] # VELOCITY
 ekf_R_baro: 25.0
+ekf_R_pitot: 50.0
+ekf_R_wvane: 50.0

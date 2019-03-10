@@ -46,3 +46,13 @@ target_link_libraries(uav_sim
   ${YAML_CPP_LIBRARIES}
   ${CERES_LIBRARIES}
   )
+
+add_executable(ekf_test
+  src/fw_ekf_test.cpp
+  src/fw_ekf.cpp
+  )
+target_link_libraries(ekf_test
+  common_cpp
+  geometry
+  ${YAML_CPP_LIBRARIES}
+  )

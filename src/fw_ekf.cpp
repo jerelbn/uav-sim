@@ -39,13 +39,21 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_node("origin_temperature", filename, origin_temp);
   rho_ = common::airDense(origin_alt, origin_temp);
 
+  double pitot_az, pitot_el, wv_roll;
   Vector4d q_ub;
   Matrix<double,6,1> R_gps_diag;
   common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
+  common::get_yaml_node("pitot_azimuth", filename, pitot_az);
+  common::get_yaml_node("pitot_elevation", filename, pitot_el);
+  common::get_yaml_node("wvane_roll", filename, wv_roll);
   common::get_yaml_node("ekf_R_baro", filename, R_baro_);
+  common::get_yaml_node("ekf_R_pitot", filename, R_pitot_);
+  common::get_yaml_node("ekf_R_wvane", filename, R_wv_);
   q_u2b_ = quat::Quatd(q_ub);
+  q_u2pt_ = quat::Quatd(0, pitot_el, pitot_az);
+  q_u2wv_ = quat::Quatd(wv_roll, 0, 0);
   R_gps_ = R_gps_diag.asDiagonal();
 
   // Logging
@@ -70,6 +78,10 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     updateGPS(sensors.gps_);
   if (sensors.new_baro_meas_)
     updateBaro(sensors.baro_);
+  if (sensors.new_pitot_meas_)
+    updatePitot(sensors.pitot_);
+  if (sensors.new_wvane_meas_)
+    updateWVane(sensors.wvane_);
 
   // Log data
   logTruth(t, sensors, vw, x_true);
@@ -135,6 +147,55 @@ void EKF::updateBaro(const double &z)
   Matrix<double,NUM_DOF,1> K = P_ * H.transpose() / (R_baro_ + H * P_ * H.transpose());
   x_ += K * (z - h);
   P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_baro_ * K.transpose();
+}
+
+
+void EKF::updatePitot(const double &z)
+{
+  // Measurement model and matrix
+  double Va = common::e1.dot(q_u2pt_.rotp(x_.q.rotp(x_.v - x_.vw)));
+  double h = rho_ / 2.0 * Va * Va;
+
+  Matrix<double,1,NUM_DOF> H = Matrix<double,1,NUM_DOF>::Zero();
+  double eps = 1e-5;
+  for (int i = 0; i < H.cols(); ++i)
+  {
+    Stated xp = x_ + I_NUM_DOF_.col(i) * eps;
+    Stated xm = x_ + I_NUM_DOF_.col(i) * -eps;
+    double Vap = common::e1.dot(q_u2pt_.rotp(xp.q.rotp(xp.v - xp.vw)));
+    double Vam = common::e1.dot(q_u2pt_.rotp(xm.q.rotp(xm.v - xm.vw)));
+    double hp = rho_ / 2.0 * Vap * Vap;
+    double hm = rho_ / 2.0 * Vam * Vam;
+    H(i) = (hp - hm) / (2.0 * eps);
+  }
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,1> K = P_ * H.transpose() / (R_pitot_ + H * P_ * H.transpose());
+  x_ += K * (z - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_pitot_ * K.transpose();
+}
+
+
+void EKF::updateWVane(const double &z)
+{
+  // Measurement model and matrix
+  double h = asin(common::e1.dot(q_u2wv_.rotp(x_.q.rotp(x_.v - x_.vw))) / (x_.v - x_.vw).norm());
+
+  Matrix<double,1,NUM_DOF> H = Matrix<double,1,NUM_DOF>::Zero();
+  double eps = 1e-5;
+  for (int i = 0; i < H.cols(); ++i)
+  {
+    Stated xp = x_ + I_NUM_DOF_.col(i) * eps;
+    Stated xm = x_ + I_NUM_DOF_.col(i) * -eps;
+    double hp = asin(common::e1.dot(q_u2wv_.rotp(xp.q.rotp(xp.v - xp.vw))) / (xp.v - xp.vw).norm());
+    double hm = asin(common::e1.dot(q_u2wv_.rotp(xm.q.rotp(xm.v - xm.vw))) / (xm.v - xm.vw).norm());
+    H(i) = (hp - hm) / (2.0 * eps);
+  }
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,1> K = P_ * H.transpose() / (R_wv_ + H * P_ * H.transpose());
+  x_ += K * (z - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_wv_ * K.transpose();
 }
 
 
