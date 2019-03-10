@@ -21,7 +21,7 @@ void EKF::load(const string &filename, const std::string& name)
   // EKF initializations
   xVector x0;
   dxVector P0_diag, Qx_diag;
-  Matrix<double, NUM_INPUTS, 1> Qu_diag;
+  Matrix<double, 2*NUM_INPUTS, 1> Qu_diag;
   Matrix<double, 5, 1> R_vo_diag;
   common::get_yaml_eigen("ekf_x0", filename, x0);
   common::get_yaml_eigen("ekf_P0", filename, P0_diag);
@@ -126,7 +126,7 @@ void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
 {
   F.setZero();
-  F.block<3,3>(DP,DV) = common::I_3x3;
+  F.block<3,3>(DP,DV).setIdentity();
   F.block<3,3>(DV,DQ) = -x.q.inverse().R() * common::skew(u.segment<3>(UA) - x.ba);
   F.block<3,3>(DV,DBA) = -x.q.inverse().R();
   F.block<3,3>(DQ,DQ) = -common::skew(u.segment<3>(UG) - x.bg);
@@ -135,6 +135,8 @@ void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
   G.setZero();
   G.block<3,3>(DV,UA) = -x.q.inverse().R();
   G.block<3,3>(DQ,UG) = -common::I_3x3;
+  G.block<3,3>(DBA,DBA).setIdentity();
+  G.block<3,3>(DBG,DBG).setIdentity();
 }
 
 

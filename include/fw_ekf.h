@@ -56,7 +56,7 @@ typedef Matrix<double, NUM_DOF, 1> dxVector;
 typedef Matrix<double, NUM_DOF, NUM_DOF> dxMatrix;
 typedef Matrix<double, NUM_INPUTS, 1> uVector;
 typedef Matrix<double, NUM_INPUTS, NUM_INPUTS> uMatrix;
-typedef Matrix<double, NUM_DOF, NUM_INPUTS> nuMatrix;
+typedef Matrix<double, NUM_DOF, 2*NUM_INPUTS> nuMatrix;
 
 
 template<typename T>
@@ -187,7 +187,7 @@ private:
   dxMatrix P_, F_, A_;
   dxMatrix Qx_;
   nuMatrix G_, B_;
-  uMatrix Qu_;
+  Matrix<double,2*NUM_INPUTS,2*NUM_INPUTS> Qu_;
   dxMatrix I_NUM_DOF_;
 
   // Sensor parameters

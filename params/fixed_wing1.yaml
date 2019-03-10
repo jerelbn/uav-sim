@@ -111,7 +111,7 @@ delta_e_max: 0.7854
 delta_r_max: 0.7854
 
 # Waypoint LQR Controller
-lqr_gain_update_iters: 1 # number if iterations before updating LQR gain matrix
+lqr_gain_update_iters: 2 # number if iterations before updating LQR gain matrix
 lqr_v_ref: [16.351, 0, 0.974303]
 lqr_q_ref: [0.999557, 0, 0.0297538, 0]
 lqr_omega_ref: [0, 0, 0]
@@ -266,6 +266,8 @@ ekf_Qx: [1e-9, 1e-9, 1e-9, # POS
          1e-9, 1e-9, 1e-9, # WIND
          1e-9]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
-         0.01, 0.01, 0.01] # GYRO
+         0.01, 0.01, 0.01, # GYRO
+         0.01, 0.01, 0.01, # ACCEL WALK
+         0.0001, 0.0001, 0.0001] # GYRO WALK
 ekf_R_gps: [1.0, 1.0, 4.0, # POSITION
             0.01, 0.01, 0.04] # VELOCITY
