@@ -1,11 +1,11 @@
 # Parameters for time, randomness, environment, etc.
 tf: 300.0
 dt: 0.001
-use_random_seed: true
+use_random_seed: false
 
 enable_wind: true # Turn wind on and off
-wind_north_init_stdev: 10.0 # Variation on the initial north wind component
-wind_east_init_stdev: 10.0 # Variation on the initial east wind component
+wind_north_init_stdev: 5.0 # Variation on the initial north wind component
+wind_east_init_stdev: 5.0 # Variation on the initial east wind component
 wind_down_init_stdev: 1.0 # Variation on the initial down wind component
 wind_north_walk_stdev: 1.0 # Amount of random walk in north wind component
 wind_east_walk_stdev: 1.0 # Amount of random walk in east wind component

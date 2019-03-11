@@ -6,7 +6,7 @@ controller_update_rate: 50
 
 # Physical parameters
 x0: [0, 0, 0,    # POS
-     20, 0, 0,    # VEL
+     17, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
      0, 0, 0,    # OMEGA
@@ -38,7 +38,7 @@ wing_M: 50
 wing_epsilon: 0.1592
 wing_alpha0: 0.3040363557
 
-k_motor: 40.0
+k_motor: 26.0
 k_T_p: 0.0
 k_Omega: 0.0
 
@@ -115,7 +115,7 @@ lqr_gain_update_iters: 2 # number if iterations before updating LQR gain matrix
 lqr_v_ref: [16.351, 0, 0.974303]
 lqr_q_ref: [0.999557, 0, 0.0297538, 0]
 lqr_omega_ref: [0, 0, 0]
-lqr_u_ref: [0, 0.0211299, 0.196131, 0]
+lqr_u_ref: [0, 0.0211299, 0.48156, 0]
 lqr_max_p_error: 10.0
 lqr_max_v_error: 1.0
 lqr_max_q_error: 0.7854
@@ -128,7 +128,7 @@ lqr_Q: [1e0, 1e0, 1e0, # position NOT USED
         1e2, 1e1, 1e1, # velocity
         1e2, 1e2, 1e0, # attitude
         1e0, 1e0, 1e2] # angular rate
-lqr_R: [1e3, 1e3, 1e2, 1e3] # [aileron, elevator, throttle, rudder]
+lqr_R: [1e3, 1e3, 1e1, 1e3] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
