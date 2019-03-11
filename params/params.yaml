@@ -1,5 +1,5 @@
 # simulation final time and time step
-tf: 60.0
+tf: 300.0
 dt: 0.004
 use_random_seed: true
 accurate_integration: true
@@ -81,11 +81,11 @@ traj_east_period: 20
 traj_alt_period: 20
 traj_yaw_period: 20
 
-circ_rd: 5.0
-circ_hd: 5.0
-circ_kr: 5.0
+circ_rd: 10.0
+circ_hd: 10.0
+circ_kr: 2.0
 circ_kp: 5.0
-circ_kh: 5.0
+circ_kh: 2.0
 
 # Environment Setup
 enable_wind: false # Turn wind on and off
@@ -99,6 +99,9 @@ wall_height: 10 # Total room height
 
 
 # Sensor Configuration
+
+imu_enabled: true
+camera_enabled: false
 
 ## IMU
 imu_update_rate: 250
@@ -193,10 +196,10 @@ bicycle_waypoint_threshold: 1.0
 bicycle_flat_ground: false
 
 # Target estimation parameters
-bearing_only: true
+bearing_only: false
 use_target_truth: false
 target_z0: [5, 0, 0]
 target_vz0: [0, 0, 0]
 target_gain: 1.0
 target_velocity_gain: 1.0
-target_noise_stdev: 1.0
+target_noise_stdev: 0.1

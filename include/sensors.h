@@ -44,6 +44,7 @@ private:
 
   // IMU
   bool use_accel_truth_, use_gyro_truth_;
+  bool imu_enabled_;
   double last_imu_update_;
   double imu_update_rate_;
   Eigen::Vector3d accel_bias_, accel_noise_, accel_walk_;
@@ -54,6 +55,7 @@ private:
 
   // Camera
   bool use_camera_truth_, save_pixel_measurements_;
+  bool camera_enabled_;
   double last_camera_update_;
   double camera_update_rate_;
   std::normal_distribution<double> pixel_noise_dist_;

@@ -37,6 +37,7 @@ void Sensors::load(const std::string filename)
 
   // IMU
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
+  common::get_yaml_node("imu_enabled", filename, imu_enabled_);
   common::get_yaml_node("imu_update_rate", filename, imu_update_rate_);
   common::get_yaml_node("use_accel_truth", filename, use_accel_truth_);
   common::get_yaml_node("accel_noise_stdev", filename, accel_noise_stdev);
@@ -69,6 +70,7 @@ void Sensors::load(const std::string filename)
   // Camera
   double pixel_noise_stdev;
   Eigen::Vector4d q_bc;
+  common::get_yaml_node("camera_enabled", filename, camera_enabled_);
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
   common::get_yaml_node("save_pixel_measurements", filename, save_pixel_measurements_);
   common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
@@ -96,8 +98,10 @@ void Sensors::load(const std::string filename)
 void Sensors::updateMeasurements(const double t, const vehicle::State &x, const Eigen::MatrixXd& lm)
 {
   // Update all sensor measurements
-  imu(t, x);
-  camera(t, x, lm);
+  if (imu_enabled_)
+    imu(t, x);
+  if (camera_enabled_)
+    camera(t, x, lm);
 }
 
 

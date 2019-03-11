@@ -1,5 +1,6 @@
 % This script copies binaries from the logs to the binaries folder
-bearings_only = true;
+function copy_binaries(bearings_only)
+
 if bearings_only == true
     !cp ../../logs/true_state.bin binaries/aircraft_bo.bin
     !cp ../../logs/target.bin binaries/relative_estimates_bo.bin

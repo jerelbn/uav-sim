@@ -268,7 +268,7 @@ void Controller::computeControl(const vehicle::State &x, const double t, quadrot
     // Commanded body axes in the inertial frame
     Eigen::Vector3d kbc = common::e3 - 1.0 / common::gravity * (omega_l.cross(vl) + K_v_ * vtilde);
     kbc /= kbc.norm();
-    Eigen::Vector3d jbc = kbc.cross(q_l2b.inv().rot(ez));
+    Eigen::Vector3d jbc = kbc.cross(common::e1);
     jbc /= jbc.norm();
     Eigen::Vector3d ibc = jbc.cross(kbc);
     ibc /= ibc.norm();
