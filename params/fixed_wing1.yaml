@@ -123,14 +123,14 @@ lqr_max_omega_error: 3.1415
 lqr_chi_inf: 0.7854 # relative course angle command far from line
 lqr_gamma_inf: 0.5236 # relative flight path angle command far from line
 lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
-lqr_k_gamma: 2.0 # gain on transition from gamma_inf to gamma_desired
+lqr_k_gamma: 1.0 # gain on transition from gamma_inf to gamma_desired
 lqr_max_roll: 0.5236
 lqr_max_pitch: 0.5236
 lqr_Q: [1e0, 1e0, 1e0, # position NOT USED
-        1e2, 1e1, 1e1, # velocity
+        1e3, 1e0, 1e0, # velocity
         1e2, 1e2, 1e0, # attitude
         1e0, 1e0, 1e2] # angular rate
-lqr_R: [1e3, 1e3, 1e1, 1e3] # [aileron, elevator, throttle, rudder]
+lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
 
 
 # Trajectory
@@ -140,11 +140,11 @@ lqr_R: [1e3, 1e3, 1e1, 1e3] # [aileron, elevator, throttle, rudder]
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [200, 0, -30,
-            200, 200, -20,
-            -200, 200, -30,
-            -200, -200, -20,
-            200, -200, -10]
+waypoints: [200, 0, -20,
+            200, 200, -30,
+            -200, 200, -20,
+            -200, -200, -10,
+            200, -200, -20]
 waypoint_threshold: 20.0
 
 traj_delta_north: 50
