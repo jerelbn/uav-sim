@@ -40,6 +40,9 @@ private:
   double k_chi_;
   double k_gamma_;
 
+  double max_roll_;
+  double max_pitch_;
+
   Vector3d v_ref_;
   quat::Quatd q_ref_;
   Vector3d omega_ref_;

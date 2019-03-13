@@ -33,6 +33,9 @@ void LQR::init(const std::string& filename)
   common::get_yaml_node("lqr_k_chi", filename, k_chi_);
   common::get_yaml_node("lqr_k_gamma", filename, k_gamma_);
 
+  common::get_yaml_node("lqr_max_roll", filename, max_roll_);
+  common::get_yaml_node("lqr_max_pitch", filename, max_pitch_);
+
   Matrix<double,12,1> Q_diag;
   Matrix<double,4,1> R_diag;
   common::get_yaml_eigen("lqr_Q", filename, Q_diag);
@@ -119,8 +122,8 @@ void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& vw, cons
   double chi_ref = chi_l - chi_inf_ * 2.0 / M_PI * atan(k_chi_ * common::e2.dot(R_I2l * line_err));
   double gamma_ref = gamma_l + gamma_inf_ * 2.0 / M_PI * atan(k_gamma_ * common::e3.dot(R_I2l * line_err));
 
-  double phi_ref = common::saturate(1.0 * common::wrapAngle(chi_ref - chi, M_PI), 1.0472, -1.0472);
-  double theta_ref = common::saturate(1.0 * (gamma_ref - gamma), 0.7854, -0.7854);
+  double phi_ref = common::saturate(1.0 * common::wrapAngle(chi_ref - chi, M_PI), max_roll_, -max_roll_);
+  double theta_ref = common::saturate(1.0 * (gamma_ref - gamma), max_pitch_, -max_pitch_);
   double psi_ref = x.q.yaw();
 
   xc.q = quat::Quatd(phi_ref, theta_ref, psi_ref);
@@ -130,7 +133,8 @@ void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& vw, cons
   double Va_ref = v_ref_.norm();
   double alpha = atan(v_aI_b(2) / v_aI_b(0));
   double gamma_a = x.q.pitch() - alpha;
-  xc.v = x.q.rotp(Va_ref * Vector3d(cos(x.q.yaw()) * cos(gamma_a), sin(x.q.yaw()) * cos(gamma_a), -sin(gamma_a)) + vw);
+//  xc.v = x.q.rotp(Va_ref * Vector3d(cos(x.q.yaw()) * cos(gamma_a), sin(x.q.yaw()) * cos(gamma_a), -sin(gamma_a)) + vw);
+  xc.v = Va_ref * common::e1 + x.q.rotp(vw);
 
   // Angular rate
   double phi_dot_ref = 0.0;

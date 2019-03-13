@@ -22,11 +22,11 @@ for i=1:3
     end
     if plot_cov == true
         if i < 3
-            plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-            plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
         else
-            plot(ekf_state(1,:), -ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-            plot(ekf_state(1,:), -ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), -ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), -ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
         end
     end
     if i == 1
@@ -51,11 +51,11 @@ for i=1:3
     end
     if plot_cov == true
         if i < 3
-            plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-            plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
         else
-            plot(ekf_state(1,:), -ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-            plot(ekf_state(1,:), -ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), -ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), -ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
         end
     end
     if i == 1
@@ -74,8 +74,8 @@ for i=1:3
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
     plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
     if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
     end
     if i == 1
         legend('Truth', 'EKF')
@@ -93,8 +93,8 @@ for i=1:3
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
     plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
     if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
     end
     if i == 1
         legend('Truth', 'EKF')
@@ -112,8 +112,8 @@ for i=1:3
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
     plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
     if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
     end
     if i == 1
         legend('Truth', 'EKF')
@@ -131,8 +131,8 @@ for i=1:3
     plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
     plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
     if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - sqrt(ekf_cov(i + idx, :)), 'r-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
     end
     if i == 1
         legend('Truth', 'EKF')
@@ -148,7 +148,7 @@ title("Baro Bias")
 plot(true_state(1,:), true_state(1 + idx, :), 'linewidth', 2.0)
 plot(ekf_state(1,:), ekf_state(1 + idx, :), 'linewidth', 1.5)
 if plot_cov == true
-    plot(ekf_state(1,:), ekf_state(1 + idx, :) + sqrt(ekf_cov(1 + idx, :)), 'r-', 'linewidth', 0.5)
-    plot(ekf_state(1,:), ekf_state(1 + idx, :) - sqrt(ekf_cov(1 + idx, :)), 'r-', 'linewidth', 0.5)
+    plot(ekf_state(1,:), ekf_state(1 + idx, :) + 2 * sqrt(ekf_cov(1 + idx, :)), 'm-', 'linewidth', 0.5)
+    plot(ekf_state(1,:), ekf_state(1 + idx, :) - 2 * sqrt(ekf_cov(1 + idx, :)), 'm-', 'linewidth', 0.5)
 end
 legend('Truth', 'EKF')

@@ -6,7 +6,7 @@ controller_update_rate: 50
 
 # Physical parameters
 x0: [0, 0, 0,    # POS
-     17, 0, 0,    # VEL
+     20, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
      0, 0, 0,    # OMEGA
@@ -111,7 +111,7 @@ delta_e_max: 0.7854
 delta_r_max: 0.7854
 
 # Waypoint LQR Controller
-lqr_gain_update_iters: 2 # number if iterations before updating LQR gain matrix
+lqr_gain_update_iters: 1 # number if iterations before updating LQR gain matrix
 lqr_v_ref: [16.351, 0, 0.974303]
 lqr_q_ref: [0.999557, 0, 0.0297538, 0]
 lqr_omega_ref: [0, 0, 0]
@@ -123,7 +123,9 @@ lqr_max_omega_error: 3.1415
 lqr_chi_inf: 0.7854 # relative course angle command far from line
 lqr_gamma_inf: 0.5236 # relative flight path angle command far from line
 lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
-lqr_k_gamma: 1.0 # gain on transition from gamma_inf to gamma_desired
+lqr_k_gamma: 2.0 # gain on transition from gamma_inf to gamma_desired
+lqr_max_roll: 0.5236
+lqr_max_pitch: 0.5236
 lqr_Q: [1e0, 1e0, 1e0, # position NOT USED
         1e2, 1e1, 1e1, # velocity
         1e2, 1e2, 1e0, # attitude
@@ -138,12 +140,12 @@ lqr_R: [1e3, 1e3, 1e1, 1e3] # [aileron, elevator, throttle, rudder]
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [150, 0, -20,
-            150, 150, -20,
-            -150, 150, -30,
-            -150, -150, -20,
-            150, -150, -10]
-waypoint_threshold: 10.0
+waypoints: [200, 0, -30,
+            200, 200, -20,
+            -200, 200, -30,
+            -200, -200, -20,
+            200, -200, -10]
+waypoint_threshold: 20.0
 
 traj_delta_north: 50
 traj_delta_east: 50
@@ -263,7 +265,7 @@ ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
          1e-8, 1e-8, 1e-8, # ATT
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8, # GYRO BIAS
-         1e-6, 1e-6, 1e-6, # WIND
+         1e-5, 1e-5, 1e-5, # WIND
          1e-8]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01, # GYRO
@@ -272,5 +274,5 @@ ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
 ekf_R_gps: [1.0, 1.0, 4.0, # POSITION
             0.01, 0.01, 0.04] # VELOCITY
 ekf_R_baro: 25.0
-ekf_R_pitot: 50.0
-ekf_R_wvane: 50.0
+ekf_R_pitot: 100.0
+ekf_R_wvane: 39.0
