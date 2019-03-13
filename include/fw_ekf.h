@@ -172,6 +172,7 @@ public:
   static void f(const Stated &x, const uVector& u, dxVector& dx);
   static void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
   vehicle::Stated getState() const;
+  Vector3d getWind() const { return x_.vw; }
 
 private:
 

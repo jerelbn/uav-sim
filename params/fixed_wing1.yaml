@@ -265,7 +265,7 @@ ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
          1e-8, 1e-8, 1e-8, # ATT
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8, # GYRO BIAS
-         1e-5, 1e-5, 1e-5, # WIND
+         1e-6, 1e-6, 1e-6, # WIND
          1e-8]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01, # GYRO
@@ -275,4 +275,4 @@ ekf_R_gps: [1.0, 1.0, 4.0, # POSITION
             0.01, 0.01, 0.04] # VELOCITY
 ekf_R_baro: 25.0
 ekf_R_pitot: 100.0
-ekf_R_wvane: 39.0
+ekf_R_wvane: 100.0
