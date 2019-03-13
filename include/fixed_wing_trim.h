@@ -15,22 +15,21 @@ namespace fixedwing
 {
 
 
-enum
-{
-  PN, PE, H,
-  U, V, W,
-  PHI, THETA, PSI,
-  P, Q, R,
-  TRIM_SIZE
-};
-typedef Matrix<double,TRIM_SIZE,1> TrimState;
-
-
 // Cost functor to minimize when computing trim
 class DynamicsCost : public FixedWingBase
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  enum
+  {
+    PN, PE, H,
+    U, V, W,
+    PHI, THETA, PSI,
+    P, Q, R,
+    TRIM_SIZE
+  };
+  typedef Matrix<double,TRIM_SIZE,1> TrimState;
 
   DynamicsCost(const std::string& filename);
   void load(const std::string& filename);
@@ -130,7 +129,7 @@ public:
   }
 
 };
-typedef ceres::AutoDiffCostFunction<DynamicsCost, TRIM_SIZE, 1, 1, 1> DynamicsCostFactor;
+typedef ceres::AutoDiffCostFunction<DynamicsCost, DynamicsCost::TRIM_SIZE, 1, 1, 1> DynamicsCostFactor;
 
 
 } // namespace fixedwing

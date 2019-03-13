@@ -16,7 +16,6 @@ void LQR::init(const std::string& filename)
   load_base(filename);
 
   common::get_yaml_node("lqr_gain_update_iters", filename, gain_matrix_update_iters_);
-  common::get_yaml_node("lqr_max_p_error", filename, p_err_max_);
   common::get_yaml_node("lqr_max_v_error", filename, v_err_max_);
   common::get_yaml_node("lqr_max_q_error", filename, q_err_max_);
   common::get_yaml_node("lqr_max_omega_error", filename, omega_err_max_);
@@ -36,8 +35,8 @@ void LQR::init(const std::string& filename)
   common::get_yaml_node("lqr_max_roll", filename, max_roll_);
   common::get_yaml_node("lqr_max_pitch", filename, max_pitch_);
 
-  Matrix<double,12,1> Q_diag;
-  Matrix<double,4,1> R_diag;
+  dxVector Q_diag;
+  uVector R_diag;
   common::get_yaml_eigen("lqr_Q", filename, Q_diag);
   common::get_yaml_eigen("lqr_R", filename, R_diag);
   Q_ = Q_diag.asDiagonal();
@@ -48,31 +47,41 @@ void LQR::init(const std::string& filename)
 }
 
 
-void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, const Vector3d& wp_prev,
+void LQR::computeControl(const vehicle::Stated& x, const Vector3d& vw, const Vector3d& wp_prev,
                          const Vector3d& wp, vehicle::Stated &xc, uVector& u)
 {
+  // Copy vehicle state components to LQR state
+  State x_lqr;
+  x_lqr.v = x.v;
+  x_lqr.q = x.q;
+  x_lqr.omega = x.omega;
+
   // Get commanded state
-  computeCommandState(xhat, vw, wp_prev, wp, xc);
+  computeCommandState(x_lqr, x.p, vw, wp_prev, wp, xc_);
+
+  // Populate vehicle command vector
+  xc.p = wp;
+  xc.v = xc_.v;
+  xc.q = xc_.q;
+  xc.omega = xc_.omega;
 
   // Calculate control error
-  Vector3d p_err = Vector3d::Zero();
-  Vector3d v_err = xc.v - xhat.v;
-  Vector3d q_err = xc.q - xhat.q;
-  Vector3d omega_err = xc.omega - xhat.omega;
+  Vector3d v_err = xc_.v - x_lqr.v;
+  Vector3d q_err = xc_.q - x_lqr.q;
+  Vector3d omega_err = xc_.omega - x_lqr.omega;
 
   // Create error state
-  Matrix<double,12,1> x_tilde;
-  x_tilde.segment<3>(0) = common::saturateVector<double,3>(p_err_max_, p_err);
-  x_tilde.segment<3>(3) = common::saturateVector<double,3>(v_err_max_, v_err);
-  x_tilde.segment<3>(6) = common::saturateVector<double,3>(q_err_max_, q_err);
-  x_tilde.segment<3>(9) = common::saturateVector<double,3>(omega_err_max_, omega_err);
+  dxVector x_tilde;
+  x_tilde.segment<3>(DV) = common::saturateVector<double,3>(v_err_max_, v_err);
+  x_tilde.segment<3>(DQ) = common::saturateVector<double,3>(q_err_max_, q_err);
+  x_tilde.segment<3>(DW) = common::saturateVector<double,3>(omega_err_max_, omega_err);
 
   if (update_count_ % gain_matrix_update_iters_ == 0)
   {
     // Update Jacobians
 //    analyticAB(xhat, vw);
 //    std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
-    numericalAB(xhat, xc, u_ref_, vw, wp_prev, wp);
+    numericalAB(x_lqr, xc_, u_ref_, x.p, vw, wp_prev, wp);
 //    std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
 
     // Update gain matrix
@@ -97,15 +106,12 @@ void LQR::computeControl(const vehicle::Stated& xhat, const Vector3d& vw, const 
 }
 
 
-void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& vw, const Vector3d& wp_prev, const Vector3d& wp, vehicle::Stated &xc) const
+void LQR::computeCommandState(const State &x, const Vector3d& pos, const Vector3d& vw,
+                              const Vector3d& wp_prev, const Vector3d& wp, State& xc) const
 {
   // Compute line path parameters
   Vector3d line_dir = (wp - wp_prev).normalized(); // direction
-  Vector3d line_err = (common::I_3x3 - line_dir * line_dir.transpose()) * (x.p - wp_prev);
-
-  // Altitude
-  xc.p = wp;
-//  xc.p(2) = common::e3.dot(wp_prev + line_dir * line_dir.dot(x.p - wp_prev));
+  Vector3d line_err = (common::I_3x3 - line_dir * line_dir.transpose()) * (pos - wp_prev);
 
   // Attitude
   Vector3d vI = x.q.rota(x.v);
@@ -153,62 +159,45 @@ void LQR::computeCommandState(const vehicle::Stated &x, const Vector3d& vw, cons
 
 void LQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
 {
-  Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
-  double Va = v_r.norm();
-  double alpha = atan2(v_r(2), v_r(0));
-//  double beta = asin(v_r(1) / Va);
-
-  A_.setZero();
-  A_.block<3,3>(0,3) = x.q.inverse().R();
-  A_.block<3,3>(0,6) = -x.q.inverse().R() * common::skew(x.v);
-  A_.block<3,3>(3,3) = -common::skew(x.omega);
-  A_.block<3,3>(3,6) = common::skew(x.q.rotp(common::gravity * common::e3));
-  A_.block<3,3>(3,9) = 0.25 * rho_ * Va * wing_S_ / mass_ * C_F_omega(alpha) + common::skew(x.v);
-  A_.block<3,3>(6,6) = -common::skew(x.omega);
-  A_.block<3,3>(6,9) = common::I_3x3;
-  A_.block<3,3>(9,9) = J_inv_ * (0.25 * rho_ * Va * wing_S_ * C_bc<double>() * C_tau_omega<double>() -
-                       common::skew(x.omega) * J_ + common::skew(J_ * x.omega));
-
-  B_.setZero();
-  B_.block<3,4>(3,0) = 0.5 * rho_ * Va * Va * wing_S_ / mass_ * C_F_ul(alpha, Va);
-  B_.block<3,4>(9,0) = 0.5 * rho_ * Va * Va * wing_S_ * J_inv_ * C_bc<double>() * C_tau_ul(Va);
+  //
 }
 
 
-void LQR::numericalAB(const vehicle::Stated &x, const vehicle::Stated &x_ref,
-                        const uVector& u, const Vector3d &vw, const Vector3d& wp_prev, const Vector3d& wp)
+void LQR::numericalAB(const State &x, const State &x_ref,
+                      const uVector& u, const Vector3d& pos, const Vector3d &vw, const Vector3d& wp_prev, const Vector3d& wp)
 {
   double eps = 1e-5;
-  Matrix<double,12,12> I12 = Matrix<double,12,12>::Identity();
-  Matrix4d I4 = Matrix4d::Identity();
+  dxMatrix Ix = dxMatrix::Identity();
+  uMatrix Iu = uMatrix::Identity();
 
   // Error state
-  vehicle::dxVector x_tilde = x_ref - x;
+  dxVector x_tilde = x_ref - x;
 
   for (int i = 0; i < A_.cols(); ++i)
   {
     // Poke the error state
-    vehicle::dxVector x_tildep = x_tilde + eps * I12.col(i);
-    vehicle::dxVector x_tildem = x_tilde + -eps * I12.col(i);
+    dxVector x_tildep = x_tilde + eps * Ix.col(i);
+    dxVector x_tildem = x_tilde + -eps * Ix.col(i);
 
     // Error state derivatives
-    vehicle::dxVector x_tilde_dotp, x_tilde_dotm;
-    f_tilde(x_ref, x_tildep, u, vw, wp_prev, wp, eps, x_tilde_dotp);
-    f_tilde(x_ref, x_tildem, u, vw, wp_prev, wp, eps, x_tilde_dotm);
+    dxVector x_tilde_dotp, x_tilde_dotm;
+    f_tilde(x_ref, x_tildep, u, pos, vw, wp_prev, wp, eps, x_tilde_dotp);
+    f_tilde(x_ref, x_tildem, u, pos, vw, wp_prev, wp, eps, x_tilde_dotm);
 
     // Derivative of x_tilde_dot w.r.t. x_tilde
     A_.col(i) = (x_tilde_dotp - x_tilde_dotm) / (2.0 * eps);
   }
+
   for (int i = 0; i < B_.cols(); ++i)
   {
     // Poke the command vector
-    Vector4d up = u + eps * I4.col(i);
-    Vector4d um = u + -eps * I4.col(i);
+    uVector up = u + eps * Iu.col(i);
+    uVector um = u + -eps * Iu.col(i);
 
     // Error state derivatives
-    vehicle::dxVector x_tilde_dotp, x_tilde_dotm;
-    f_tilde(x_ref, x_tilde, up, vw, wp_prev, wp, eps, x_tilde_dotp);
-    f_tilde(x_ref, x_tilde, um, vw, wp_prev, wp, eps, x_tilde_dotm);
+    dxVector x_tilde_dotp, x_tilde_dotm;
+    f_tilde(x_ref, x_tilde, up, pos, vw, wp_prev, wp, eps, x_tilde_dotp);
+    f_tilde(x_ref, x_tilde, um, pos, vw, wp_prev, wp, eps, x_tilde_dotm);
 
     // Derivative of x_tilde_dot w.r.t. u_ref
     B_.col(i) = (x_tilde_dotp - x_tilde_dotm) / (2.0 * eps);
@@ -216,30 +205,50 @@ void LQR::numericalAB(const vehicle::Stated &x, const vehicle::Stated &x_ref,
 }
 
 
-void LQR::f_tilde(const vehicle::Stated &x_ref, const vehicle::dxVector &x_tilde,
-                  const uVector& u, const Vector3d& vw, const Vector3d& wp_prev, const Vector3d &wp,
-                  const double& dt, vehicle::dxVector &x_tilde_dot) const
+void LQR::f_lqr(const State& x, const uVector& u, const Vector3d& vw, dxVector& dx) const
+{
+  Vector3d v_r = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
+  double Va = v_r.norm();
+  double alpha = atan(v_r(2) / v_r(0));
+  double beta = asin(v_r(1) / Va);
+
+  Vector3d f_b = mass_ * common::gravity * x.q.rotp(common::e3) + 0.5 * rho_ * Va * Va * wing_S_ *
+                 (C_F_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_F_omega(alpha) * x.omega + C_F_u(alpha) * u) +
+                 rho_ * prop_S_ * prop_C_ * (Va + u(THR) * (k_motor_ - Va)) * u(THR) * (k_motor_ - Va) * common::e1;
+  Vector3d tau_b = 0.5 * rho_ * Va * Va * wing_S_ * C_bc<double>() *
+                   (C_tau_alpha_beta(alpha,beta) + 1.0 / (2.0 * Va) * C_tau_omega<double>() * x.omega + C_tau_u<double>() * u) -
+                   k_T_p_ * k_Omega_ * k_Omega_ * u(THR) * u(THR) * common::e1;
+
+  dx.segment<3>(DV) = 1.0 / mass_ * f_b - x.omega.cross(x.v);
+  dx.segment<3>(DQ) = x.omega;
+  dx.segment<3>(DW) = J_inv_ * (tau_b - x.omega.cross(J_ * x.omega));
+}
+
+
+void LQR::f_tilde(const State &x_ref, const dxVector &x_tilde,
+                  const uVector& u,  const Vector3d& pos, const Vector3d& vw, const Vector3d& wp_prev, const Vector3d &wp,
+                  const double& dt, dxVector &x_tilde_dot) const
 {
   // 'True state'
-  vehicle::Stated x = x_ref + -x_tilde;
+  State x = x_ref + -x_tilde;
 
   // Derivative at current time
-  vehicle::dxVector dx;
-  f(x, u, vw, dx);
+  dxVector dx;
+  f_lqr(x, u, vw, dx);
 
   // Future and previous states
-  vehicle::Stated xp = x + dx * dt;
-  vehicle::Stated xm = x + -dx * dt;
+  State xp = x + dx * dt;
+  State xm = x + -dx * dt;
 
   // Future and previous reference states
-  vehicle::Stated x_refp = x_ref;
-  vehicle::Stated x_refm = x_ref;
-  computeCommandState(xp, vw, wp_prev, wp, x_refp);
-  computeCommandState(xm, vw, wp_prev, wp, x_refm);
+  State x_refp = x_ref;
+  State x_refm = x_ref;
+  computeCommandState(xp, pos, vw, wp_prev, wp, x_refp);
+  computeCommandState(xm, pos, vw, wp_prev, wp, x_refm);
 
   // Future and previous error states
-  vehicle::dxVector x_tildep = x_refp - xp;
-  vehicle::dxVector x_tildem = x_refm - xm;
+  dxVector x_tildep = x_refp - xp;
+  dxVector x_tildem = x_refm - xm;
 
   // Error state derivative
   x_tilde_dot = (x_tildep - x_tildem) / (2.0 * dt);

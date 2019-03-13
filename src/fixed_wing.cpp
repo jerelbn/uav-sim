@@ -142,7 +142,7 @@ void FixedWing::computeTrim(const std::string& filename) const
   ceres::Solve(options, &problem, &summary);
 
   // Compute final trimmed state and trimmed command
-  TrimState x_star;
+  DynamicsCost::TrimState x_star;
   uVector u_star;
   cost->computeTrimmedStateAndCommand(alpha_star, beta_star, phi_star, x_star, u_star);
 
@@ -156,11 +156,11 @@ void FixedWing::computeTrim(const std::string& filename) const
   u_star(RUD) /= delta_r_max_;
 
   // Show results
-  quat::Quatd q(x_star(PHI), x_star(THETA), 0);
+  quat::Quatd q(x_star(DynamicsCost::PHI), x_star(DynamicsCost::THETA), 0);
   std::cout << "\n\n";
-  std::cout << "v_star =     " << x_star.segment<3>(U).transpose() << "\n";
+  std::cout << "v_star =     " << x_star.segment<3>(DynamicsCost::U).transpose() << "\n";
   std::cout << "q_star =     " << q.elements().transpose() << "\n";
-  std::cout << "omega_star = " << x_star.segment<3>(P).transpose() << "\n";
+  std::cout << "omega_star = " << x_star.segment<3>(DynamicsCost::P).transpose() << "\n";
   std::cout << "u_star =     " << u_star.transpose() << "\n";
   std::cout << "C_F_t =      " << C_F_t << "\n";
   std::cout << "C_tau_t =    " << C_tau_t << "\n";
@@ -168,9 +168,9 @@ void FixedWing::computeTrim(const std::string& filename) const
 
   // Save results to file
   YAML::Node node;
-  node["v_star"] = std::vector<double>{x_star(U), x_star(V), x_star(W)};
+  node["v_star"] = std::vector<double>{x_star(DynamicsCost::U), x_star(DynamicsCost::V), x_star(DynamicsCost::W)};
   node["q_star"] = std::vector<double>{q.w(), q.x(), q.y(), q.z()};
-  node["omega_star"] = std::vector<double>{x_star(P), x_star(Q), x_star(R)};
+  node["omega_star"] = std::vector<double>{x_star(DynamicsCost::P), x_star(DynamicsCost::Q), x_star(DynamicsCost::R)};
   node["u_star"] = std::vector<double>{u_star(AIL), u_star(ELE), u_star(THR), u_star(RUD)};
   node["C_F_t"] = C_F_t;
   node["C_tau_t"] = C_tau_t;
@@ -183,16 +183,16 @@ void FixedWing::computeTrim(const std::string& filename) const
 }
 
 
-void FixedWing::computeLinearizedThrottle(const TrimState &x, const uVector &cmd, double& C_F_t, double& C_tau_t) const
+void FixedWing::computeLinearizedThrottle(const DynamicsCost::TrimState &x, const uVector &cmd, double& C_F_t, double& C_tau_t) const
 {
   // Unpack states and commands for readability
-  double u = x(U);
-  double v = x(V);
-  double w = x(W);
-  double theta = x(THETA);
-  double p = x(P);
-  double q = x(Q);
-  double r = x(R);
+  double u = x(DynamicsCost::U);
+  double v = x(DynamicsCost::V);
+  double w = x(DynamicsCost::W);
+  double theta = x(DynamicsCost::THETA);
+  double p = x(DynamicsCost::P);
+  double q = x(DynamicsCost::Q);
+  double r = x(DynamicsCost::R);
 
   double delta_a = cmd(AIL);
   double delta_e = cmd(ELE);
@@ -215,7 +215,7 @@ void FixedWing::computeLinearizedThrottle(const TrimState &x, const uVector &cmd
   double C_p_delta_r_ = Gamma_3 * C_el_delta_r_ + Gamma_4 * C_n_delta_r_;
 
   // Trim dynamics assume no wind
-  double Va = x.segment<3>(U).norm();
+  double Va = x.segment<3>(DynamicsCost::U).norm();
   double alpha = atan2(w, u);
   double beta = asin(v / Va);
 

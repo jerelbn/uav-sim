@@ -43,7 +43,7 @@ private:
   void getOtherVehicles(const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
-  void computeLinearizedThrottle(const TrimState& x, const uVector& cmd, double &C_F_t, double &C_tau_t) const;
+  void computeLinearizedThrottle(const DynamicsCost::TrimState& x, const uVector& cmd, double &C_F_t, double &C_tau_t) const;
 
   Controller controller_;
   sensors::Sensors sensors_;

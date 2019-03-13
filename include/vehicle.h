@@ -32,7 +32,9 @@ enum
 };
 
 typedef Matrix<double, NUM_STATES, 1> xVector;
+typedef Matrix<double, NUM_STATES, NUM_STATES> xMatrix;
 typedef Matrix<double, NUM_DOF, 1> dxVector;
+typedef Matrix<double, NUM_DOF, NUM_DOF> dxMatrix;
 
 template<typename T>
 struct State
@@ -163,5 +165,6 @@ enum
   COMMAND_SIZE
 };
 typedef Matrix<double, COMMAND_SIZE, 1> uVector;
+typedef Matrix<double, COMMAND_SIZE, COMMAND_SIZE> uMatrix;
 
 } // namespace fixedwing
