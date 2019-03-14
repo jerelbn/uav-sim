@@ -38,7 +38,7 @@ wing_M: 50
 wing_epsilon: 0.1592
 wing_alpha0: 0.3040363557
 
-k_motor: 26.0
+k_motor: 35.0
 k_T_p: 0.0
 k_Omega: 0.0
 
@@ -115,7 +115,7 @@ lqr_gain_update_iters: 1 # number if iterations before updating LQR gain matrix
 lqr_v_ref: [16.351, 0, 0.974303]
 lqr_q_ref: [0.999557, 0, 0.0297538, 0]
 lqr_omega_ref: [0, 0, 0]
-lqr_u_ref: [0, 0.0211299, 0.48156, 0]
+lqr_u_ref: [0, 0.0211299, 0.248797, 0]
 lqr_max_v_error: 1.0
 lqr_max_q_error: 0.7854
 lqr_max_omega_error: 3.1415
@@ -138,7 +138,7 @@ lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [200, 0, -20,
+waypoints: [200, 0, -40,
             200, 200, -30,
             -200, 200, -20,
             -200, -200, -10,
@@ -230,18 +230,13 @@ wvane_roll: 0 # relative angle about body z axis to weather vane vertical direct
 
 ## GPS
 gps_update_rate: 10
-gps_horizontal_position_noise_stdev: 1.0
-gps_horizontal_velocity_noise_stdev: 0.1
-gps_horizontal_position_walk_stdev: 0.01
-gps_horizontal_velocity_walk_stdev: 0.03
-gps_horizontal_position_bias_init_bound: 0.5
-gps_horizontal_velocity_bias_init_bound: 0.1
-gps_vertical_position_noise_stdev: 2.0
-gps_vertical_velocity_noise_stdev: 0.2
-gps_vertical_position_walk_stdev: 0.02
-gps_vertical_velocity_walk_stdev: 0.06
-gps_vertical_position_bias_init_bound: 1.0
-gps_vertical_velocity_bias_init_bound: 0.2
+gps_time_constant: 0.009
+gps_horizontal_position_noise_stdev: 0.21
+gps_horizontal_position_bias_init_bound: 4.7
+gps_horizontal_velocity_noise_stdev: 0.05
+gps_vertical_position_noise_stdev: 0.40
+gps_vertical_position_bias_init_bound: 9.2
+gps_vertical_velocity_noise_stdev: 0.15
 
 ## EKF Parameters
 ekf_x0: [0, 0, 0,    # POS
@@ -255,9 +250,9 @@ ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # VEL
          1e-1, 1e-1, 1e-1, # ATT
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
-         1e-1, 1e-1, 1e-1, # GYRO BIAS
-         100e0, 100e0, 100e0, # WIND
-         100e0]             # BARO BIAS
+         5e-2, 5e-2, 5e-2, # GYRO BIAS
+         25e0, 25e0, 25e0, # WIND
+         25e0]             # BARO BIAS
 ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
@@ -269,8 +264,8 @@ ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01, # GYRO
          0.01, 0.01, 0.01, # ACCEL WALK
          0.0001, 0.0001, 0.0001] # GYRO WALK
-ekf_R_gps: [1.0, 1.0, 4.0, # POSITION
-            0.01, 0.01, 0.04] # VELOCITY
+ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
+            0.05, 0.05, 0.15] # VELOCITY
 ekf_R_baro: 25.0
 ekf_R_pitot: 100.0
 ekf_R_wvane: 100.0

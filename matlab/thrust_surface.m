@@ -3,7 +3,7 @@ clear, close all
 rho = 1.2682;
 S_prop = 0.0314;
 C_prop = 1.0;
-k_motor = 40;
+k_motor = 35;
 C_F_t = 19.2089;
 
 Va = linspace(0,30,100);

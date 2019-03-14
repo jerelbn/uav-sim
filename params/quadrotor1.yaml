@@ -162,18 +162,13 @@ wvane_roll: 0 # relative angle about body z axis to weather vane vertical direct
 
 ## GPS
 gps_update_rate: 10
-gps_horizontal_position_noise_stdev: 1.0
-gps_horizontal_velocity_noise_stdev: 0.1
-gps_horizontal_position_walk_stdev: 0.01
-gps_horizontal_velocity_walk_stdev: 0.03
-gps_horizontal_position_bias_init_bound: 1.0
-gps_horizontal_velocity_bias_init_bound: 0.1
-gps_vertical_position_noise_stdev: 2.0
-gps_vertical_velocity_noise_stdev: 0.2
-gps_vertical_position_walk_stdev: 0.02
-gps_vertical_velocity_walk_stdev: 0.06
-gps_vertical_position_bias_init_bound: 2.0
-gps_vertical_velocity_bias_init_bound: 0.2
+gps_time_constant: 0.009
+gps_horizontal_position_noise_stdev: 0.21
+gps_horizontal_position_bias_init_bound: 4.7
+gps_horizontal_velocity_noise_stdev: 0.05
+gps_vertical_position_noise_stdev: 0.40
+gps_vertical_position_bias_init_bound: 9.2
+gps_vertical_velocity_noise_stdev: 0.15
 
 # Target estimator parameters
 bearing_only: true

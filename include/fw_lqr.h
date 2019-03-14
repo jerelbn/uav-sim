@@ -137,12 +137,12 @@ private:
   void computeCommandState(const State &x, const Vector3d &pos, const Vector3d &vw,
                            const Vector3d &wp_prev, const Vector3d &wp, State& xc) const;
   void analyticAB(const vehicle::Stated& x, const Vector3d& vw);
-  void numericalAB(const State &x, const State &x_ref,
-                   const uVector &u, const Vector3d &pos, const Vector3d &vw, const Vector3d &wp_prev, const Vector3d &wp);
+  void numericalAB(const State &x, const State &x_ref, const uVector &u,
+                   const Vector3d &pos, const Vector3d &vw, const Vector3d &wp_prev, const Vector3d &wp);
   void f_lqr(const State& x, const uVector& u, const Vector3d& vw, dxVector& dx) const;
-  void f_tilde(const State &x_ref, const dxVector &x_tilde,
-               const uVector& u, const Vector3d &pos, const Vector3d& vw, const Vector3d& wp_prev, const Vector3d &wp,
-               const double& dt, dxVector &x_tilde_dot) const;
+  void f_tilde(const State &x_ref, const dxVector &x_tilde, const uVector& u,
+               const Vector3d &pos, const Vector3d& vw, const Vector3d& wp_prev,
+               const Vector3d &wp, const double& dt, dxVector &x_tilde_dot) const;
 };
 
 

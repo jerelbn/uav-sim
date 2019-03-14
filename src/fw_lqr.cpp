@@ -163,8 +163,8 @@ void LQR::analyticAB(const vehicle::Stated &x, const Vector3d &vw)
 }
 
 
-void LQR::numericalAB(const State &x, const State &x_ref,
-                      const uVector& u, const Vector3d& pos, const Vector3d &vw, const Vector3d& wp_prev, const Vector3d& wp)
+void LQR::numericalAB(const State &x, const State &x_ref, const uVector& u,
+                      const Vector3d& pos, const Vector3d &vw, const Vector3d& wp_prev, const Vector3d& wp)
 {
   double eps = 1e-5;
   dxMatrix Ix = dxMatrix::Identity();
@@ -225,9 +225,9 @@ void LQR::f_lqr(const State& x, const uVector& u, const Vector3d& vw, dxVector& 
 }
 
 
-void LQR::f_tilde(const State &x_ref, const dxVector &x_tilde,
-                  const uVector& u,  const Vector3d& pos, const Vector3d& vw, const Vector3d& wp_prev, const Vector3d &wp,
-                  const double& dt, dxVector &x_tilde_dot) const
+void LQR::f_tilde(const State &x_ref, const dxVector &x_tilde, const uVector& u,
+                  const Vector3d& pos, const Vector3d& vw, const Vector3d& wp_prev,
+                  const Vector3d &wp, const double& dt, dxVector &x_tilde_dot) const
 {
   // 'True state'
   State x = x_ref + -x_tilde;

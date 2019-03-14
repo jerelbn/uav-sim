@@ -69,7 +69,7 @@ end
 
 
 if params.gps_enabled
-    gps = reshape(fread(fopen(strcat(['/tmp/',name,'_gps.log']), 'r'), 'double'), 19, []); % [time;pos;vel;pos_bias;vel_bias;pos_noise;vel_noise]
+    gps = reshape(fread(fopen(strcat(['/tmp/',name,'_gps.log']), 'r'), 'double'), 16, []); % [time;pos;vel;pos_bias;pos_noise;vel_noise]
     figure()
     set(gcf, 'name', 'GPS Position', 'NumberTitle', 'off');
     titles = ["North","East","Altitude"];
@@ -77,10 +77,10 @@ if params.gps_enabled
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
         if i < 3
-            plot(gps(1,:), gps(i+1,:)-gps(i+7,:)-gps(i+13,:), 'b-', 'linewidth', 2.0)
+            plot(gps(1,:), gps(i+1,:)-gps(i+7,:)-gps(i+10,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), gps(i+1,:), 'r-', 'linewidth', 1.5)
         else
-            plot(gps(1,:), -gps(i+1,:)+gps(i+7,:)+gps(i+13,:), 'b-', 'linewidth', 2.0)
+            plot(gps(1,:), -gps(i+1,:)+gps(i+7,:)+gps(i+10,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), -gps(i+1,:), 'r-', 'linewidth', 1.5)
         end
         if i == 1
@@ -96,10 +96,10 @@ if params.gps_enabled
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
         if i < 3
-            plot(gps(1,:), gps(i+4,:)-gps(i+10,:)-gps(i+16,:), 'b-', 'linewidth', 2.0)
+            plot(gps(1,:), gps(i+4,:)-gps(i+13,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), gps(i+4,:), 'r-', 'linewidth', 1.5)
         else
-            plot(gps(1,:), -gps(i+4,:)+gps(i+10,:)+gps(i+16,:), 'b-', 'linewidth', 2.0)
+            plot(gps(1,:), -gps(i+4,:)+gps(i+13,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), -gps(i+4,:), 'r-', 'linewidth', 1.5)
         end
         if i == 1
