@@ -22,7 +22,6 @@ void EKF::load(const string &filename, const std::string& name)
   xVector x0;
   dxVector P0_diag, Qx_diag;
   Matrix<double, 2*NUM_INPUTS, 1> Qu_diag;
-  Matrix<double, 5, 1> R_vo_diag;
   common::get_yaml_eigen("ekf_x0", filename, x0);
   common::get_yaml_eigen("ekf_P0", filename, P0_diag);
   common::get_yaml_eigen("ekf_Qx", filename, Qx_diag);
