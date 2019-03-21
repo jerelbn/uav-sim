@@ -16,12 +16,12 @@ origin_longitude: -1.9486196478 # (radians) longitude at flight location
 origin_altitude: 1387.998309 # (meters) altitude above sea level at flight location
 origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
 
-mass: 10.0
+mass: 5.0
 inertia: [0.6271, 0.6271, 1.25]
 linear_drag: [0.1, 0.1, 0.001]
 angular_drag: [0.001, 0.001, 0.001]
 
-max_thrust: 196.133
+max_thrust: 98.0665
 max_roll: 1.0
 max_pitch: 1.0
 max_yaw_rate: 1.5

@@ -20,7 +20,7 @@ end
 % plot the remaining states
 figure()
 set(gcf, 'name', 'Other Bicycle States', 'NumberTitle', 'off');
-titles = ["Heading", "Velocity", "Steering Angle"];
+titles = ["Velocity", "Heading", "Steering Angle"];
 idx = 4;
 for i=1:3
     subplot(3, 1, i), hold on, grid on

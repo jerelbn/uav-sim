@@ -17,6 +17,7 @@ Quadrotor::Quadrotor(const std::string &filename, const environment::Environment
 Quadrotor::~Quadrotor()
 {
   state_log_.close();
+  euler_log_.close();
 }
 
 
@@ -52,9 +53,11 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   updateAccels(u_, env.get_vw());
 
   // Initialize loggers and log initial data
-  std::stringstream ss;
-  ss << "/tmp/" << name_ << "_true_state.log";
-  state_log_.open(ss.str());
+  std::stringstream ss_s, ss_e;
+  ss_s << "/tmp/" << name_ << "_true_state.log";
+  ss_e << "/tmp/" << name_ << "_euler_angles.log";
+  state_log_.open(ss_s.str());
+  euler_log_.open(ss_e.str());
   log(0);
 }
 
@@ -123,6 +126,8 @@ void Quadrotor::log(const double &t)
   vehicle::xVector x = x_.toEigen();
   state_log_.write((char*)&t, sizeof(double));
   state_log_.write((char*)x.data(), x.rows() * sizeof(double));
+  euler_log_.write((char*)&t, sizeof(double));
+  euler_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
 }
 
 

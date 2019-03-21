@@ -1,15 +1,15 @@
-function plot_vehicle(name)
+function plot_vehicle(params)
 
 % Load data
-true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
-true_euler = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
-commanded_state = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
-command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 1 + 4, []); % [time;aileron;elevator;throttle;rudder]
-euler_command = reshape(fread(fopen(strcat(['/tmp/',name,'_euler_command.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
+true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
+true_euler = reshape(fread(fopen(strcat(['/tmp/',params.name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
+commanded_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
+command = reshape(fread(fopen(strcat(['/tmp/',params.name,'_command.log']), 'r'), 'double'), 1 + 4, []); % [time;aileron;elevator;throttle;rudder]
+euler_command = reshape(fread(fopen(strcat(['/tmp/',params.name,'_euler_command.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
 
 
 figure()
-set(gcf, 'name', 'Position', 'NumberTitle', 'off');
+set(gcf, 'name', strcat([params.name,' position']), 'NumberTitle', 'off');
 titles = ["North", "East", "Altitude"];
 idx = 1;
 for i=1:3
@@ -29,7 +29,7 @@ end
 
 
 figure()
-set(gcf, 'name', 'Velocity', 'NumberTitle', 'off');
+set(gcf, 'name', strcat([params.name,' velocity']), 'NumberTitle', 'off');
 titles = ['u','v','w'];
 idx = 4;
 for i=1:3
@@ -44,7 +44,7 @@ end
 
 
 figure()
-set(gcf, 'name', 'Attitude', 'NumberTitle', 'off');
+set(gcf, 'name', strcat([params.name,' attitude']), 'NumberTitle', 'off');
 titles = ["w","x","y","z"];
 idx = 10;
 for i=1:4
@@ -59,7 +59,7 @@ end
 
 
 figure()
-set(gcf, 'name', 'Euler Angles', 'NumberTitle', 'off');
+set(gcf, 'name', strcat([params.name,' euler']), 'NumberTitle', 'off');
 titles = ["Roll","Pitch","Yaw"];
 for i=1:3
     subplot(3, 1, i), hold on, grid on
@@ -73,7 +73,7 @@ end
 
 
 figure()
-set(gcf, 'name', 'Angular Rate', 'NumberTitle', 'off');
+set(gcf, 'name', strcat([params.name,' angular rate']), 'NumberTitle', 'off');
 titles = ['p','q','r'];
 idx = 14;
 for i=1:3
@@ -88,8 +88,8 @@ end
 
 
 figure()
-set(gcf, 'name', 'Commands', 'NumberTitle', 'off');
-if name(1:4) == "wing"
+set(gcf, 'name', strcat([params.name,' commands']), 'NumberTitle', 'off');
+if params.name(1:4) == "wing"
     titles = ["Aileron","Elevator","Throttle","Rudder"];
 else
     titles = ["Throttle","Rate X","Rate Y","Rate Z"];
@@ -98,9 +98,9 @@ for i=1:4
     subplot(4, 1, i), hold on, grid on
     title(titles(i))
     plot(command(1,:), command(i + 1, :), 'linewidth', 2.0)
-    if i == 3
+    if (i == 3 && params.name(1:4) == "wing") || (i == 1 && params.name(1:4) == "quad")
         ylim([0 1])
-    else
+    elseif params.name(1:4) == "wing"
         ylim([-1 1])
     end
 end

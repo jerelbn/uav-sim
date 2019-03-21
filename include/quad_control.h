@@ -124,6 +124,7 @@ private:
   std::ofstream target_log_;
   std::ofstream command_state_log_;
   std::ofstream command_log_;
+  std::ofstream euler_command_log_;
 
   // Functions
   void updateWaypointManager();
