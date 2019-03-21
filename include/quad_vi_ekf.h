@@ -52,12 +52,13 @@ enum
 };
 
 typedef Matrix<double, NUM_BASE_STATES, 1> baseXVector;
+typedef Matrix<double, NUM_BASE_DOF, 1> baseDxVector;
 typedef Matrix<double, NUM_STATES, 1> xVector;
 typedef Matrix<double, NUM_DOF, 1> dxVector;
 typedef Matrix<double, NUM_DOF, NUM_DOF> dxMatrix;
 typedef Matrix<double, NUM_INPUTS, 1> uVector;
 typedef Matrix<double, NUM_INPUTS, NUM_INPUTS> uMatrix;
-typedef Matrix<double, NUM_DOF, 2*NUM_INPUTS> nuMatrix;
+typedef Matrix<double, NUM_DOF, NUM_INPUTS> nuMatrix;
 
 
 template<typename T>
@@ -171,14 +172,17 @@ public:
   void load(const string &filename, const string &name);
   void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
   void f(const Stated &x, const uVector& u, dxVector& dx);
-  void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
+  void f2(const Stated &x, const uVector& u, const uVector& eta, dxVector& dx);
+  void analyticalFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
+  void numericalFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
   vehicle::Stated getState() const;
 
 private:
 
   void propagate(const double &t, const uVector &imu);
-  void updateGPS(const Matrix<double,6,1>& z);
-  void updateMocap(const Matrix<double,7,1>& z);
+  void updateGPS(const Vector6d& z);
+  void updateMocap(const Vector7d& z);
+  void updateCamera(const Vector2d& z);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
 
@@ -196,12 +200,13 @@ private:
   dxMatrix P_, F_, A_;
   dxMatrix Qx_;
   nuMatrix G_, B_;
-  Matrix<double,2*NUM_INPUTS,2*NUM_INPUTS> Qu_;
+  Matrix<double,NUM_INPUTS,NUM_INPUTS> Qu_;
   dxMatrix I_NUM_DOF_;
 
   // Sensor parameters
-  Matrix<double,6,6> R_gps_;
-  Matrix<double,6,6> R_mocap_;
+  Matrix6d R_gps_;
+  Matrix6d R_mocap_;
+  Matrix2d R_pix_;
   Vector3d p_ub_, p_um_, p_uc_;
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;

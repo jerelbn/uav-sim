@@ -100,8 +100,8 @@ pitot_enabled: false
 wvane_enabled: false
 gps_enabled: false
 
-use_accel_truth: true
-use_gyro_truth: true
+use_accel_truth: false
+use_gyro_truth: false
 use_camera_truth: false
 use_mocap_truth: false
 use_baro_truth: false
@@ -192,16 +192,17 @@ ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # ATT
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
          5e-2, 5e-2, 5e-2] # GYRO BIAS
+ekf_P0_feat: [0.5, 0.5, 0.1]
 ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8] # GYRO BIAS
+ekf_Qx_feat: [1e-8, 1e-8, 1e-8]
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
-         0.01, 0.01, 0.01, # GYRO
-         0.01, 0.01, 0.01, # ACCEL WALK
-         0.0001, 0.0001, 0.0001] # GYRO WALK
+         0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
             0.05, 0.05, 0.15] # VELOCITY
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
+ekf_R_pix: [0.001, 0.001]

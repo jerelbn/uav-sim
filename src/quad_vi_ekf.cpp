@@ -20,23 +20,30 @@ void EKF::load(const string &filename, const std::string& name)
 {
   // EKF initializations
   baseXVector x0;
-  dxVector P0_diag, Qx_diag;
-  Matrix<double, 2*NUM_INPUTS, 1> Qu_diag;
+  baseDxVector P0_diag, Qx_diag;
+  Vector3d P0_feat_diag, Qx_feat_diag;
+  Matrix<double, NUM_INPUTS, 1> Qu_diag;
   common::get_yaml_eigen("ekf_x0", filename, x0);
   common::get_yaml_eigen("ekf_P0", filename, P0_diag);
   common::get_yaml_eigen("ekf_Qx", filename, Qx_diag);
   common::get_yaml_eigen("ekf_Qu", filename, Qu_diag);
+  common::get_yaml_eigen("ekf_P0_feat", filename, P0_feat_diag);
+  common::get_yaml_eigen("ekf_Qx_feat", filename, Qx_feat_diag);
   x_ = State<double>(x0);
-  P_ = P0_diag.asDiagonal();
-  Qx_ = Qx_diag.asDiagonal();
+  P_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = P0_diag.asDiagonal();
+  P_.bottomRightCorner<3,3>() = P0_feat_diag.asDiagonal();
+  Qx_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = Qx_diag.asDiagonal();
+  Qx_.bottomRightCorner<3,3>() = Qx_feat_diag.asDiagonal();
   Qu_ = Qu_diag.asDiagonal();
   I_NUM_DOF_.setIdentity();
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
-  Matrix<double,6,1> R_gps_diag, R_mocap_diag;
+  Vector6d R_gps_diag, R_mocap_diag;
+  Vector2d R_pix_diag;
   common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
   common::get_yaml_eigen("ekf_R_mocap", filename, R_mocap_diag);
+  common::get_yaml_eigen("ekf_R_pix", filename, R_pix_diag);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
   common::get_yaml_eigen("p_um", filename, p_um_);
@@ -49,6 +56,7 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2c_ = quat::Quatd(q_uc);
   R_gps_ = R_gps_diag.asDiagonal();
   R_mocap_ = R_mocap_diag.asDiagonal();
+  R_pix_ = R_pix_diag.asDiagonal();
   fx_ = cam_matrix_(0,0);
   fy_ = cam_matrix_(1,1);
   u0_ = cam_matrix_(0,2);
@@ -83,10 +91,16 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     propagate(t, sensors.imu_);
 
   // Apply updates
-//  if (sensors.new_gps_meas_)
-//    updateGPS(sensors.gps_);
-//  if (sensors.new_mocap_meas_)
-//    updateMocap(sensors.mocap_);
+  if (sensors.new_gps_meas_)
+    updateGPS(sensors.gps_);
+  if (sensors.new_mocap_meas_)
+    updateMocap(sensors.mocap_);
+
+  // Compute true landmark pixel measurement
+  Vector3d lm1c = q_u2c_.rotp(q_u2b_.rota(x_true.q.rotp(lm1_ - x_true.p)));
+  double rho_true = 1.0 / lm1c(2);
+  Vector2d pix_true = rho_true * cam_matrix_.topRows<2>() * lm1c;
+  updateCamera(pix_true);
 
   // Log data
   logTruth(t, sensors, x_true);
@@ -107,7 +121,8 @@ void EKF::propagate(const double &t, const uVector& imu)
   {
     // TODO: try trapezoidal integration of continuous covariance kinematics
     // Propagate the covariance - guarantee positive-definite P with discrete propagation
-    getFG(x_, imu, F_, G_);
+//    analyticalFG(x_, imu, F_, G_);
+    numericalFG(x_, imu, F_, G_);
     A_ = I_NUM_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
     B_ = (I_NUM_DOF_ + F_ * dt / 2.0 + F_ * F_ * dt * dt / 6.0) * G_ * dt;
     P_ = A_ * P_ * A_.transpose() + B_ * Qu_ * B_.transpose() + Qx_;
@@ -121,7 +136,7 @@ void EKF::propagate(const double &t, const uVector& imu)
 }
 
 
-void EKF::updateGPS(const Matrix<double,6,1> &z)
+void EKF::updateGPS(const Vector6d& z)
 {
   // Measurement model and matrix
   Matrix<double,6,1> h;
@@ -140,7 +155,7 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
 }
 
 
-void EKF::updateMocap(const Matrix<double,7,1> &z)
+void EKF::updateMocap(const Vector7d& z)
 {
   // Pack measurement into Xform
   xform::Xformd Xz(z);
@@ -162,6 +177,21 @@ void EKF::updateMocap(const Matrix<double,7,1> &z)
 }
 
 
+void EKF::updateCamera(const Vector2d& z)
+{
+  // Measurement model and matrix
+  Vector2d h = x_.pix;
+
+  Matrix<double,2,NUM_DOF> H = Matrix<double,2,NUM_DOF>::Zero();
+  H.block<2,2>(0,NUM_BASE_DOF).setIdentity();
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,2> K = P_ * H.transpose() * (R_pix_ + H * P_ * H.transpose()).inverse();
+  x_ += K * (z - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_pix_ * K.transpose();
+}
+
+
 void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 {
   Vector3d omega_c = q_u2c_.rotp(u.segment<3>(UG) - x.bg);
@@ -176,7 +206,21 @@ void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 }
 
 
-void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
+void EKF::f2(const Stated &x, const uVector &u, const uVector& eta, dxVector &dx)
+{
+  Vector3d omega_c = q_u2c_.rotp(u.segment<3>(UG) - x.bg - eta.segment<3>(UG));
+  Vector3d v_c = q_u2c_.rotp(x.v + (u.segment<3>(UG) - x.bg).cross(p_uc_));
+
+  dx.setZero();
+  dx.segment<3>(DP) = x.q.rota(x.v);
+  dx.segment<3>(DV) = u.segment<3>(UA) - x.ba - eta.segment<3>(UA) + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
+  dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
+  dx.segment<2>(NUM_BASE_DOF) = Omega(x.pix) * omega_c + x.rho * V(x.pix) * v_c;
+  dx(NUM_BASE_DOF+2) = x.rho * M(x.pix) * omega_c + x.rho * x.rho * common::e3.dot(v_c);
+}
+
+
+void EKF::analyticalFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
 {
   F.setZero();
   F.block<3,3>(DP,DV) = x.q.inverse().R();
@@ -192,8 +236,39 @@ void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
   G.block<3,3>(DV,UA) = -common::I_3x3;
   G.block<3,3>(DV,UG) = -common::skew(x.v);
   G.block<3,3>(DQ,UG) = -common::I_3x3;
-  G.block<3,3>(DBA,DBA).setIdentity();
-  G.block<3,3>(DBG,DBG).setIdentity();
+}
+
+
+void EKF::numericalFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
+{
+  static const double eps(1e-5);
+  static Matrix6d I6 = Matrix6d::Identity();
+  static Vector6d eta = Vector6d::Ones();
+
+  for (int i = 0; i < F.cols(); ++i)
+  {
+    Stated xp = x + I_NUM_DOF_.col(i) * eps;
+    Stated xm = x + I_NUM_DOF_.col(i) * -eps;
+
+    dxVector dxp, dxm;
+    f(xp, u, dxp);
+    f(xm, u, dxm);
+
+    F.col(i) = (dxp - dxm) / (2.0 * eps);
+  }
+  F.block<3,3>(DQ,DQ) = -common::skew(u.segment<3>(UG) - x.bg);
+
+  for (int i = 0; i < G.cols(); ++i)
+  {
+    uVector etap = eta + I6.col(i) * eps;
+    uVector etam = eta + I6.col(i) * -eps;
+
+    dxVector dxp, dxm;
+    f2(x, u, etap, dxp);
+    f2(x, u, etam, dxm);
+
+    G.col(i) = (dxp - dxm) / (2.0 * eps);
+  }
 }
 
 
