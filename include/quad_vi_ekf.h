@@ -1,13 +1,14 @@
 #pragma once
 
 #include <Eigen/Dense>
-//#include <ceres/ceres.h>
 #include <chrono>
 #include "common_cpp/common.h"
 #include "geometry/quat.h"
 #include "geometry/xform.h"
 #include "sensors.h"
 #include "vehicle.h"
+
+#define NUM_FEATURES 1
 
 
 using namespace std;
@@ -26,7 +27,8 @@ enum
   Q = 6,
   BA = 10,
   BG = 13,
-  NUM_STATES = 16
+  NUM_BASE_STATES = 16,
+  NUM_STATES = NUM_BASE_STATES + 3 * NUM_FEATURES
 };
 
 // Derivative indices
@@ -37,7 +39,8 @@ enum
   DQ = 6,
   DBA = 9,
   DBG = 12,
-  NUM_DOF = 15
+  NUM_BASE_DOF = 15,
+  NUM_DOF = NUM_BASE_DOF + 3 * NUM_FEATURES
 };
 
 // Input indices
@@ -48,6 +51,7 @@ enum
   NUM_INPUTS = 6
 };
 
+typedef Matrix<double, NUM_BASE_STATES, 1> baseXVector;
 typedef Matrix<double, NUM_STATES, 1> xVector;
 typedef Matrix<double, NUM_DOF, 1> dxVector;
 typedef Matrix<double, NUM_DOF, NUM_DOF> dxMatrix;
@@ -67,6 +71,8 @@ struct State
     v.setZero();
     ba.setZero();
     bg.setZero();
+    Vector2d pix;
+    double rho;
   }
 
   State(const State<T>& x)
@@ -76,15 +82,19 @@ struct State
     q = x.q;
     ba = x.ba;
     bg = x.bg;
+    pix = x.pix;
+    rho = x.rho;
   }
 
-  State(const Matrix<T,NUM_STATES,1> &x)
+  State(const baseXVector &x)
   {
     p = x.template segment<3>(P);
     v = x.template segment<3>(V);
     q = quat::Quat<T>(x.template segment<4>(Q));
     ba = x.template segment<3>(BA);
     bg = x.template segment<3>(BG);
+    pix.setZero();
+    rho = 1.0;
   }
 
   State(const T* ptr)
@@ -94,6 +104,8 @@ struct State
     q = quat::Quat<T>(ptr+Q);
     ba = Matrix<T,3,1>(ptr[BA], ptr[BA+1], ptr[BA+2]);
     bg = Matrix<T,3,1>(ptr[BG], ptr[BG+1], ptr[BG+2]);
+    pix.setZero();
+    rho = 1.0;
   }
 
   State<T> operator+(const Matrix<T,NUM_DOF,1> &delta) const
@@ -104,17 +116,21 @@ struct State
     x.q = q + delta.template segment<3>(DQ);
     x.ba = ba + delta.template segment<3>(DBA);
     x.bg = bg + delta.template segment<3>(DBG);
+    x.pix = pix + delta.template segment<2>(NUM_BASE_DOF);
+    x.rho = rho + delta(NUM_BASE_DOF+2);
     return x;
   }
 
   Matrix<T,NUM_DOF,1> operator-(const State<T> &x2) const
   {
-    Matrix<T,NUM_DOF,1> dx;
+    Matrix<T,NUM_BASE_DOF,1> dx;
     dx.template segment<3>(DP) = p - x2.p;
     dx.template segment<3>(DV) = v - x2.v;
     dx.template segment<3>(DQ) = q - x2.q;
     dx.template segment<3>(DBA) = ba - x2.ba;
     dx.template segment<3>(DBG) = bg - x2.bg;
+    dx.template segment<2>(NUM_BASE_DOF) = pix - x2.pix;
+    dx(NUM_BASE_DOF+2) = rho - x2.rho;
     return dx;
   }
 
@@ -127,7 +143,7 @@ struct State
   Matrix<T,NUM_STATES,1> toEigen() const
   {
     Matrix<T,NUM_STATES,1> x;
-    x << p, v, q.elements(), ba, bg;
+    x << p, v, q.elements(), ba, bg, pix, rho;
     return x;
   }
 
@@ -136,6 +152,8 @@ struct State
   quat::Quat<T> q;
   Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
+  Vector2d pix;
+  double rho;
 
 };
 typedef State<double> Stated;
@@ -152,8 +170,8 @@ public:
 
   void load(const string &filename, const string &name);
   void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
-  static void f(const Stated &x, const uVector& u, dxVector& dx);
-  static void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
+  void f(const Stated &x, const uVector& u, dxVector& dx);
+  void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
   vehicle::Stated getState() const;
 
 private:
@@ -161,8 +179,15 @@ private:
   void propagate(const double &t, const uVector &imu);
   void updateGPS(const Matrix<double,6,1>& z);
   void updateMocap(const Matrix<double,7,1>& z);
-  void logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true);
+  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
+
+  Matrix<double,2,3> Omega(const Vector2d& nu);
+  Matrix<double,2,3> V(const Vector2d& nu);
+  RowVector3d M(const Vector2d& nu);
+
+  // Temporary variables for testing pixel propagation
+  Vector3d lm1_; // landmark in inertial frame
 
   // Primary variables
   double t_prev_;
@@ -177,8 +202,10 @@ private:
   // Sensor parameters
   Matrix<double,6,6> R_gps_;
   Matrix<double,6,6> R_mocap_;
-  Vector3d p_ub_, p_um_;
-  quat::Quatd q_u2b_, q_u2m_;
+  Vector3d p_ub_, p_um_, p_uc_;
+  quat::Quatd q_u2b_, q_u2m_, q_u2c_;
+  Matrix3d cam_matrix_;
+  double fx_, fy_, u0_, v0_;
 
   // Logging
   ofstream true_state_log_;
