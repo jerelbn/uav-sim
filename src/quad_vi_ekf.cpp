@@ -100,11 +100,12 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
   // Measurement model and matrix
   Matrix<double,6,1> h;
   h.head<3>() = x_.p;
-  h.tail<3>() = x_.v;
+  h.tail<3>() = x_.q.rota(x_.v);
 
   Matrix<double,6,NUM_DOF> H = Matrix<double,6,NUM_DOF>::Zero();
   H.block<3,3>(0,DP).setIdentity();
-  H.block<3,3>(3,DV).setIdentity();
+  H.block<3,3>(3,DV) = x_.q.inverse().R();
+  H.block<3,3>(3,DQ) = -x_.q.inverse().R() * common::skew(x_.v);
 
   // Kalman gain and update
   Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_gps_ + H * P_ * H.transpose()).inverse();
@@ -116,8 +117,8 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
 void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 {
   dx.setZero();
-  dx.segment<3>(DP) = x.v;
-  dx.segment<3>(DV) = x.q.rota(u.segment<3>(UA) - x.ba) + common::gravity * common::e3;
+  dx.segment<3>(DP) = x.q.rota(x.v);
+  dx.segment<3>(DV) = u.segment<3>(UA) - x.ba + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
 }
 
@@ -125,14 +126,18 @@ void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
 {
   F.setZero();
-  F.block<3,3>(DP,DV).setIdentity();
-  F.block<3,3>(DV,DQ) = -x.q.inverse().R() * common::skew(u.segment<3>(UA) - x.ba);
-  F.block<3,3>(DV,DBA) = -x.q.inverse().R();
+  F.block<3,3>(DP,DV) = x.q.inverse().R();
+  F.block<3,3>(DP,DQ) = -x.q.inverse().R() * common::skew(x.v);
+  F.block<3,3>(DV,DV) = -common::skew(u.segment<3>(UG) - x.bg);
+  F.block<3,3>(DV,DQ) = common::gravity * common::skew(x.q.rotp(common::e3));
+  F.block<3,3>(DV,DBA) = -common::I_3x3;
+  F.block<3,3>(DV,DBG) = -common::skew(x.v);
   F.block<3,3>(DQ,DQ) = -common::skew(u.segment<3>(UG) - x.bg);
   F.block<3,3>(DQ,DBG) = -common::I_3x3;
 
   G.setZero();
-  G.block<3,3>(DV,UA) = -x.q.inverse().R();
+  G.block<3,3>(DV,UA) = -common::I_3x3;
+  G.block<3,3>(DV,UG) = -common::skew(x.v);
   G.block<3,3>(DQ,UG) = -common::I_3x3;
   G.block<3,3>(DBA,DBA).setIdentity();
   G.block<3,3>(DBG,DBG).setIdentity();
@@ -143,7 +148,7 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const Vecto
 {
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x_true.p.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)x_true.q.rota(x_true.v).data(), 3 * sizeof(double));
+  true_state_log_.write((char*)x_true.v.data(), 3 * sizeof(double));
   true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getAccelBias().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
