@@ -110,7 +110,32 @@ end
 
 
 if params.mocap_enabled
-    mocap = reshape(fread(fopen(strcat(['/tmp/',params.name,'_mocap.log']), 'r'), 'double'), 21, []); % [time;pos;att;pos_body2mocap;att_body2mocap;pos_noise;att_noise]
+    mocap = reshape(fread(fopen(strcat(['/tmp/',params.name,'_mocap.log']), 'r'), 'double'), 22, []); % [time;pos_meas;att_meas;pos_truth;att_truth;pos_body2mocap;att_body2mocap]
+    figure()
+    set(gcf, 'name', strcat([params.name,' Mocap position']), 'NumberTitle', 'off');
+    titles = ["North","East","Down"];
+    for i=1:3
+        subplot(3, 1, i), hold on, grid on
+        title(titles(i))
+        plot(mocap(1,:), mocap(i+8,:), 'b-', 'linewidth', 2.0)
+        plot(mocap(1,:), mocap(i+1,:), 'r-', 'linewidth', 1.5)
+        if i == 1
+            legend('True', 'Measured')
+        end
+    end
+    
+    figure()
+    set(gcf, 'name', strcat([params.name,' Mocap attitude']), 'NumberTitle', 'off');
+    titles = ["w","x","y","z"];
+    for i=1:4
+        subplot(4, 1, i), hold on, grid on
+        title(titles(i))
+        plot(mocap(1,:), mocap(i + 11, :), 'linewidth', 2.0)
+        plot(mocap(1,:), mocap(i + 4, :), 'r-', 'linewidth', 1.5)
+        if i == 1
+            legend('True', 'Measured')
+        end
+    end
 end
 
 

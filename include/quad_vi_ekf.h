@@ -5,6 +5,7 @@
 #include <chrono>
 #include "common_cpp/common.h"
 #include "geometry/quat.h"
+#include "geometry/xform.h"
 #include "sensors.h"
 #include "vehicle.h"
 
@@ -159,6 +160,7 @@ private:
 
   void propagate(const double &t, const uVector &imu);
   void updateGPS(const Matrix<double,6,1>& z);
+  void updateMocap(const Matrix<double,7,1>& z);
   void logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true);
   void logEst(const double &t);
 
@@ -174,8 +176,9 @@ private:
 
   // Sensor parameters
   Matrix<double,6,6> R_gps_;
-  Vector3d p_ub_;
-  quat::Quatd q_u2b_;
+  Matrix<double,6,6> R_mocap_;
+  Vector3d p_ub_, p_um_;
+  quat::Quatd q_u2b_, q_u2m_;
 
   // Logging
   ofstream true_state_log_;

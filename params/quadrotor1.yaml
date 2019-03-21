@@ -94,7 +94,7 @@ circ_hd: 5.0
 # Sensors
 imu_enabled: true
 camera_enabled: false
-mocap_enabled: false
+mocap_enabled: true
 baro_enabled: false
 pitot_enabled: false
 wvane_enabled: false
@@ -203,3 +203,5 @@ ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.0001, 0.0001, 0.0001] # GYRO WALK
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
             0.05, 0.05, 0.15] # VELOCITY
+ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
+              1e-2, 1e-2, 1e-2] # ATTITUDE

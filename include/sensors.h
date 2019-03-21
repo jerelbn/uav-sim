@@ -90,6 +90,7 @@ private:
   double mocap_update_rate_;
   std::normal_distribution<double> mocap_noise_dist_;
   Eigen::Matrix<double, 6, 1> mocap_noise_;
+  Eigen::Matrix<double, 7, 1> mocap_truth_;
   Eigen::Vector3d p_um_; // translation body-to-mocap-body in body frame
   quat::Quatd q_um_; // rotation body-to-mocap-body
   std::ofstream mocap_log_;

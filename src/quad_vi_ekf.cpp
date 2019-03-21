@@ -33,13 +33,18 @@ void EKF::load(const string &filename, const std::string& name)
   I_NUM_DOF_.setIdentity();
 
   // Load sensor parameters
-  Vector4d q_ub;
-  Matrix<double,6,1> R_gps_diag;
+  Vector4d q_ub, q_um;
+  Matrix<double,6,1> R_gps_diag, R_mocap_diag;
   common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
+  common::get_yaml_eigen("ekf_R_mocap", filename, R_mocap_diag);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
+  common::get_yaml_eigen("p_um", filename, p_um_);
+  common::get_yaml_eigen("q_um", filename, q_um);
   q_u2b_ = quat::Quatd(q_ub);
+  q_u2m_ = quat::Quatd(q_um);
   R_gps_ = R_gps_diag.asDiagonal();
+  R_mocap_ = R_mocap_diag.asDiagonal();
 
   // Logging
   std::stringstream ss_t, ss_e, ss_c;
@@ -61,6 +66,8 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
   // Apply updates
   if (sensors.new_gps_meas_)
     updateGPS(sensors.gps_);
+  if (sensors.new_mocap_meas_)
+    updateMocap(sensors.mocap_);
 
   // Log data
   logTruth(t, sensors, vw, x_true);
@@ -111,6 +118,28 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
   Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_gps_ + H * P_ * H.transpose()).inverse();
   x_ += K * (z - h);
   P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_gps_ * K.transpose();
+}
+
+
+void EKF::updateMocap(const Matrix<double,7,1> &z)
+{
+  // Pack measurement into Xform
+  xform::Xformd Xz(z);
+
+  // Measurement model and matrix
+  xform::Xformd h;
+  h.t_ = x_.p + x_.q.rota(p_um_);
+  h.q_ = x_.q * q_u2m_;
+
+  Matrix<double,6,NUM_DOF> H = Matrix<double,6,NUM_DOF>::Zero();
+  H.block<3,3>(0,DP).setIdentity();
+  H.block<3,3>(0,DQ) = -x_.q.inverse().R() * common::skew(p_um_);
+  H.block<3,3>(3,DQ) = q_u2m_.inverse().R();
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_mocap_ + H * P_ * H.transpose()).inverse();
+  x_ += K * (Xz - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_mocap_ * K.transpose();
 }
 
 
