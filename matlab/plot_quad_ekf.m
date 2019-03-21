@@ -1,9 +1,9 @@
 function plot_ekf(name, plot_cov)
 
 % Load data
-true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_truth.log']), 'r'), 'double'), 1 + 18, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
-ekf_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 18, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
-ekf_cov = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_cov.log']), 'r'), 'double'), 1 + 18, []); % [time;pos;vel;att;acc_bias;gyro_bias;pix;rho]
+true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_truth.log']), 'r'), 'double'), 1 + 15 + 3 * 4, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+ekf_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 15 + 3 * 4, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+ekf_cov = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_cov.log']), 'r'), 'double'), 1 + 15 + 3 * 4, []); % [time;pos;vel;att;acc_bias;gyro_bias;pix;rho]
 
 
 figure()

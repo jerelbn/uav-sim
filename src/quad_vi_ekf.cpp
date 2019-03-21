@@ -31,11 +31,15 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen("ekf_Qx_feat", filename, Qx_feat_diag);
   x_ = State<double>(x0);
   P_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = P0_diag.asDiagonal();
-  P_.bottomRightCorner<3,3>() = P0_feat_diag.asDiagonal();
   Qx_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = Qx_diag.asDiagonal();
-  Qx_.bottomRightCorner<3,3>() = Qx_feat_diag.asDiagonal();
   Qu_ = Qu_diag.asDiagonal();
   I_NUM_DOF_.setIdentity();
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    P_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = P0_feat_diag.asDiagonal();
+    Qx_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = Qx_feat_diag.asDiagonal();
+  }
+  xdot_prev_.setZero();
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
@@ -56,7 +60,8 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2c_ = quat::Quatd(q_uc);
   R_gps_ = R_gps_diag.asDiagonal();
   R_mocap_ = R_mocap_diag.asDiagonal();
-  R_pix_ = R_pix_diag.asDiagonal();
+  for (int i = 0; i < NUM_FEATURES; ++i)
+    R_pix_.block<2,2>(2*i,2*i) = R_pix_diag.asDiagonal();
   fx_ = cam_matrix_(0,0);
   fy_ = cam_matrix_(1,1);
   u0_ = cam_matrix_(0,2);
@@ -72,15 +77,25 @@ void EKF::load(const string &filename, const std::string& name)
   cov_log_.open(ss_c.str());
 
   // Temporaries
-  lm1_ << 0, 0, 0;
+  lms_.push_back(Vector3d(3,3,0));
+  lms_.push_back(Vector3d(-3,3,0));
+  lms_.push_back(Vector3d(-3,-3,0));
+  lms_.push_back(Vector3d(3,-3,0));
 
   // Compute true landmark pixel measurement
-  Vector3d lm1c = q_u2c_.rotp(q_u2b_.rota(x_.q.rotp(lm1_ - x_.p)));
-  double rho_true = 1.0 / lm1c(2);
-  Vector2d pix_true = rho_true * cam_matrix_.topRows<2>() * lm1c;
-
-  x_.pix = pix_true;
-  x_.rho = rho_true;
+  Vector2d pix_true;
+  double rho_true;
+  vehicle::Stated x_true;
+  x_true.p = x_.p;
+  x_true.q = x_.q;
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    proj(x_true, lms_[i], pix_true, rho_true);
+    x_.pixs[i] = pix_true;
+    x_.rhos[i] = rho_true;
+    x_.pixs[i] = Vector2d(u0_,v0_);
+    x_.rhos[i] = 1.0;
+  }
 }
 
 
@@ -97,10 +112,15 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     updateMocap(sensors.mocap_);
 
   // Compute true landmark pixel measurement
-  Vector3d lm1c = q_u2c_.rotp(q_u2b_.rota(x_true.q.rotp(lm1_ - x_true.p)));
-  double rho_true = 1.0 / lm1c(2);
-  Vector2d pix_true = rho_true * cam_matrix_.topRows<2>() * lm1c;
-  updateCamera(pix_true);
+  Vector2d pix_true;
+  double rho_true;
+  Matrix<double,2*NUM_FEATURES,1> z_pix;
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    proj(x_true, lms_[i], pix_true, rho_true);
+    z_pix.segment<2>(2*i) = pix_true;
+  }
+  updateCamera(z_pix);
 
   // Log data
   logTruth(t, sensors, x_true);
@@ -177,16 +197,19 @@ void EKF::updateMocap(const Vector7d& z)
 }
 
 
-void EKF::updateCamera(const Vector2d& z)
+void EKF::updateCamera(const Matrix<double,2*NUM_FEATURES,1> &z)
 {
   // Measurement model and matrix
-  Vector2d h = x_.pix;
-
-  Matrix<double,2,NUM_DOF> H = Matrix<double,2,NUM_DOF>::Zero();
-  H.block<2,2>(0,NUM_BASE_DOF).setIdentity();
+  Matrix<double,2*NUM_FEATURES,1> h;
+  Matrix<double,2*NUM_FEATURES,NUM_DOF> H = Matrix<double,2*NUM_FEATURES,NUM_DOF>::Zero();
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    h.segment<2>(2*i) = x_.pixs[i];
+    H.block<2,2>(2*i,NUM_BASE_DOF+3*i).setIdentity();
+  }
 
   // Kalman gain and update
-  Matrix<double,NUM_DOF,2> K = P_ * H.transpose() * (R_pix_ + H * P_ * H.transpose()).inverse();
+  Matrix<double,NUM_DOF,2*NUM_FEATURES> K = P_ * H.transpose() * (R_pix_ + H * P_ * H.transpose()).inverse();
   x_ += K * (z - h);
   P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_pix_ * K.transpose();
 }
@@ -201,8 +224,11 @@ void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
   dx.segment<3>(DP) = x.q.rota(x.v);
   dx.segment<3>(DV) = u.segment<3>(UA) - x.ba + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
-  dx.segment<2>(NUM_BASE_DOF) = Omega(x.pix) * omega_c + x.rho * V(x.pix) * v_c;
-  dx(NUM_BASE_DOF+2) = x.rho * M(x.pix) * omega_c + x.rho * x.rho * common::e3.dot(v_c);
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(x.pixs[i]) * omega_c + x.rhos[i] * V(x.pixs[i]) * v_c;
+    dx(NUM_BASE_DOF+3*i+2) = x.rhos[i] * M(x.pixs[i]) * omega_c + x.rhos[i] * x.rhos[i] * common::e3.dot(v_c);
+  }
 }
 
 
@@ -215,8 +241,11 @@ void EKF::f2(const Stated &x, const uVector &u, const uVector& eta, dxVector &dx
   dx.segment<3>(DP) = x.q.rota(x.v);
   dx.segment<3>(DV) = u.segment<3>(UA) - x.ba - eta.segment<3>(UA) + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
-  dx.segment<2>(NUM_BASE_DOF) = Omega(x.pix) * omega_c + x.rho * V(x.pix) * v_c;
-  dx(NUM_BASE_DOF+2) = x.rho * M(x.pix) * omega_c + x.rho * x.rho * common::e3.dot(v_c);
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(x.pixs[i]) * omega_c + x.rhos[i] * V(x.pixs[i]) * v_c;
+    dx(NUM_BASE_DOF+3*i+2) = x.rhos[i] * M(x.pixs[i]) * omega_c + x.rhos[i] * x.rhos[i] * common::e3.dot(v_c);
+  }
 }
 
 
@@ -282,12 +311,14 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
 
   // Compute true landmark pixel measurement
-  Vector3d lm1c = q_u2c_.rotp(q_u2b_.rota(x_true.q.rotp(lm1_ - x_true.p)));
-  double rho_true = 1.0 / lm1c(2);
-  Vector2d pix_true = rho_true * cam_matrix_.topRows<2>() * lm1c;
-
-  true_state_log_.write((char*)pix_true.data(), 2 * sizeof(double));
-  true_state_log_.write((char*)&rho_true, sizeof(double));
+  Vector2d pix_true;
+  double rho_true;
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    proj(x_true, lms_[i], pix_true, rho_true);
+    true_state_log_.write((char*)pix_true.data(), 2 * sizeof(double));
+    true_state_log_.write((char*)&rho_true, sizeof(double));
+  }
 }
 
 
@@ -299,8 +330,11 @@ void EKF::logEst(const double &t)
   ekf_state_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)x_.pix.data(), 2 * sizeof(double));
-  ekf_state_log_.write((char*)&x_.rho, sizeof(double));
+  for (int i = 0; i < NUM_FEATURES; ++i)
+  {
+    ekf_state_log_.write((char*)x_.pixs[i].data(), 2 * sizeof(double));
+    ekf_state_log_.write((char*)&x_.rhos[i], sizeof(double));
+  }
 
   dxVector P_diag = P_.diagonal();
   cov_log_.write((char*)&t, sizeof(double));
@@ -360,6 +394,14 @@ RowVector3d EKF::M(const Vector2d &nu)
   m(1) = -eps_x / fx_;
   m(2) = 0;
   return m;
+}
+
+
+void EKF::proj(const vehicle::Stated& x_true, const Vector3d& lm, Vector2d& pix, double& rho)
+{
+  Vector3d lm_c = q_u2c_.rotp(q_u2b_.rota(x_true.q.rotp(lm - x_true.p)));
+  rho = 1.0 / lm_c(2);
+  pix = rho * cam_matrix_.topRows<2>() * lm_c;
 }
 
 

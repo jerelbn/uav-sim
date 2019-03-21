@@ -8,7 +8,7 @@
 #include "sensors.h"
 #include "vehicle.h"
 
-#define NUM_FEATURES 1
+#define NUM_FEATURES 4
 
 
 using namespace std;
@@ -60,6 +60,8 @@ typedef Matrix<double, NUM_INPUTS, 1> uVector;
 typedef Matrix<double, NUM_INPUTS, NUM_INPUTS> uMatrix;
 typedef Matrix<double, NUM_DOF, NUM_INPUTS> nuMatrix;
 
+typedef vector<Vector2d, aligned_allocator<Vector2d>> FeatVec;
+
 
 template<typename T>
 struct State
@@ -72,8 +74,11 @@ struct State
     v.setZero();
     ba.setZero();
     bg.setZero();
-    Vector2d pix;
-    double rho;
+    for (int i = 0; i < NUM_FEATURES; ++i)
+    {
+      pixs.push_back(Vector2d::Zero());
+      rhos.push_back(1.0);
+    }
   }
 
   State(const State<T>& x)
@@ -83,8 +88,8 @@ struct State
     q = x.q;
     ba = x.ba;
     bg = x.bg;
-    pix = x.pix;
-    rho = x.rho;
+    pixs = x.pixs;
+    rhos = x.rhos;
   }
 
   State(const baseXVector &x)
@@ -94,8 +99,11 @@ struct State
     q = quat::Quat<T>(x.template segment<4>(Q));
     ba = x.template segment<3>(BA);
     bg = x.template segment<3>(BG);
-    pix.setZero();
-    rho = 1.0;
+    for (int i = 0; i < NUM_FEATURES; ++i)
+    {
+      pixs.push_back(Vector2d::Zero());
+      rhos.push_back(1.0);
+    }
   }
 
   State(const T* ptr)
@@ -105,8 +113,11 @@ struct State
     q = quat::Quat<T>(ptr+Q);
     ba = Matrix<T,3,1>(ptr[BA], ptr[BA+1], ptr[BA+2]);
     bg = Matrix<T,3,1>(ptr[BG], ptr[BG+1], ptr[BG+2]);
-    pix.setZero();
-    rho = 1.0;
+    for (int i = 0; i < NUM_FEATURES; ++i)
+    {
+      pixs.push_back(Vector2d::Zero());
+      rhos.push_back(1.0);
+    }
   }
 
   State<T> operator+(const Matrix<T,NUM_DOF,1> &delta) const
@@ -117,8 +128,11 @@ struct State
     x.q = q + delta.template segment<3>(DQ);
     x.ba = ba + delta.template segment<3>(DBA);
     x.bg = bg + delta.template segment<3>(DBG);
-    x.pix = pix + delta.template segment<2>(NUM_BASE_DOF);
-    x.rho = rho + delta(NUM_BASE_DOF+2);
+    for (int i = 0; i < NUM_FEATURES; ++i)
+    {
+      x.pixs[i] = pixs[i] + delta.template segment<2>(NUM_BASE_DOF+3*i);
+      x.rhos[i] = rhos[i] + delta(NUM_BASE_DOF+3*i+2);
+    }
     return x;
   }
 
@@ -130,8 +144,11 @@ struct State
     dx.template segment<3>(DQ) = q - x2.q;
     dx.template segment<3>(DBA) = ba - x2.ba;
     dx.template segment<3>(DBG) = bg - x2.bg;
-    dx.template segment<2>(NUM_BASE_DOF) = pix - x2.pix;
-    dx(NUM_BASE_DOF+2) = rho - x2.rho;
+    for (int i = 0; i < NUM_FEATURES; ++i)
+    {
+      dx.template segment<2>(NUM_BASE_DOF+3*i) = pixs[i] - x2.pixs[i];
+      dx(NUM_BASE_DOF+3*i+2) = rhos[i] - x2.rhos[i];
+    }
     return dx;
   }
 
@@ -144,7 +161,16 @@ struct State
   Matrix<T,NUM_STATES,1> toEigen() const
   {
     Matrix<T,NUM_STATES,1> x;
-    x << p, v, q.elements(), ba, bg, pix, rho;
+    x.template segment<3>(P) = p;
+    x.template segment<3>(V) = v;
+    x.template segment<4>(Q) = q.elements();
+    x.template segment<3>(BA) = ba;
+    x.template segment<3>(BG) = bg;
+    for (int i = 0; i < NUM_FEATURES; ++i)
+    {
+      x.template segment<2>(NUM_BASE_STATES+3*i) = pixs[i];
+      x(NUM_BASE_STATES+3*i+2) = rhos[i];
+    }
     return x;
   }
 
@@ -153,8 +179,8 @@ struct State
   quat::Quat<T> q;
   Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
-  Vector2d pix;
-  double rho;
+  FeatVec pixs;
+  vector<double> rhos;
 
 };
 typedef State<double> Stated;
@@ -182,16 +208,17 @@ private:
   void propagate(const double &t, const uVector &imu);
   void updateGPS(const Vector6d& z);
   void updateMocap(const Vector7d& z);
-  void updateCamera(const Vector2d& z);
+  void updateCamera(const Matrix<double, 2*NUM_FEATURES, 1> &z);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
+  void proj(const vehicle::Stated& x_true, const Vector3d& lm, Vector2d& pix, double& rho);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
   RowVector3d M(const Vector2d& nu);
 
   // Temporary variables for testing pixel propagation
-  Vector3d lm1_; // landmark in inertial frame
+  vector<Vector3d, aligned_allocator<Vector3d>> lms_; // landmarks in inertial frame
 
   // Primary variables
   double t_prev_;
@@ -206,7 +233,7 @@ private:
   // Sensor parameters
   Matrix6d R_gps_;
   Matrix6d R_mocap_;
-  Matrix2d R_pix_;
+  Matrix<double,2*NUM_FEATURES,2*NUM_FEATURES> R_pix_;
   Vector3d p_ub_, p_um_, p_uc_;
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;
