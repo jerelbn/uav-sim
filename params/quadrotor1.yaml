@@ -58,7 +58,7 @@ circ_kh: 5.0
 # 0: waypoints
 # 1: trajectory
 # 2: circumnavigation
-path_type: 0
+path_type: 1
 
 waypoints: [0, 0, -4, 0,
             10, 0, -4, 0,
@@ -76,14 +76,14 @@ waypoint_velocity_threshold: 0.5
 
 traj_delta_north: 10
 traj_delta_east: 10
-traj_delta_alt: -4
+traj_delta_alt: 2
 traj_delta_yaw: 1.5
 traj_nom_north: 0
 traj_nom_east: 0
-traj_nom_alt: 5
+traj_nom_alt: 10
 traj_nom_yaw: 0
 traj_north_period: 20
-traj_east_period: 20
+traj_east_period: 10
 traj_alt_period: 20
 traj_yaw_period: 20
 
@@ -98,7 +98,7 @@ mocap_enabled: false
 baro_enabled: false
 pitot_enabled: false
 wvane_enabled: false
-gps_enabled: false
+gps_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
@@ -131,8 +131,8 @@ camera_matrix: [480,   0, 320,
                   0, 480, 240,
                   0,   0,   1]
 p_uc: [0.1, 0, 0.05] # translation from body to camera in body frame
-q_uc: [0.5, 0.5, 0.5, 0.5] # rotation from body to camera
-save_pixel_measurements: true
+q_uc: [0.707106781186548, 0.0, 0.0, 0.707106781186548] # rotation from body to camera
+save_pixel_measurements: false
 
 ## Motion Capture
 mocap_update_rate: 50
@@ -170,7 +170,8 @@ gps_vertical_position_noise_stdev: 0.40
 gps_vertical_position_bias_init_bound: 9.2
 gps_vertical_velocity_noise_stdev: 0.15
 
-# Target estimator parameters
+
+## Target estimator parameters
 bearing_only: true
 use_target_truth: false
 target_z0: [5, 0, 0]
@@ -178,3 +179,27 @@ target_vz0: [0, 0, 0]
 target_gain: 1.0
 target_velocity_gain: 1.0
 target_noise_stdev: 1.0
+
+
+## EKF Parameters
+ekf_x0: [0, 0, -5,    # POS
+         0, 0, 0,    # VEL
+         1, 0, 0, 0, # ATT
+         0, 0, 0,    # ACCEL BIAS
+         0, 0, 0]    # GYRO BIAS
+ekf_P0: [1e-1, 1e-1, 1e-1, # POS
+         1e-1, 1e-1, 1e-1, # VEL
+         1e-1, 1e-1, 1e-1, # ATT
+         1e-1, 1e-1, 1e-1, # ACCEL BIAS
+         5e-2, 5e-2, 5e-2] # GYRO BIAS
+ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
+         1e-8, 1e-8, 1e-8, # VEL
+         1e-8, 1e-8, 1e-8, # ATT
+         1e-7, 1e-7, 1e-7, # ACCEL BIAS
+         1e-8, 1e-8, 1e-8] # GYRO BIAS
+ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
+         0.01, 0.01, 0.01, # GYRO
+         0.01, 0.01, 0.01, # ACCEL WALK
+         0.0001, 0.0001, 0.0001] # GYRO WALK
+ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
+            0.05, 0.05, 0.15] # VELOCITY

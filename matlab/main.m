@@ -10,13 +10,13 @@ quad1_params = ReadYaml('../params/quadrotor1.yaml');
 % plot_environment('wing1', sim_params)
 % plot_vehicle(wing1_params)
 % plot_sensors(wing1_params)
-% plot_ekf('wing1', true)
+% plot_fw_ekf('wing1', true)
 % animate_3d(100, 'wing1')
 
 plot_environment('quad1', sim_params)
 plot_vehicle(quad1_params)
 plot_sensors(quad1_params)
-% plot_ekf('quad1', true)
+plot_quad_ekf('quad1', true)
 % animate_3d(100, 'quad1')
 % animate_img(2,'quad1')
 

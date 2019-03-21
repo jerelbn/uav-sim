@@ -27,6 +27,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   common::get_yaml_node("name", filename, name_);
   controller_.load(filename, use_random_seed, name_);
   sensors_.load(filename, use_random_seed, name_);
+  ekf_.load(filename, name_);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -48,9 +49,11 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   if (common::get_yaml_eigen<Vector3d>("angular_drag", filename, angular_drag_diag))
     angular_drag_matrix_ = angular_drag_diag.asDiagonal();
 
-  // Compute initial control and corresponding acceleration
+  // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw());
+  sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
+  ekf_.run(0, sensors_, env.get_vw(), getState());
 
   // Initialize loggers and log initial data
   std::stringstream ss_s, ss_e;
@@ -103,10 +106,14 @@ void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
 void Quadrotor::run(const double &t, const environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
-  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points()); // Update sensor measurements
-  propagate(t, u_, env.get_vw()); // Propagate truth to next time step
-  controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]); // Update control input with truth
+  propagate(t, u_, env.get_vw()); // Propagate truth to current time step
+  if (control_using_estimates_)
+    controller_.computeControl(ekf_.getState(), t, u_, other_vehicle_positions_[0]);
+  else
+    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw()); // Update true acceleration
+  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
+  ekf_.run(t, sensors_, env.get_vw(), getState());
   log(t); // Log current data
 }
 

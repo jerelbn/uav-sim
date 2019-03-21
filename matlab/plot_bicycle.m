@@ -1,7 +1,7 @@
 function plot_bicycle(name)
 
-state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 7, []);
-command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 5, []);
+state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 7, []); % [pos;vel;heading;steering_angle]
+command = reshape(fread(fopen(strcat(['/tmp/',name,'_command.log']), 'r'), 'double'), 5, []); % [force;torque]
 
 % Plot the position states
 figure()

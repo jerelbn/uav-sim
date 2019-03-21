@@ -6,6 +6,7 @@
 #include "quad_control.h"
 #include "sensors.h"
 #include "environment.h"
+#include "quad_vi_ekf.h"
 
 using namespace Eigen;
 
@@ -43,6 +44,7 @@ private:
 
   Controller controller_;
   sensors::Sensors sensors_;
+  qviekf::EKF ekf_;
 
   vehicle::Stated x_;
   vehicle::dxVector dx_;
