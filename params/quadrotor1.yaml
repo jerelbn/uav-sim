@@ -34,17 +34,17 @@ max_tau_z: 50.0
 # Controller
 throttle_eq: 0.5
 
-Kp: [1.0, 1.0, 1.0]
+Kp: [0.75, 0.75, 0.75]
 Kd: [0, 0, 0]
-Kv: [2.0, 2.0, 2.0]
+Kv: [1.5, 1.5, 1.5]
 
 roll_kp: 10.0
 roll_ki: 0.0
-roll_kd: 3.0
+roll_kd: 5.0
 pitch_kp: 10.0
 pitch_ki: 0.0
-pitch_kd: 3.0
-yaw_rate_kp: 1.0
+pitch_kd: 5.0
+yaw_rate_kp: 2.0
 yaw_rate_ki: 0.0
 yaw_rate_kd: 0.0
 
