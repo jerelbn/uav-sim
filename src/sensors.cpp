@@ -21,15 +21,15 @@ Sensors::~Sensors()
 }
 
 
-void Sensors::load(const std::string& filename, const bool& use_random_seed, const std::string& name)
+void Sensors::load(const string& filename, const bool& use_random_seed, const string& name)
 {
   // Initialize random number generator
   int seed;
   if (use_random_seed)
-    seed = std::chrono::system_clock::now().time_since_epoch().count();
+    seed = chrono::system_clock::now().time_since_epoch().count();
   else
     seed = 0;
-  rng_ = std::default_random_engine(seed);
+  rng_ = default_random_engine(seed);
   srand(seed);
 
   // General parameters
@@ -42,9 +42,9 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   rho_ = common::airDense(origin_alt_, origin_temp);
 
   // IMU
-  std::stringstream ss_accel;
+  stringstream ss_accel;
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
-  Eigen::Vector4d q_ub;
+  Vector4d q_ub;
   common::get_yaml_node("imu_enabled", filename, imu_enabled_);
   common::get_yaml_node("imu_update_rate", filename, imu_update_rate_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
@@ -55,8 +55,8 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("accel_bias_init_bound", filename, accel_bias_init_bound);
   q_ub_ = quat::Quatd(q_ub.data());
   q_ub_.normalize();
-  accel_noise_dist_ = std::normal_distribution<double>(0.0, accel_noise_stdev);
-  accel_walk_dist_ = std::normal_distribution<double>(0.0, accel_walk_stdev);
+  accel_noise_dist_ = normal_distribution<double>(0.0, accel_noise_stdev);
+  accel_walk_dist_ = normal_distribution<double>(0.0, accel_walk_stdev);
   accel_bias_ = accel_bias_init_bound * Vector3d::Random();
   accel_noise_.setZero();
   if (use_accel_truth_)
@@ -64,14 +64,14 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   ss_accel << "/tmp/" << name << "_accel.log";
   accel_log_.open(ss_accel.str());
 
-  std::stringstream ss_gyro;
+  stringstream ss_gyro;
   double gyro_bias_init_bound, gyro_noise_stdev, gyro_walk_stdev;
   common::get_yaml_node("use_gyro_truth", filename, use_gyro_truth_);
   common::get_yaml_node("gyro_noise_stdev", filename, gyro_noise_stdev);
   common::get_yaml_node("gyro_walk_stdev", filename, gyro_walk_stdev);
   common::get_yaml_node("gyro_bias_init_bound", filename, gyro_bias_init_bound);
-  gyro_noise_dist_ = std::normal_distribution<double>(0.0, gyro_noise_stdev);
-  gyro_walk_dist_ = std::normal_distribution<double>(0.0, gyro_walk_stdev);
+  gyro_noise_dist_ = normal_distribution<double>(0.0, gyro_noise_stdev);
+  gyro_walk_dist_ = normal_distribution<double>(0.0, gyro_walk_stdev);
   gyro_bias_ = gyro_bias_init_bound * Vector3d::Random();
   gyro_noise_.setZero();
   if (use_gyro_truth_)
@@ -82,9 +82,9 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   gyro_log_.open(ss_gyro.str());
 
   // Camera
-  std::stringstream ss_cam;
+  stringstream ss_cam;
   double pixel_noise_stdev;
-  Eigen::Vector4d q_uc;
+  Vector4d q_uc;
   common::get_yaml_node("camera_enabled", filename, camera_enabled_);
   common::get_yaml_node("camera_max_features", filename, cam_max_feat_);
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
@@ -95,7 +95,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_eigen("camera_matrix", filename, K_);
   common::get_yaml_eigen("q_uc", filename, q_uc);
   common::get_yaml_eigen("p_uc", filename, p_uc_);
-  pixel_noise_dist_ = std::normal_distribution<double>(0.0, pixel_noise_stdev);
+  pixel_noise_dist_ = normal_distribution<double>(0.0, pixel_noise_stdev);
   K_inv_ = K_.inverse();
   q_uc_ = quat::Quatd(q_uc.data());
   q_uc_.normalize();
@@ -107,9 +107,9 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   cam_log_.open(ss_cam.str());
 
   // Motion Capture
-  std::stringstream ss_mocap;
+  stringstream ss_mocap;
   double mocap_noise_stdev;
-  Eigen::Vector4d q_um;
+  Vector4d q_um;
   common::get_yaml_node("mocap_enabled", filename, mocap_enabled_);
   common::get_yaml_node("use_mocap_truth", filename, use_mocap_truth_);
   common::get_yaml_node("mocap_update_rate", filename, mocap_update_rate_);
@@ -118,7 +118,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_eigen("p_um", filename, p_um_);
   q_um_ = quat::Quatd(q_um.data());
   q_um_.normalize();
-  mocap_noise_dist_ = std::normal_distribution<double>(0.0, mocap_noise_stdev);
+  mocap_noise_dist_ = normal_distribution<double>(0.0, mocap_noise_stdev);
   mocap_noise_.setZero();
   new_mocap_meas_ = false;
   last_mocap_update_ = 0.0;
@@ -126,7 +126,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   mocap_log_.open(ss_mocap.str());
 
   // Barometer
-  std::stringstream ss_baro;
+  stringstream ss_baro;
   double baro_noise_stdev, baro_walk_stdev, baro_bias_init_bound;
   common::get_yaml_node("baro_enabled", filename, baro_enabled_);
   common::get_yaml_node("use_baro_truth", filename, use_baro_truth_);
@@ -134,10 +134,10 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("baro_noise_stdev", filename, baro_noise_stdev);
   common::get_yaml_node("baro_walk_stdev", filename, baro_walk_stdev);
   common::get_yaml_node("baro_bias_init_bound", filename, baro_bias_init_bound);
-  baro_noise_dist_ = std::normal_distribution<double>(0.0, baro_noise_stdev);
+  baro_noise_dist_ = normal_distribution<double>(0.0, baro_noise_stdev);
   baro_noise_ = 0;
-  baro_walk_dist_ = std::normal_distribution<double>(0.0, baro_walk_stdev);
-  baro_bias_ = 2.0 * baro_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  baro_walk_dist_ = normal_distribution<double>(0.0, baro_walk_stdev);
+  baro_bias_ = 2.0 * baro_bias_init_bound * (rand() / double(RAND_MAX) - 0.5);
   if (use_baro_truth_)
     baro_bias_ = 0;
   new_baro_meas_ = false;
@@ -146,7 +146,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   baro_log_.open(ss_baro.str());
 
   // Pitot Tube
-  std::stringstream ss_pitot;
+  stringstream ss_pitot;
   double pitot_noise_stdev, pitot_walk_stdev, pitot_bias_init_bound;
   double pitot_azimuth, pitot_elevation;
   common::get_yaml_node("pitot_enabled", filename, pitot_enabled_);
@@ -158,10 +158,10 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("pitot_azimuth", filename, pitot_azimuth);
   common::get_yaml_node("pitot_elevation", filename, pitot_elevation);
   q_b2pt_ = quat::Quatd(0, pitot_elevation, pitot_azimuth);
-  pitot_noise_dist_ = std::normal_distribution<double>(0.0, pitot_noise_stdev);
+  pitot_noise_dist_ = normal_distribution<double>(0.0, pitot_noise_stdev);
   pitot_noise_ = 0;
-  pitot_walk_dist_ = std::normal_distribution<double>(0.0, pitot_walk_stdev);
-  pitot_bias_ = 2.0 * pitot_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  pitot_walk_dist_ = normal_distribution<double>(0.0, pitot_walk_stdev);
+  pitot_bias_ = 2.0 * pitot_bias_init_bound * (rand() / double(RAND_MAX) - 0.5);
   if (use_pitot_truth_)
     pitot_bias_ = 0;
   new_pitot_meas_ = false;
@@ -170,7 +170,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   pitot_log_.open(ss_pitot.str());
 
   // Weather Vane
-  std::stringstream ss_wvane;
+  stringstream ss_wvane;
   double wvane_noise_stdev;
   double wvane_roll;
   common::get_yaml_node("wvane_enabled", filename, wvane_enabled_);
@@ -180,7 +180,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("wvane_resolution", filename, wvane_resolution_);
   common::get_yaml_node("wvane_roll", filename, wvane_roll);
   q_b2wv_ = quat::Quatd(wvane_roll, 0, 0);
-  wvane_noise_dist_ = std::normal_distribution<double>(0.0, wvane_noise_stdev);
+  wvane_noise_dist_ = normal_distribution<double>(0.0, wvane_noise_stdev);
   wvane_noise_ = 0;
   new_wvane_meas_ = false;
   last_wvane_update_ = 0.0;
@@ -188,7 +188,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   wvane_log_.open(ss_wvane.str());
 
   // GPS
-  std::stringstream ss_gps;
+  stringstream ss_gps;
   double gps_hpos_noise_stdev, gps_hvel_noise_stdev;
   double gps_vpos_noise_stdev, gps_vvel_noise_stdev;
   double gps_hpos_bias_init_bound, gps_vpos_bias_init_bound;
@@ -202,16 +202,16 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
   common::get_yaml_node("gps_vertical_position_noise_stdev", filename, gps_vpos_noise_stdev);
   common::get_yaml_node("gps_vertical_position_bias_init_bound", filename, gps_vpos_bias_init_bound);
   common::get_yaml_node("gps_vertical_velocity_noise_stdev", filename, gps_vvel_noise_stdev);
-  gps_hpos_noise_dist_ = std::normal_distribution<double>(0.0, gps_hpos_noise_stdev);
-  gps_hvel_noise_dist_ = std::normal_distribution<double>(0.0, gps_hvel_noise_stdev);
-  gps_vpos_noise_dist_ = std::normal_distribution<double>(0.0, gps_vpos_noise_stdev);
-  gps_vvel_noise_dist_ = std::normal_distribution<double>(0.0, gps_vvel_noise_stdev);
+  gps_hpos_noise_dist_ = normal_distribution<double>(0.0, gps_hpos_noise_stdev);
+  gps_hvel_noise_dist_ = normal_distribution<double>(0.0, gps_hvel_noise_stdev);
+  gps_vpos_noise_dist_ = normal_distribution<double>(0.0, gps_vpos_noise_stdev);
+  gps_vvel_noise_dist_ = normal_distribution<double>(0.0, gps_vvel_noise_stdev);
   gps_hpos_noise_.setZero();
   gps_hvel_noise_.setZero();
   gps_vpos_noise_ = 0;
   gps_vvel_noise_ = 0;
   gps_hpos_bias_ = gps_hpos_bias_init_bound * Vector2d::Random();
-  gps_vpos_bias_ = 2.0 * gps_vpos_bias_init_bound * (std::rand() / double(RAND_MAX) - 0.5);
+  gps_vpos_bias_ = 2.0 * gps_vpos_bias_init_bound * (rand() / double(RAND_MAX) - 0.5);
   if (use_gps_truth_)
   {
     gps_hpos_bias_.setZero();
@@ -225,7 +225,7 @@ void Sensors::load(const std::string& filename, const bool& use_random_seed, con
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d &vw, const Eigen::MatrixXd& lm)
+void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d &vw, const MatrixXd& lm)
 {
   // Update enabled sensor measurements
   if (imu_enabled_)
@@ -289,7 +289,7 @@ void Sensors::imu(const double t, const vehicle::Stated& x)
 }
 
 
-void Sensors::camera(const double t, const vehicle::Stated &x, const Eigen::MatrixXd &lm)
+void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &lm)
 {
   double dt = common::decRound(t - last_camera_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
@@ -301,37 +301,38 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const Eigen::Matr
 
     // Compute camera pose
     quat::Quatd q_i2c = x.q * q_uc_;
-    Eigen::Vector3d p_i2c = x.p + x.q.rota(p_uc_);
+    Vector3d p_i2c = x.p + x.q.rota(p_uc_);
 
     // Project landmarks into image
     cam_.clear();
     for (int i = 0; i < lm.cols(); ++i)
     {
       // Landmark vector in camera frame
-      Eigen::Vector3d l = q_i2c.rotp(lm.col(i) - p_i2c);
+      Vector3d l = q_i2c.rotp(lm.col(i) - p_i2c);
+      double rho = 1.0 / l(2);
 
       // Check if landmark is in front of camera
-      if (l(2) < 0)
+      if (rho < 0)
         continue;
 
       // Project landmark into image and save it to the list
-      Eigen::Vector2d pix;
+      Vector2d pix;
       common::projToImg(pix, l, K_);
       pix += pixel_noise_;
       if (pix(0) >= 1 && pix(1) >= 1 && pix(0) <= image_size_(0) && pix(1) <= image_size_(1))
-        cam_.push_back(Eigen::Vector3d(pix(0), pix(1), i));
+        cam_.push_back(Feat(pix, rho, i));
 
       if (cam_.size() == cam_max_feat_) break;
     }
 
     if (cam_.size() > 0 && save_pixel_measurements_)
     {
-      static const Vector3d a(-1,-1,-1);
+      static const Vector4d a(-1,-1,-1,-1);
       cam_log_.write((char*)&t, sizeof(double));
       for (int i = 0; i < cam_max_feat_; ++i)
       {
         if (i <= cam_.size())
-          cam_log_.write((char*)cam_[i].data(), cam_[i].rows() * sizeof(double));
+          cam_log_.write((char*)cam_[i].vec().data(), cam_[i].vec().rows() * sizeof(double));
         else
           cam_log_.write((char*)a.data(), a.rows() * sizeof(double));
       }
@@ -448,7 +449,7 @@ void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw
     // Populate weather vane measurement
     Vector3d v_aI_b = x.v - x.q.rotp(vw);
     double wvane_true = asin(common::e2.dot(q_b2wv_.rotp(v_aI_b)) / v_aI_b.norm());
-    int num_ticks = std::round((wvane_true + wvane_noise_) * wvane_resolution_ / (2.0 * M_PI));
+    int num_ticks = round((wvane_true + wvane_noise_) * wvane_resolution_ / (2.0 * M_PI));
     wvane_ = 2.0 * M_PI * num_ticks / wvane_resolution_;
 
     // Log data

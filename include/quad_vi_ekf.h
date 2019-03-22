@@ -51,30 +51,6 @@ typedef Matrix<double, NUM_BASE_STATES, 1> baseXVector;
 typedef Matrix<double, NUM_BASE_DOF, 1> baseDxVector;
 typedef Matrix<double, NUM_INPUTS, 1> uVector;
 
-struct Feat
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  Feat()
-  {
-    pix.setZero();
-    rho = 0.001;
-    id = -1;
-  }
-
-  Feat(const Vector2d& _pix, const double& _rho, const int& _id)
-  {
-    pix = _pix;
-    rho = _rho;
-    id = _id;
-  }
-
-  Vector2d pix;
-  double rho;
-  int id;
-};
-typedef vector<Feat, aligned_allocator<Feat>> FeatVec;
-
 
 template<typename T>
 struct State
@@ -125,7 +101,7 @@ struct State
     x.bg = bg + delta.template segment<3>(DBG);
     for (int i = 0; i < nf; ++i)
     {
-      Feat f;
+      sensors::Feat f;
       f.pix = feats[i].pix + delta.template segment<2>(NUM_BASE_DOF+3*i);
       f.rho = feats[i].rho + delta(NUM_BASE_DOF+3*i+2);
       f.id = feats[i].id;
@@ -177,7 +153,7 @@ struct State
   quat::Quat<T> q;
   Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
-  FeatVec feats;
+  sensors::FeatVec feats;
   int nf;
 
 };

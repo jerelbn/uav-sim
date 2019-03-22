@@ -113,7 +113,7 @@ void EKF::load(const string &filename, const std::string& name)
   for (int i = 0; i < num_feat_; ++i)
   {
     proj(x_true, lms_[i], pix_true, rho_true);
-    x_.feats.push_back(Feat(pix_true, rho0_, i));
+    x_.feats.push_back(sensors::Feat(pix_true, rho0_, i));
   }
 }
 
