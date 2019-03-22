@@ -186,8 +186,8 @@ public:
 private:
 
   void propagate(const double &t, const uVector &imu);
-//  void updateGPS(const Vector6d& z);
-//  void updateMocap(const Vector7d& z);
+  void updateGPS(const Vector6d& z);
+  void updateMocap(const Vector7d& z);
   void updateCamera(const VectorXd &z);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
@@ -211,14 +211,18 @@ private:
   Matrix<double,NUM_INPUTS,NUM_INPUTS> Qu_;
   MatrixXd I_NUM_DOF_;
   VectorXd P_diag_;
-  VectorXd z_pix_, h_pix_;
-  MatrixXd H_pix_, K_pix_;
 
   // Sensor parameters
+  Vector6d h_gps_;
+  MatrixXd H_gps_, K_gps_;
   Matrix6d R_gps_;
+  xform::Xformd h_mocap_;
+  MatrixXd H_mocap_, K_mocap_;
   Matrix6d R_mocap_;
-  Matrix2d R_pix_;
-  MatrixXd R_pix_big_;
+  VectorXd z_cam_, h_cam_;
+  MatrixXd H_cam_, K_cam_;
+  Matrix2d R_cam_;
+  MatrixXd R_cam_big_;
   Vector3d p_ub_, p_um_, p_uc_;
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;

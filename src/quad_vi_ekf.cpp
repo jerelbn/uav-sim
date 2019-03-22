@@ -34,11 +34,15 @@ void EKF::load(const string &filename, const std::string& name)
   I_NUM_DOF_ = MatrixXd::Zero(num_dof_,num_dof_);
   G_ = MatrixXd::Zero(num_dof_,NUM_INPUTS);
   B_ = MatrixXd::Zero(num_dof_,NUM_INPUTS);
-  R_pix_big_ = MatrixXd::Zero(2*num_feat_,2*num_feat_);
-  z_pix_ = VectorXd::Zero(2*num_feat_);
-  h_pix_ = VectorXd::Zero(2*num_feat_);
-  H_pix_ = MatrixXd::Zero(2*num_feat_,num_dof_);
-  K_pix_ = MatrixXd::Zero(num_dof_,2*num_feat_);
+  R_cam_big_ = MatrixXd::Zero(2*num_feat_,2*num_feat_);
+  z_cam_ = VectorXd::Zero(2*num_feat_);
+  h_cam_ = VectorXd::Zero(2*num_feat_);
+  H_cam_ = MatrixXd::Zero(2*num_feat_,num_dof_);
+  K_cam_ = MatrixXd::Zero(num_dof_,2*num_feat_);
+  H_gps_ = MatrixXd::Zero(6,num_dof_);
+  K_gps_ = MatrixXd::Zero(num_dof_,6);
+  H_mocap_ = MatrixXd::Zero(6,num_dof_);
+  K_mocap_ = MatrixXd::Zero(num_dof_,6);
 
   // Initializations
   baseXVector x0;
@@ -61,13 +65,13 @@ void EKF::load(const string &filename, const std::string& name)
   I_NUM_DOF_.setIdentity();
   xdot_prev_.setZero();
   for (int i = 0; i < num_feat_; ++i)
-    H_pix_.block<2,2>(2*i,NUM_BASE_DOF+3*i).setIdentity();
+    H_cam_.block<2,2>(2*i,NUM_BASE_DOF+3*i).setIdentity();
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
   common::get_yaml_eigen_diag("ekf_R_gps", filename, R_gps_);
   common::get_yaml_eigen_diag("ekf_R_mocap", filename, R_mocap_);
-  common::get_yaml_eigen_diag("ekf_R_pix", filename, R_pix_);
+  common::get_yaml_eigen_diag("ekf_R_cam", filename, R_cam_);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
   common::get_yaml_eigen("p_um", filename, p_um_);
@@ -79,7 +83,7 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2m_ = quat::Quatd(q_um);
   q_u2c_ = quat::Quatd(q_uc);
   for (int i = 0; i < num_feat_; ++i)
-    R_pix_big_.block<2,2>(2*i,2*i) = R_pix_;
+    R_cam_big_.block<2,2>(2*i,2*i) = R_cam_;
   fx_ = cam_matrix_(0,0);
   fy_ = cam_matrix_(1,1);
   u0_ = cam_matrix_(0,2);
@@ -122,22 +126,25 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     propagate(t, sensors.imu_);
 
   // Apply updates
-//  if (sensors.new_gps_meas_ && t > 0)
-//    updateGPS(sensors.gps_);
-//  if (sensors.new_mocap_meas_ && t > 0)
-//    updateMocap(sensors.mocap_);
-
-  if (t > 0 && sensors.new_camera_meas_)
+  if (t > 0)
   {
-    // Compute true landmark pixel measurement
-    Vector2d pix_true;
-    double rho_true;
-    for (int i = 0; i < num_feat_; ++i)
+    if (sensors.new_gps_meas_)
+      updateGPS(sensors.gps_);
+    if (sensors.new_mocap_meas_)
+      updateMocap(sensors.mocap_);
+
+    if (sensors.new_camera_meas_)
     {
-      proj(x_true, lms_[i], pix_true, rho_true);
-      z_pix_.segment<2>(2*i) = pix_true;
+      // Compute true landmark pixel measurement
+      Vector2d pix_true;
+      double rho_true;
+      for (int i = 0; i < num_feat_; ++i)
+      {
+        proj(x_true, lms_[i], pix_true, rho_true);
+        z_cam_.segment<2>(2*i) = pix_true;
+      }
+      updateCamera(z_cam_);
     }
-    updateCamera(z_pix_);
   }
 
   // Log data
@@ -174,57 +181,53 @@ void EKF::propagate(const double &t, const uVector& imu)
 }
 
 
-//void EKF::updateGPS(const Vector6d& z)
-//{
-//  // Measurement model and matrix
-//  Matrix<double,6,1> h;
-//  h.head<3>() = x_.p;
-//  h.tail<3>() = x_.q.rota(x_.v);
+void EKF::updateGPS(const Vector6d& z)
+{
+  // Measurement model and matrix
+  h_gps_.head<3>() = x_.p;
+  h_gps_.tail<3>() = x_.q.rota(x_.v);
 
-//  Matrix<double,6,NUM_DOF> H = Matrix<double,6,NUM_DOF>::Zero();
-//  H.block<3,3>(0,DP).setIdentity();
-//  H.block<3,3>(3,DV) = x_.q.inverse().R();
-//  H.block<3,3>(3,DQ) = -x_.q.inverse().R() * common::skew(x_.v);
+  H_gps_.block<3,3>(0,DP).setIdentity();
+  H_gps_.block<3,3>(3,DV) = x_.q.inverse().R();
+  H_gps_.block<3,3>(3,DQ) = -x_.q.inverse().R() * common::skew(x_.v);
 
-//  // Kalman gain and update
-//  Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_gps_ + H * P_ * H.transpose()).inverse();
-//  x_ += K * (z - h);
-//  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_gps_ * K.transpose();
-//}
+  // Kalman gain and update
+  K_gps_ = P_ * H_gps_.transpose() * (R_gps_ + H_gps_ * P_ * H_gps_.transpose()).inverse();
+  x_ += K_gps_ * (z - h_gps_);
+  P_ = (I_NUM_DOF_ - K_gps_ * H_gps_) * P_ * (I_NUM_DOF_ - K_gps_ * H_gps_).transpose() + K_gps_ * R_gps_ * K_gps_.transpose();
+}
 
 
-//void EKF::updateMocap(const Vector7d& z)
-//{
-//  // Pack measurement into Xform
-//  xform::Xformd Xz(z);
+void EKF::updateMocap(const Vector7d& z)
+{
+  // Pack measurement into Xform
+  xform::Xformd Xz(z);
 
-//  // Measurement model and matrix
-//  xform::Xformd h;
-//  h.t_ = x_.p + x_.q.rota(p_um_);
-//  h.q_ = x_.q * q_u2m_;
+  // Measurement model and matrix
+  h_mocap_.t_ = x_.p + x_.q.rota(p_um_);
+  h_mocap_.q_ = x_.q * q_u2m_;
 
-//  Matrix<double,6,NUM_DOF> H = Matrix<double,6,NUM_DOF>::Zero();
-//  H.block<3,3>(0,DP).setIdentity();
-//  H.block<3,3>(0,DQ) = -x_.q.inverse().R() * common::skew(p_um_);
-//  H.block<3,3>(3,DQ) = q_u2m_.inverse().R();
+  H_mocap_.block<3,3>(0,DP).setIdentity();
+  H_mocap_.block<3,3>(0,DQ) = -x_.q.inverse().R() * common::skew(p_um_);
+  H_mocap_.block<3,3>(3,DQ) = q_u2m_.inverse().R();
 
-//  // Kalman gain and update
-//  Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_mocap_ + H * P_ * H.transpose()).inverse();
-//  x_ += K * (Xz - h);
-//  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_mocap_ * K.transpose();
-//}
+  // Kalman gain and update
+  K_mocap_ = P_ * H_mocap_.transpose() * (R_mocap_ + H_mocap_ * P_ * H_mocap_.transpose()).inverse();
+  x_ += K_mocap_ * (Xz - h_mocap_);
+  P_ = (I_NUM_DOF_ - K_mocap_ * H_mocap_) * P_ * (I_NUM_DOF_ - K_mocap_ * H_mocap_).transpose() + K_mocap_ * R_mocap_ * K_mocap_.transpose();
+}
 
 
 void EKF::updateCamera(const VectorXd &z)
 {
   // Measurement model and matrix
   for (int i = 0; i < num_feat_; ++i)
-    h_pix_.segment<2>(2*i) = x_.pixs[i];
+    h_cam_.segment<2>(2*i) = x_.pixs[i];
 
   // Kalman gain and update
-  K_pix_ = P_ * H_pix_.transpose() * (R_pix_big_ + H_pix_ * P_ * H_pix_.transpose()).inverse();
-  x_ += K_pix_ * (z - h_pix_);
-  P_ = (I_NUM_DOF_ - K_pix_ * H_pix_) * P_ * (I_NUM_DOF_ - K_pix_ * H_pix_).transpose() + K_pix_ * R_pix_big_ * K_pix_.transpose();
+  K_cam_ = P_ * H_cam_.transpose() * (R_cam_big_ + H_cam_ * P_ * H_cam_.transpose()).inverse();
+  x_ += K_cam_ * (z - h_cam_);
+  P_ = (I_NUM_DOF_ - K_cam_ * H_cam_) * P_ * (I_NUM_DOF_ - K_cam_ * H_cam_).transpose() + K_cam_ * R_cam_big_ * K_cam_.transpose();
 }
 
 
