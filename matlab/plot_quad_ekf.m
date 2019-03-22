@@ -1,4 +1,4 @@
-function plot_quad_ekf(params, plot_cov)
+function plot_quad_ekf(params, plot_cov, plot_2d_pix)
 
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
@@ -136,23 +136,31 @@ for j = 1:params.ekf_num_features
             plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
         end
         if i == 1
+            ylim([0,params.image_size{1}])
             legend('Truth', 'EKF')
+        end
+        if i == 2
+            ylim([0,params.image_size{2}])
         end
     end
     idx = idx + 3;
 end
 
 
-idx = 16;
-for j = 1:params.ekf_num_features
-    figure(), hold on, grid on
-    set(gcf, 'name', strcat(['EKF 2D Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
-    set(gca, 'YDir', 'Reverse')
-    title("2D Pixel Position")
-    plot(true_state(idx+1, :), true_state(idx+2, :), 'linewidth', 2.0)
-    plot(ekf_state(idx+1, :), ekf_state(idx+2, :), 'linewidth', 1.5)
-    legend('Truth', 'EKF')
-    idx = idx + 3;
+if plot_2d_pix
+    idx = 16;
+    for j = 1:params.ekf_num_features
+        figure(), hold on, grid on
+        set(gcf, 'name', strcat(['EKF 2D Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
+        set(gca, 'YDir', 'Reverse')
+        title("2D Pixel Position")
+        plot(true_state(idx+1, :), true_state(idx+2, :), 'linewidth', 2.0)
+        plot(ekf_state(idx+1, :), ekf_state(idx+2, :), 'linewidth', 1.5)
+        legend('Truth', 'EKF')
+        xlim([0,params.image_size{1}])
+        ylim([0,params.image_size{2}])
+        idx = idx + 3;
+    end
 end
 
 end % function plot_quad_ekf

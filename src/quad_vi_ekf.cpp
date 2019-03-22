@@ -35,6 +35,7 @@ void EKF::load(const string &filename, const std::string& name)
   G_ = MatrixXd::Zero(num_dof_,NI);
   B_ = MatrixXd::Zero(num_dof_,NI);
   R_cam_big_ = MatrixXd::Zero(2*nfm_,2*nfm_);
+  z_cam_ = VectorXd::Zero(2*nfm_);
   h_cam_ = VectorXd::Zero(2*nfm_);
   H_cam_ = MatrixXd::Zero(2*nfm_,num_dof_);
   K_cam_ = MatrixXd::Zero(num_dof_,2*nfm_);
@@ -42,7 +43,7 @@ void EKF::load(const string &filename, const std::string& name)
   K_gps_ = MatrixXd::Zero(num_dof_,6);
   H_mocap_ = MatrixXd::Zero(6,num_dof_);
   K_mocap_ = MatrixXd::Zero(num_dof_,6);
-  feats_true.reserve(nfm_);
+  feats_true_.reserve(nfm_);
 
   // Initializations
   baseXVector x0;
@@ -181,14 +182,97 @@ void EKF::mocapUpdate(const Vector7d& z)
 }
 
 
-void EKF::cameraUpdate(const sensors::FeatVec &z)
+void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
 {
-//  // Measurement model and matrix
-//  for (int i = 0; i < num_feat_max_; ++i)
-//    h_cam_.segment<2>(2*i) = x_.feats[i].pix;
+  // Collect measurement of each feature in the state and remove
+  // feature states that have lost tracking
+  getPixMatches(tracked_feats);
 
-//  // Apply the update
-//  update(z-h_cam_, R_cam_big_, H_cam_, K_cam_);
+  // Apply the update
+  if (nfa_ > 0)
+  {
+    // Build measurement vector and model
+    z_cam_.setZero();
+    h_cam_.setZero();
+    for (int i = 0; i < nfa_; ++i)
+    {
+      z_cam_.segment<2>(2*i) = matched_feats_[i];
+      h_cam_.segment<2>(2*i) = x_.feats[i].pix;
+    }
+
+    update(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
+  }
+
+  // Fill state with new features if needed
+  if (nfa_ < nfm_)
+  {
+    for (int i = nfa_; i < nfm_; ++i)
+    {
+      // Random selection for now
+      int idx = round((double)rand() / RAND_MAX * tracked_feats.size());
+      x_.feats[i] = sensors::Feat(tracked_feats[idx].pix,rho0_,tracked_feats[idx].id);
+      P_.block<3,3>(NBD+3*i,NBD+3*i) = P0_feat_;
+      ++nfa_;
+
+      feats_true_[i].pix = tracked_feats[idx].pix;
+      feats_true_[i].rho = tracked_feats[idx].rho;
+    }
+  }
+}
+
+
+void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
+{
+  int i = 0;
+  matched_feats_.clear();
+  while (i < nfa_)
+  {
+    // Look for an ID match to the current state feature
+    bool id_match_found = false;
+    for (auto& tf : tracked_feats)
+    {
+      if (x_.feats[i].id == tf.id)
+      {
+        matched_feats_.push_back(tf.pix);
+        id_match_found = true;
+        feats_true_[i].pix = tf.pix;
+        feats_true_[i].rho = tf.rho;
+        break;
+      }
+    }
+
+    // Remove feature from state when no longer tracked
+    if (!id_match_found)
+    {
+      // Shift and reset state and covariance
+      int j;
+      for (j = i; j < nfa_-1; ++j)
+      {
+        x_.feats[j] = x_.feats[j+1];
+        P_.row(NBD+3*j) = P_.row(NBD+3*(j+1));
+        P_.row(NBD+3*j+1) = P_.row(NBD+3*(j+1)+1);
+        P_.row(NBD+3*j+2) = P_.row(NBD+3*(j+1)+2);
+        P_.col(NBD+3*j) = P_.col(NBD+3*(j+1));
+        P_.col(NBD+3*j+1) = P_.col(NBD+3*(j+1)+1);
+        P_.col(NBD+3*j+2) = P_.col(NBD+3*(j+1)+2);
+      }
+      x_.feats[j] = sensors::Feat();
+      P_.row(NBD+3*j).setZero();
+      P_.row(NBD+3*j+1).setZero();
+      P_.row(NBD+3*j+2).setZero();
+      P_.col(NBD+3*j).setZero();
+      P_.col(NBD+3*j+1).setZero();
+      P_.col(NBD+3*j+2).setZero();
+
+      // Decrement the active feature counter
+      --nfa_;
+    }
+    else
+      ++i;
+  }
+
+  if (matched_feats_.size() != nfa_)
+    cerr << "Matched camera measurements does not match number of active features!" << endl;
 }
 
 
@@ -302,8 +386,8 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   {
     if (i+1 <= nfa_)
     {
-      true_state_log_.write((char*)feats_true[i].pix.data(), 2 * sizeof(double));
-      true_state_log_.write((char*)&feats_true[i].rho, sizeof(double));
+      true_state_log_.write((char*)feats_true_[i].pix.data(), 2 * sizeof(double));
+      true_state_log_.write((char*)&feats_true_[i].rho, sizeof(double));
     }
     else
     {
@@ -399,15 +483,6 @@ RowVector3d EKF::M(const Vector2d &nu)
   m(2) = 0;
   return m;
 }
-
-
-void EKF::proj(const vehicle::Stated& x_true, const Vector3d& lm, Vector2d& pix, double& rho)
-{
-  Vector3d lm_c = q_u2c_.rotp(q_u2b_.rota(x_true.q.rotp(lm - x_true.p)));
-  rho = 1.0 / lm_c(2);
-  pix = rho * cam_matrix_.topRows<2>() * lm_c;
-}
-
 
 
 } // namespace qviekf

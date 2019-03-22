@@ -108,7 +108,7 @@ struct State
       f.pix = feats[i].pix + delta.template segment<2>(NBD+3*i);
       f.rho = feats[i].rho + delta(NBD+3*i+2);
       f.id = feats[i].id;
-      x.feats.push_back(f);
+      x.feats[i] = f;
     }
     return x;
   }
@@ -185,11 +185,11 @@ private:
   void propagate(const double &t, const uVector &imu);
   void gpsUpdate(const Vector6d& z);
   void mocapUpdate(const Vector7d& z);
-  void cameraUpdate(const sensors::FeatVec &z);
+  void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
-  void proj(const vehicle::Stated& x_true, const Vector3d& lm, Vector2d& pix, double& rho);
+  void getPixMatches(const sensors::FeatVec& tracked_feats);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
@@ -208,6 +208,7 @@ private:
   uMatrix Qu_;
   MatrixXd I_DOF_;
   VectorXd P_diag_;
+  vector<Vector2d, aligned_allocator<Vector2d>> matched_feats_;
 
   // Sensor parameters
   Vector6d h_gps_;
@@ -216,7 +217,7 @@ private:
   xform::Xformd h_mocap_;
   MatrixXd H_mocap_, K_mocap_;
   Matrix6d R_mocap_;
-  VectorXd h_cam_;
+  VectorXd z_cam_, h_cam_;
   MatrixXd H_cam_, K_cam_;
   Matrix2d R_cam_;
   MatrixXd R_cam_big_;
@@ -224,7 +225,7 @@ private:
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;
   double fx_, fy_, u0_, v0_;
-  sensors::FeatVec feats_true;
+  sensors::FeatVec feats_true_;
 
   // Logging
   ofstream true_state_log_;
