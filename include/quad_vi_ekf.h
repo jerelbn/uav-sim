@@ -186,9 +186,10 @@ public:
 private:
 
   void propagate(const double &t, const uVector &imu);
-  void updateGPS(const Vector6d& z);
-  void updateMocap(const Vector7d& z);
-  void updateCamera(const VectorXd &z);
+  void gpsUpdate(const Vector6d& z);
+  void mocapUpdate(const Vector7d& z);
+  void cameraUpdate(const VectorXd &z);
+  void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
   void proj(const vehicle::Stated& x_true, const Vector3d& lm, Vector2d& pix, double& rho);

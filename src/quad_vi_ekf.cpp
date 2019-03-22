@@ -129,9 +129,9 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
   if (t > 0)
   {
     if (sensors.new_gps_meas_)
-      updateGPS(sensors.gps_);
+      gpsUpdate(sensors.gps_);
     if (sensors.new_mocap_meas_)
-      updateMocap(sensors.mocap_);
+      mocapUpdate(sensors.mocap_);
 
     if (sensors.new_camera_meas_)
     {
@@ -143,7 +143,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
         proj(x_true, lms_[i], pix_true, rho_true);
         z_cam_.segment<2>(2*i) = pix_true;
       }
-      updateCamera(z_cam_);
+      cameraUpdate(z_cam_);
     }
   }
 
@@ -181,7 +181,7 @@ void EKF::propagate(const double &t, const uVector& imu)
 }
 
 
-void EKF::updateGPS(const Vector6d& z)
+void EKF::gpsUpdate(const Vector6d& z)
 {
   // Measurement model and matrix
   h_gps_.head<3>() = x_.p;
@@ -191,14 +191,12 @@ void EKF::updateGPS(const Vector6d& z)
   H_gps_.block<3,3>(3,DV) = x_.q.inverse().R();
   H_gps_.block<3,3>(3,DQ) = -x_.q.inverse().R() * common::skew(x_.v);
 
-  // Kalman gain and update
-  K_gps_ = P_ * H_gps_.transpose() * (R_gps_ + H_gps_ * P_ * H_gps_.transpose()).inverse();
-  x_ += K_gps_ * (z - h_gps_);
-  P_ = (I_NUM_DOF_ - K_gps_ * H_gps_) * P_ * (I_NUM_DOF_ - K_gps_ * H_gps_).transpose() + K_gps_ * R_gps_ * K_gps_.transpose();
+  // Apply the update
+  update(z-h_gps_, R_gps_, H_gps_, K_gps_);
 }
 
 
-void EKF::updateMocap(const Vector7d& z)
+void EKF::mocapUpdate(const Vector7d& z)
 {
   // Pack measurement into Xform
   xform::Xformd Xz(z);
@@ -211,23 +209,27 @@ void EKF::updateMocap(const Vector7d& z)
   H_mocap_.block<3,3>(0,DQ) = -x_.q.inverse().R() * common::skew(p_um_);
   H_mocap_.block<3,3>(3,DQ) = q_u2m_.inverse().R();
 
-  // Kalman gain and update
-  K_mocap_ = P_ * H_mocap_.transpose() * (R_mocap_ + H_mocap_ * P_ * H_mocap_.transpose()).inverse();
-  x_ += K_mocap_ * (Xz - h_mocap_);
-  P_ = (I_NUM_DOF_ - K_mocap_ * H_mocap_) * P_ * (I_NUM_DOF_ - K_mocap_ * H_mocap_).transpose() + K_mocap_ * R_mocap_ * K_mocap_.transpose();
+  // Apply the update
+  update(Xz-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
 }
 
 
-void EKF::updateCamera(const VectorXd &z)
+void EKF::cameraUpdate(const VectorXd &z)
 {
   // Measurement model and matrix
   for (int i = 0; i < num_feat_; ++i)
     h_cam_.segment<2>(2*i) = x_.pixs[i];
 
-  // Kalman gain and update
-  K_cam_ = P_ * H_cam_.transpose() * (R_cam_big_ + H_cam_ * P_ * H_cam_.transpose()).inverse();
-  x_ += K_cam_ * (z - h_cam_);
-  P_ = (I_NUM_DOF_ - K_cam_ * H_cam_) * P_ * (I_NUM_DOF_ - K_cam_ * H_cam_).transpose() + K_cam_ * R_cam_big_ * K_cam_.transpose();
+  // Apply the update
+  update(z-h_cam_, R_cam_big_, H_cam_, K_cam_);
+}
+
+
+void EKF::update(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, MatrixXd &K)
+{
+  K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
+  x_ += K * err;
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R * K.transpose();
 }
 
 

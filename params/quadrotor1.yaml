@@ -124,8 +124,8 @@ gyro_walk_stdev: 0.01
 
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
-camera_update_rate: 50
-pixel_noise_stdev: 0.5
+camera_update_rate: 30
+pixel_noise_stdev: 0.1
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
                   0, 480, 240,
