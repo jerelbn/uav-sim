@@ -5,6 +5,7 @@
 #include <chrono>
 #include "common_cpp/common.h"
 #include "geometry/quat.h"
+#include "geometry/support.h"
 #include "sensors.h"
 #include "vehicle.h"
 
@@ -56,7 +57,7 @@ typedef Matrix<double, NUM_DOF, 1> dxVector;
 typedef Matrix<double, NUM_DOF, NUM_DOF> dxMatrix;
 typedef Matrix<double, NUM_INPUTS, 1> uVector;
 typedef Matrix<double, NUM_INPUTS, NUM_INPUTS> uMatrix;
-typedef Matrix<double, NUM_DOF, 2*NUM_INPUTS> nuMatrix;
+typedef Matrix<double, NUM_DOF, NUM_INPUTS> nuMatrix;
 
 
 template<typename T>
@@ -191,12 +192,12 @@ private:
   dxMatrix P_, F_, A_;
   dxMatrix Qx_;
   nuMatrix G_, B_;
-  Matrix<double,2*NUM_INPUTS,2*NUM_INPUTS> Qu_;
+  uMatrix Qu_;
   dxMatrix I_NUM_DOF_;
 
   // Sensor parameters
   double rho_;
-  Matrix<double,6,6> R_gps_;
+  Matrix6d R_gps_;
   double R_baro_, R_pitot_, R_wv_;
   Vector3d p_ub_;
   quat::Quatd q_u2b_, q_u2pt_, q_u2wv_;

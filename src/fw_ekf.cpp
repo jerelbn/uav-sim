@@ -20,16 +20,11 @@ void EKF::load(const string &filename, const std::string& name)
 {
   // EKF initializations
   xVector x0;
-  dxVector P0_diag, Qx_diag;
-  Matrix<double, 2*NUM_INPUTS, 1> Qu_diag;
   common::get_yaml_eigen("ekf_x0", filename, x0);
-  common::get_yaml_eigen("ekf_P0", filename, P0_diag);
-  common::get_yaml_eigen("ekf_Qx", filename, Qx_diag);
-  common::get_yaml_eigen("ekf_Qu", filename, Qu_diag);
+  common::get_yaml_eigen_diag("ekf_P0", filename, P_);
+  common::get_yaml_eigen_diag("ekf_Qx", filename, Qx_);
+  common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
   x_ = State<double>(x0);
-  P_ = P0_diag.asDiagonal();
-  Qx_ = Qx_diag.asDiagonal();
-  Qu_ = Qu_diag.asDiagonal();
   I_NUM_DOF_.setIdentity();
 
   // Load sensor parameters
@@ -40,8 +35,7 @@ void EKF::load(const string &filename, const std::string& name)
 
   double pitot_az, pitot_el, wv_roll;
   Vector4d q_ub;
-  Matrix<double,6,1> R_gps_diag;
-  common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
+  common::get_yaml_eigen_diag("ekf_R_gps", filename, R_gps_);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
   common::get_yaml_node("pitot_azimuth", filename, pitot_az);
@@ -53,7 +47,6 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2b_ = quat::Quatd(q_ub);
   q_u2pt_ = quat::Quatd(0, pitot_el, pitot_az);
   q_u2wv_ = quat::Quatd(wv_roll, 0, 0);
-  R_gps_ = R_gps_diag.asDiagonal();
 
   // Logging
   std::stringstream ss_t, ss_e, ss_c;
@@ -219,8 +212,6 @@ void EKF::getFG(const Stated &x, const uVector &u, dxMatrix &F, nuMatrix &G)
   G.setZero();
   G.block<3,3>(DV,UA) = -x.q.inverse().R();
   G.block<3,3>(DQ,UG) = -common::I_3x3;
-  G.block<3,3>(DBA,DBA).setIdentity();
-  G.block<3,3>(DBG,DBG).setIdentity();
 }
 
 
