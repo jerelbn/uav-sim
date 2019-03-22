@@ -21,7 +21,7 @@ struct Feat
   Feat()
   {
     pix.setZero();
-    rho = 0.001;
+    rho = 0;
     id = -1;
   }
 
