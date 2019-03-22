@@ -51,7 +51,29 @@ typedef Matrix<double, NUM_BASE_STATES, 1> baseXVector;
 typedef Matrix<double, NUM_BASE_DOF, 1> baseDxVector;
 typedef Matrix<double, NUM_INPUTS, 1> uVector;
 
-typedef vector<Vector2d, aligned_allocator<Vector2d>> FeatVec;
+struct Feat
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  Feat()
+  {
+    pix.setZero();
+    rho = 0.001;
+    id = -1;
+  }
+
+  Feat(const Vector2d& _pix, const double& _rho, const int& _id)
+  {
+    pix = _pix;
+    rho = _rho;
+    id = _id;
+  }
+
+  Vector2d pix;
+  double rho;
+  int id;
+};
+typedef vector<Feat, aligned_allocator<Feat>> FeatVec;
 
 
 template<typename T>
@@ -68,8 +90,7 @@ struct State
     v.setZero();
     ba.setZero();
     bg.setZero();
-    pixs.reserve(nf);
-    rhos.reserve(nf);
+    feats.reserve(nf);
   }
 
   State(const State<T>& x)
@@ -80,8 +101,7 @@ struct State
     q = x.q;
     ba = x.ba;
     bg = x.bg;
-    pixs = x.pixs;
-    rhos = x.rhos;
+    feats = x.feats;
   }
 
   State(const baseXVector &x, const int& num_feat)
@@ -92,11 +112,7 @@ struct State
     q = quat::Quat<T>(x.template segment<4>(Q));
     ba = x.template segment<3>(BA);
     bg = x.template segment<3>(BG);
-    for (int i = 0; i < nf; ++i)
-    {
-      pixs.push_back(Vector2d::Zero());
-      rhos.push_back(1.0);
-    }
+    feats.reserve(nf);
   }
 
   State<T> operator+(const VectorXd &delta) const
@@ -109,8 +125,11 @@ struct State
     x.bg = bg + delta.template segment<3>(DBG);
     for (int i = 0; i < nf; ++i)
     {
-      x.pixs.push_back(pixs[i] + delta.template segment<2>(NUM_BASE_DOF+3*i));
-      x.rhos.push_back(rhos[i] + delta(NUM_BASE_DOF+3*i+2));
+      Feat f;
+      f.pix = feats[i].pix + delta.template segment<2>(NUM_BASE_DOF+3*i);
+      f.rho = feats[i].rho + delta(NUM_BASE_DOF+3*i+2);
+      f.id = feats[i].id;
+      x.feats.push_back(f);
     }
     return x;
   }
@@ -125,8 +144,8 @@ struct State
     dx.template segment<3>(DBG) = bg - x2.bg;
     for (int i = 0; i < nf; ++i)
     {
-      dx.template segment<2>(NUM_BASE_DOF+3*i) = pixs[i] - x2.pixs[i];
-      dx(NUM_BASE_DOF+3*i+2) = rhos[i] - x2.rhos[i];
+      dx.template segment<2>(NUM_BASE_DOF+3*i) = feats[i].pix - x2.feats[i].pix;
+      dx(NUM_BASE_DOF+3*i+2) = feats[i].rho - x2.feats[i].rho;
     }
     return dx;
   }
@@ -147,8 +166,8 @@ struct State
     x.template segment<3>(BG) = bg;
     for (int i = 0; i < nf; ++i)
     {
-      x.template segment<2>(NUM_BASE_STATES+3*i) = pixs[i];
-      x(NUM_BASE_STATES+3*i+2) = rhos[i];
+      x.template segment<2>(NUM_BASE_STATES+3*i) = feats[i].pix;
+      x(NUM_BASE_STATES+3*i+2) = feats[i].rho;
     }
     return x;
   }
@@ -158,8 +177,7 @@ struct State
   quat::Quat<T> q;
   Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
-  FeatVec pixs;
-  vector<double> rhos;
+  FeatVec feats;
   int nf;
 
 };

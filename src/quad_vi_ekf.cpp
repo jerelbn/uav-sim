@@ -113,8 +113,7 @@ void EKF::load(const string &filename, const std::string& name)
   for (int i = 0; i < num_feat_; ++i)
   {
     proj(x_true, lms_[i], pix_true, rho_true);
-    x_.pixs[i] = pix_true;
-    x_.rhos[i] = rho0_;
+    x_.feats.push_back(Feat(pix_true, rho0_, i));
   }
 }
 
@@ -218,7 +217,7 @@ void EKF::cameraUpdate(const VectorXd &z)
 {
   // Measurement model and matrix
   for (int i = 0; i < num_feat_; ++i)
-    h_cam_.segment<2>(2*i) = x_.pixs[i];
+    h_cam_.segment<2>(2*i) = x_.feats[i].pix;
 
   // Apply the update
   update(z-h_cam_, R_cam_big_, H_cam_, K_cam_);
@@ -244,8 +243,10 @@ void EKF::f(const Stated &x, const uVector &u, VectorXd &dx)
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
   for (int i = 0; i < num_feat_; ++i)
   {
-    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(x.pixs[i]) * omega_c + x.rhos[i] * V(x.pixs[i]) * v_c;
-    dx(NUM_BASE_DOF+3*i+2) = x.rhos[i] * M(x.pixs[i]) * omega_c + x.rhos[i] * x.rhos[i] * common::e3.dot(v_c);
+    Vector2d pix = x.feats[i].pix;
+    double rho = x.feats[i].rho;
+    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
+    dx(NUM_BASE_DOF+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
   }
 }
 
@@ -261,8 +262,10 @@ void EKF::f2(const Stated &x, const uVector &u, const uVector& eta, VectorXd &dx
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
   for (int i = 0; i < num_feat_; ++i)
   {
-    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(x.pixs[i]) * omega_c + x.rhos[i] * V(x.pixs[i]) * v_c;
-    dx(NUM_BASE_DOF+3*i+2) = x.rhos[i] * M(x.pixs[i]) * omega_c + x.rhos[i] * x.rhos[i] * common::e3.dot(v_c);
+    Vector2d pix = x.feats[i].pix;
+    double rho = x.feats[i].rho;
+    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
+    dx(NUM_BASE_DOF+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
   }
 }
 
@@ -348,8 +351,8 @@ void EKF::logEst(const double &t)
   ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
   for (int i = 0; i < num_feat_; ++i)
   {
-    ekf_state_log_.write((char*)x_.pixs[i].data(), 2 * sizeof(double));
-    ekf_state_log_.write((char*)&x_.rhos[i], sizeof(double));
+    ekf_state_log_.write((char*)x_.feats[i].pix.data(), 2 * sizeof(double));
+    ekf_state_log_.write((char*)&x_.feats[i].rho, sizeof(double));
   }
 
   P_diag_ = P_.diagonal();
