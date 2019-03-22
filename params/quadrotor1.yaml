@@ -193,7 +193,7 @@ ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # ATT
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
          5e-2, 5e-2, 5e-2] # GYRO BIAS
-ekf_P0_feat: [1e5, 1e5, 0.4]
+ekf_P0_feat: [1e4, 1e4, 0.5]
 ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT

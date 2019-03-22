@@ -1,4 +1,4 @@
-function plot_ekf(name, plot_cov)
+function plot_fw_ekf(name, plot_cov)
 
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_truth.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;euler;acc_bias;gyro_bias;wind_inertial;baro_bias]

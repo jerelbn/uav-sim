@@ -109,9 +109,7 @@ void EKF::load(const string &filename, const std::string& name)
   {
     proj(x_true, lms_[i], pix_true, rho_true);
     x_.pixs[i] = pix_true;
-    x_.rhos[i] = rho_true;
-    x_.pixs[i] = Vector2d(u0_,v0_);
-    x_.rhos[i] = 1.0;
+    x_.rhos[i] = 1.0;//rho_true;
   }
 }
 

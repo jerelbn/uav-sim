@@ -1,9 +1,9 @@
-function plot_ekf(name, plot_cov)
+function plot_quad_ekf(params, plot_cov)
 
 % Load data
-true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_truth.log']), 'r'), 'double'), 1 + 15 + 3 * 4, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
-ekf_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 15 + 3 * 4, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
-ekf_cov = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_cov.log']), 'r'), 'double'), 1 + 15 + 3 * 4, []); % [time;pos;vel;att;acc_bias;gyro_bias;pix;rho]
+true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_est.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;att;acc_bias;gyro_bias;pix;rho]
 
 
 figure()
@@ -121,31 +121,38 @@ for i=1:3
 end
 
 
-figure()
-set(gcf, 'name', 'EKF Pixel/Depth', 'NumberTitle', 'off');
-titles = ["pix_x","pix_y","depth"];
 idx = 16;
-for i=1:3
-    subplot(3, 1, i), hold on, grid on
-    title(titles(i))
-    plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
-    plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
-    if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+for j = 1:params.ekf_num_features
+    figure()
+    set(gcf, 'name', strcat(['EKF Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
+    titles = ["pix_x","pix_y","depth"];
+    for i=1:3
+        subplot(3, 1, i), hold on, grid on
+        title(titles(i))
+        plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
+        plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
+        if plot_cov == true
+            plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+            plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+        end
+        if i == 1
+            legend('Truth', 'EKF')
+        end
     end
-    if i == 1
-        legend('Truth', 'EKF')
-    end
+    idx = idx + 3;
 end
 
 
-figure(), hold on, grid on
-set(gcf, 'name', 'EKF 2D Pixel/Depth', 'NumberTitle', 'off');
-set(gca, 'YDir', 'Reverse')
-title("2D Pixel Position")
-plot(true_state(17, :), true_state(18, :), 'linewidth', 2.0)
-plot(ekf_state(17, :), ekf_state(18, :), 'linewidth', 1.5)
-legend('Truth', 'EKF')
-
+idx = 16;
+for j = 1:params.ekf_num_features
+    figure(), hold on, grid on
+    set(gcf, 'name', strcat(['EKF 2D Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
+    set(gca, 'YDir', 'Reverse')
+    title("2D Pixel Position")
+    plot(true_state(idx+1, :), true_state(idx+2, :), 'linewidth', 2.0)
+    plot(ekf_state(idx+1, :), ekf_state(idx+2, :), 'linewidth', 1.5)
+    legend('Truth', 'EKF')
+    idx = idx + 3;
 end
+
+end % function plot_quad_ekf
