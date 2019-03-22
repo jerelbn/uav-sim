@@ -25,7 +25,7 @@ enum
   Q = 6,
   BA = 10,
   BG = 13,
-  NUM_BASE_STATES = 16
+  NBS = 16 // number of base states (neglecting features)
 };
 
 // Derivative indices
@@ -36,7 +36,7 @@ enum
   DQ = 6,
   DBA = 9,
   DBG = 12,
-  NUM_BASE_DOF = 15
+  NBD = 15 // number of base degrees of freedom (neglecting features)
 };
 
 // Input indices
@@ -44,12 +44,13 @@ enum
 {
   UA = 0,
   UG = 3,
-  NUM_INPUTS = 6
+  NI = 6 // number of propagation inputs (imu)
 };
 
-typedef Matrix<double, NUM_BASE_STATES, 1> baseXVector;
-typedef Matrix<double, NUM_BASE_DOF, 1> baseDxVector;
-typedef Matrix<double, NUM_INPUTS, 1> uVector;
+typedef Matrix<double, NBS, 1> baseXVector;
+typedef Matrix<double, NBD, 1> baseDxVector;
+typedef Matrix<double, NI, 1> uVector;
+typedef Matrix<double, NI, NI> uMatrix;
 
 
 template<typename T>
@@ -102,8 +103,8 @@ struct State
     for (int i = 0; i < nf; ++i)
     {
       sensors::Feat f;
-      f.pix = feats[i].pix + delta.template segment<2>(NUM_BASE_DOF+3*i);
-      f.rho = feats[i].rho + delta(NUM_BASE_DOF+3*i+2);
+      f.pix = feats[i].pix + delta.template segment<2>(NBD+3*i);
+      f.rho = feats[i].rho + delta(NBD+3*i+2);
       f.id = feats[i].id;
       x.feats.push_back(f);
     }
@@ -112,7 +113,7 @@ struct State
 
   VectorXd operator-(const State<T> &x2) const
   {
-    VectorXd dx(NUM_BASE_DOF+3*nf);
+    VectorXd dx(NBD+3*nf);
     dx.template segment<3>(DP) = p - x2.p;
     dx.template segment<3>(DV) = v - x2.v;
     dx.template segment<3>(DQ) = q - x2.q;
@@ -120,8 +121,8 @@ struct State
     dx.template segment<3>(DBG) = bg - x2.bg;
     for (int i = 0; i < nf; ++i)
     {
-      dx.template segment<2>(NUM_BASE_DOF+3*i) = feats[i].pix - x2.feats[i].pix;
-      dx(NUM_BASE_DOF+3*i+2) = feats[i].rho - x2.feats[i].rho;
+      dx.template segment<2>(NBD+3*i) = feats[i].pix - x2.feats[i].pix;
+      dx(NBD+3*i+2) = feats[i].rho - x2.feats[i].rho;
     }
     return dx;
   }
@@ -134,7 +135,7 @@ struct State
 
   VectorXd toEigen() const
   {
-    VectorXd x(NUM_BASE_STATES+3*nf);
+    VectorXd x(NBS+3*nf);
     x.template segment<3>(P) = p;
     x.template segment<3>(V) = v;
     x.template segment<4>(Q) = q.elements();
@@ -142,8 +143,8 @@ struct State
     x.template segment<3>(BG) = bg;
     for (int i = 0; i < nf; ++i)
     {
-      x.template segment<2>(NUM_BASE_STATES+3*i) = feats[i].pix;
-      x(NUM_BASE_STATES+3*i+2) = feats[i].rho;
+      x.template segment<2>(NBS+3*i) = feats[i].pix;
+      x(NBS+3*i+2) = feats[i].rho;
     }
     return x;
   }
@@ -196,14 +197,15 @@ private:
   vector<Vector3d, aligned_allocator<Vector3d>> lms_; // landmarks in inertial frame
 
   // Primary variables
-  int num_feat_, num_states_, num_dof_;
+  int num_feat_max_, num_feat_active_;
+  int num_states_, num_dof_;
   double t_prev_;
   double rho0_;
   State<double> x_;
   VectorXd xdot_, xdot_prev_, dxp_, dxm_;
   MatrixXd P_, F_, A_, Qx_, G_, B_;
   Matrix3d P0_feat_, Qx_feat_;
-  Matrix<double,NUM_INPUTS,NUM_INPUTS> Qu_;
+  uMatrix Qu_;
   MatrixXd I_NUM_DOF_;
   VectorXd P_diag_;
 

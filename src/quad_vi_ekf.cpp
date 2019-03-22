@@ -5,7 +5,7 @@ namespace qviekf
 {
 
 
-EKF::EKF() : t_prev_(0) {}
+EKF::EKF() : t_prev_(0), num_feat_active_(0) {}
 
 
 EKF::~EKF()
@@ -19,9 +19,9 @@ EKF::~EKF()
 void EKF::load(const string &filename, const std::string& name)
 {
   // Resize arrays to the correct sizes
-  common::get_yaml_node("ekf_num_features", filename, num_feat_);
-  num_states_ = NUM_BASE_STATES + 3 * num_feat_;
-  num_dof_ = NUM_BASE_DOF + 3 * num_feat_;
+  common::get_yaml_node("ekf_num_features", filename, num_feat_max_);
+  num_states_ = NBS + 3 * num_feat_max_;
+  num_dof_ = NBD + 3 * num_feat_max_;
 
   xdot_ = VectorXd::Zero(num_dof_);
   xdot_prev_ = VectorXd::Zero(num_dof_);
@@ -32,13 +32,13 @@ void EKF::load(const string &filename, const std::string& name)
   A_ = MatrixXd::Zero(num_dof_,num_dof_);
   Qx_ = MatrixXd::Zero(num_dof_,num_dof_);
   I_NUM_DOF_ = MatrixXd::Zero(num_dof_,num_dof_);
-  G_ = MatrixXd::Zero(num_dof_,NUM_INPUTS);
-  B_ = MatrixXd::Zero(num_dof_,NUM_INPUTS);
-  R_cam_big_ = MatrixXd::Zero(2*num_feat_,2*num_feat_);
-  z_cam_ = VectorXd::Zero(2*num_feat_);
-  h_cam_ = VectorXd::Zero(2*num_feat_);
-  H_cam_ = MatrixXd::Zero(2*num_feat_,num_dof_);
-  K_cam_ = MatrixXd::Zero(num_dof_,2*num_feat_);
+  G_ = MatrixXd::Zero(num_dof_,NI);
+  B_ = MatrixXd::Zero(num_dof_,NI);
+  R_cam_big_ = MatrixXd::Zero(2*num_feat_max_,2*num_feat_max_);
+  z_cam_ = VectorXd::Zero(2*num_feat_max_);
+  h_cam_ = VectorXd::Zero(2*num_feat_max_);
+  H_cam_ = MatrixXd::Zero(2*num_feat_max_,num_dof_);
+  K_cam_ = MatrixXd::Zero(num_dof_,2*num_feat_max_);
   H_gps_ = MatrixXd::Zero(6,num_dof_);
   K_gps_ = MatrixXd::Zero(num_dof_,6);
   H_mocap_ = MatrixXd::Zero(6,num_dof_);
@@ -54,18 +54,17 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
   common::get_yaml_eigen_diag("ekf_P0_feat", filename, P0_feat_);
   common::get_yaml_eigen_diag("ekf_Qx_feat", filename, Qx_feat_);
-  x_ = State<double>(x0, num_feat_);
-  P_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = P0_base.asDiagonal();
-  Qx_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = Qx_base.asDiagonal();
-  for (int i = 0; i < num_feat_; ++i)
+  x_ = State<double>(x0, num_feat_max_);
+  P_.topLeftCorner<NBD,NBD>() = P0_base.asDiagonal();
+  Qx_.topLeftCorner<NBD,NBD>() = Qx_base.asDiagonal();
+  for (int i = 0; i < num_feat_max_; ++i)
   {
-    P_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = P0_feat_;
-    Qx_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = Qx_feat_;
+    P_.block<3,3>(NBD+3*i,NBD+3*i) = P0_feat_;
+    Qx_.block<3,3>(NBD+3*i,NBD+3*i) = Qx_feat_;
   }
   I_NUM_DOF_.setIdentity();
-  xdot_prev_.setZero();
-  for (int i = 0; i < num_feat_; ++i)
-    H_cam_.block<2,2>(2*i,NUM_BASE_DOF+3*i).setIdentity();
+  for (int i = 0; i < num_feat_max_; ++i)
+    H_cam_.block<2,2>(2*i,NBD+3*i).setIdentity();
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
@@ -82,7 +81,7 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2b_ = quat::Quatd(q_ub);
   q_u2m_ = quat::Quatd(q_um);
   q_u2c_ = quat::Quatd(q_uc);
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
     R_cam_big_.block<2,2>(2*i,2*i) = R_cam_;
   fx_ = cam_matrix_(0,0);
   fy_ = cam_matrix_(1,1);
@@ -110,7 +109,7 @@ void EKF::load(const string &filename, const std::string& name)
   vehicle::Stated x_true;
   x_true.p = x_.p;
   x_true.q = x_.q;
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
   {
     proj(x_true, lms_[i], pix_true, rho_true);
     x_.feats.push_back(sensors::Feat(pix_true, rho0_, i));
@@ -137,7 +136,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
       // Compute true landmark pixel measurement
       Vector2d pix_true;
       double rho_true;
-      for (int i = 0; i < num_feat_; ++i)
+      for (int i = 0; i < num_feat_max_; ++i)
       {
         proj(x_true, lms_[i], pix_true, rho_true);
         z_cam_.segment<2>(2*i) = pix_true;
@@ -216,7 +215,7 @@ void EKF::mocapUpdate(const Vector7d& z)
 void EKF::cameraUpdate(const VectorXd &z)
 {
   // Measurement model and matrix
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
     h_cam_.segment<2>(2*i) = x_.feats[i].pix;
 
   // Apply the update
@@ -241,12 +240,12 @@ void EKF::f(const Stated &x, const uVector &u, VectorXd &dx)
   dx.segment<3>(DP) = x.q.rota(x.v);
   dx.segment<3>(DV) = u.segment<3>(UA) - x.ba + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
   {
     Vector2d pix = x.feats[i].pix;
     double rho = x.feats[i].rho;
-    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
-    dx(NUM_BASE_DOF+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
+    dx.segment<2>(NBD+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
+    dx(NBD+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
   }
 }
 
@@ -260,12 +259,12 @@ void EKF::f2(const Stated &x, const uVector &u, const uVector& eta, VectorXd &dx
   dx.segment<3>(DP) = x.q.rota(x.v);
   dx.segment<3>(DV) = u.segment<3>(UA) - x.ba - eta.segment<3>(UA) + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
   dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
   {
     Vector2d pix = x.feats[i].pix;
     double rho = x.feats[i].rho;
-    dx.segment<2>(NUM_BASE_DOF+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
-    dx(NUM_BASE_DOF+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
+    dx.segment<2>(NBD+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
+    dx(NBD+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
   }
 }
 
@@ -332,7 +331,7 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   // Compute true landmark pixel measurement
   Vector2d pix_true;
   double rho_true;
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
   {
     proj(x_true, lms_[i], pix_true, rho_true);
     true_state_log_.write((char*)pix_true.data(), 2 * sizeof(double));
@@ -349,7 +348,7 @@ void EKF::logEst(const double &t)
   ekf_state_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
-  for (int i = 0; i < num_feat_; ++i)
+  for (int i = 0; i < num_feat_max_; ++i)
   {
     ekf_state_log_.write((char*)x_.feats[i].pix.data(), 2 * sizeof(double));
     ekf_state_log_.write((char*)&x_.feats[i].rho, sizeof(double));
