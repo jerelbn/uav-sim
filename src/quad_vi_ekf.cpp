@@ -43,6 +43,7 @@ void EKF::load(const string &filename, const std::string& name)
   // Initializations
   baseXVector x0;
   baseDxVector P0_base, Qx_base;
+  common::get_yaml_node("ekf_rho0", filename, rho0_);
   common::get_yaml_eigen("ekf_x0", filename, x0);
   common::get_yaml_eigen("ekf_P0", filename, P0_base);
   common::get_yaml_eigen("ekf_Qx", filename, Qx_base);
@@ -109,7 +110,7 @@ void EKF::load(const string &filename, const std::string& name)
   {
     proj(x_true, lms_[i], pix_true, rho_true);
     x_.pixs[i] = pix_true;
-    x_.rhos[i] = 1.0;//rho_true;
+    x_.rhos[i] = rho0_;
   }
 }
 

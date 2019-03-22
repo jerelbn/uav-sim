@@ -203,6 +203,7 @@ private:
   // Primary variables
   int num_feat_, num_states_, num_dof_;
   double t_prev_;
+  double rho0_;
   State<double> x_;
   VectorXd xdot_, xdot_prev_, dxp_, dxm_;
   MatrixXd P_, F_, A_, Qx_, G_, B_;
