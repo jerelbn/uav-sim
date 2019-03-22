@@ -93,7 +93,7 @@ circ_hd: 5.0
 
 # Sensors
 imu_enabled: true
-camera_enabled: false
+camera_enabled: true
 mocap_enabled: false
 baro_enabled: false
 pitot_enabled: false
@@ -182,6 +182,7 @@ target_noise_stdev: 1.0
 
 
 ## EKF Parameters
+ekf_num_features: 4
 ekf_x0: [0, 0, -5,    # POS
          0, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
@@ -192,7 +193,7 @@ ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # ATT
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
          5e-2, 5e-2, 5e-2] # GYRO BIAS
-ekf_P0_feat: [100.0, 100.0, 0.4]
+ekf_P0_feat: [1e5, 1e5, 0.4]
 ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
