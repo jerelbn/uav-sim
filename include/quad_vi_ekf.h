@@ -227,13 +227,15 @@ private:
   dxMatrix P_, F_, A_;
   dxMatrix Qx_;
   nuMatrix G_, B_;
+  Matrix3d P0_feat_, Qx_feat_;
   Matrix<double,NUM_INPUTS,NUM_INPUTS> Qu_;
   dxMatrix I_NUM_DOF_;
 
   // Sensor parameters
   Matrix6d R_gps_;
   Matrix6d R_mocap_;
-  Matrix<double,2*NUM_FEATURES,2*NUM_FEATURES> R_pix_;
+  Matrix2d R_pix_;
+  Matrix<double,2*NUM_FEATURES,2*NUM_FEATURES> R_pix_big_;
   Vector3d p_ub_, p_um_, p_uc_;
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;

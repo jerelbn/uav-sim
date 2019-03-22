@@ -20,34 +20,30 @@ void EKF::load(const string &filename, const std::string& name)
 {
   // EKF initializations
   baseXVector x0;
-  baseDxVector P0_diag, Qx_diag;
-  Vector3d P0_feat_diag, Qx_feat_diag;
-  Matrix<double, NUM_INPUTS, 1> Qu_diag;
+  baseDxVector P0_base, Qx_base;
+  common::get_yaml_node("ekf_num_features", filename, num_feat_);
   common::get_yaml_eigen("ekf_x0", filename, x0);
-  common::get_yaml_eigen("ekf_P0", filename, P0_diag);
-  common::get_yaml_eigen("ekf_Qx", filename, Qx_diag);
-  common::get_yaml_eigen("ekf_Qu", filename, Qu_diag);
-  common::get_yaml_eigen("ekf_P0_feat", filename, P0_feat_diag);
-  common::get_yaml_eigen("ekf_Qx_feat", filename, Qx_feat_diag);
+  common::get_yaml_eigen("ekf_P0", filename, P0_base);
+  common::get_yaml_eigen("ekf_Qx", filename, Qx_base);
+  common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
+  common::get_yaml_eigen_diag("ekf_P0_feat", filename, P0_feat_);
+  common::get_yaml_eigen_diag("ekf_Qx_feat", filename, Qx_feat_);
   x_ = State<double>(x0);
-  P_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = P0_diag.asDiagonal();
-  Qx_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = Qx_diag.asDiagonal();
-  Qu_ = Qu_diag.asDiagonal();
-  I_NUM_DOF_.setIdentity();
+  P_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = P0_base.asDiagonal();
+  Qx_.topLeftCorner<NUM_BASE_DOF,NUM_BASE_DOF>() = Qx_base.asDiagonal();
   for (int i = 0; i < NUM_FEATURES; ++i)
   {
-    P_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = P0_feat_diag.asDiagonal();
-    Qx_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = Qx_feat_diag.asDiagonal();
+    P_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = P0_feat_;
+    Qx_.block<3,3>(NUM_BASE_DOF+3*i,NUM_BASE_DOF+3*i) = Qx_feat_;
   }
+  I_NUM_DOF_.setIdentity();
   xdot_prev_.setZero();
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
-  Vector6d R_gps_diag, R_mocap_diag;
-  Vector2d R_pix_diag;
-  common::get_yaml_eigen("ekf_R_gps", filename, R_gps_diag);
-  common::get_yaml_eigen("ekf_R_mocap", filename, R_mocap_diag);
-  common::get_yaml_eigen("ekf_R_pix", filename, R_pix_diag);
+  common::get_yaml_eigen_diag("ekf_R_gps", filename, R_gps_);
+  common::get_yaml_eigen_diag("ekf_R_mocap", filename, R_mocap_);
+  common::get_yaml_eigen_diag("ekf_R_pix", filename, R_pix_);
   common::get_yaml_eigen("p_ub", filename, p_ub_);
   common::get_yaml_eigen("q_ub", filename, q_ub);
   common::get_yaml_eigen("p_um", filename, p_um_);
@@ -58,10 +54,8 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2b_ = quat::Quatd(q_ub);
   q_u2m_ = quat::Quatd(q_um);
   q_u2c_ = quat::Quatd(q_uc);
-  R_gps_ = R_gps_diag.asDiagonal();
-  R_mocap_ = R_mocap_diag.asDiagonal();
   for (int i = 0; i < NUM_FEATURES; ++i)
-    R_pix_.block<2,2>(2*i,2*i) = R_pix_diag.asDiagonal();
+    R_pix_big_.block<2,2>(2*i,2*i) = R_pix_;
   fx_ = cam_matrix_(0,0);
   fy_ = cam_matrix_(1,1);
   u0_ = cam_matrix_(0,2);
@@ -209,9 +203,9 @@ void EKF::updateCamera(const Matrix<double,2*NUM_FEATURES,1> &z)
   }
 
   // Kalman gain and update
-  Matrix<double,NUM_DOF,2*NUM_FEATURES> K = P_ * H.transpose() * (R_pix_ + H * P_ * H.transpose()).inverse();
+  Matrix<double,NUM_DOF,2*NUM_FEATURES> K = P_ * H.transpose() * (R_pix_big_ + H * P_ * H.transpose()).inverse();
   x_ += K * (z - h);
-  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_pix_ * K.transpose();
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_pix_big_ * K.transpose();
 }
 
 
