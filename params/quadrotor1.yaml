@@ -4,7 +4,7 @@ accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters
-x0: [0, 0, -5,    # POS
+x0: [0, 0, -10,    # POS
      0, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
@@ -76,8 +76,8 @@ waypoint_velocity_threshold: 0.5
 
 traj_delta_north: 10
 traj_delta_east: 10
-traj_delta_alt: 2
-traj_delta_yaw: 1.5
+traj_delta_alt: 0
+traj_delta_yaw: 0
 traj_nom_north: 0
 traj_nom_east: 0
 traj_nom_alt: 10
@@ -130,8 +130,9 @@ image_size: [640, 480]
 camera_matrix: [480,   0, 320,
                   0, 480, 240,
                   0,   0,   1]
-p_uc: [0.1, 0, 0.05] # translation from body to camera in body frame
-q_uc: [0.707106781186548, 0.0, 0.0, 0.707106781186548] # rotation from body to camera
+p_uc: [0, 0, 0] # translation from body to camera in body frame
+# q_uc: [0.707106781186548, 0.0, 0.0, 0.707106781186548] # rotation from body to camera
+q_uc: [1, 0, 0, 0] # rotation from body to camera
 save_pixel_measurements: false
 
 ## Motion Capture
@@ -182,9 +183,9 @@ target_noise_stdev: 1.0
 
 
 ## EKF Parameters
-ekf_num_features: 4
-ekf_rho0: 0.001
-ekf_x0: [0, 0, -5,    # POS
+ekf_num_features: 5
+ekf_rho0: 0.01
+ekf_x0: [0, 0, -10,    # POS
          0, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS
@@ -192,9 +193,9 @@ ekf_x0: [0, 0, -5,    # POS
 ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # VEL
          1e-1, 1e-1, 1e-1, # ATT
-         1e-1, 1e-1, 1e-1, # ACCEL BIAS
-         5e-2, 5e-2, 5e-2] # GYRO BIAS
-ekf_P0_feat: [1e-1, 1e-1, 0.2]
+         0.5, 0.5, 0.5, # ACCEL BIAS
+         0.2, 0.2, 0.2] # GYRO BIAS
+ekf_P0_feat: [0.1, 0.1, 0.2]
 ekf_Qx: [1e-8, 1e-8, 1e-8, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
