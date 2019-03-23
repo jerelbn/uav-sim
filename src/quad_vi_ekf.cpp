@@ -98,10 +98,11 @@ void EKF::load(const string &filename, const std::string& name)
   cov_log_.open(ss_c.str());
 
   // Temporaries
-  lms_.push_back(Vector3d(3,3,0));
-  lms_.push_back(Vector3d(-3,3,0));
-  lms_.push_back(Vector3d(-3,-3,0));
-  lms_.push_back(Vector3d(3,-3,0));
+  for (int i = 0; i < num_feat_max_; ++i)
+  {
+    lms_.push_back(Vector3d::Random()*5);
+    lms_[i](2) = 0;
+  }
 
   // Compute true landmark pixel measurement
   Vector2d pix_true;

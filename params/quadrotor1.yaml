@@ -4,7 +4,7 @@ accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters
-x0: [0, 0, -5,    # POS
+x0: [0, 0, -1,    # POS
      0, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
@@ -80,7 +80,7 @@ traj_delta_alt: 2
 traj_delta_yaw: 1.5
 traj_nom_north: 0
 traj_nom_east: 0
-traj_nom_alt: 10
+traj_nom_alt: 5
 traj_nom_yaw: 0
 traj_north_period: 20
 traj_east_period: 10
@@ -119,7 +119,7 @@ accel_bias_init_bound: 0.5
 accel_walk_stdev: 0.1
 
 gyro_noise_stdev: 0.1
-gyro_bias_init_bound: 0.2
+gyro_bias_init_bound: 0.1
 gyro_walk_stdev: 0.01
 
 ## Camera
@@ -182,9 +182,9 @@ target_noise_stdev: 1.0
 
 
 ## EKF Parameters
-ekf_num_features: 4
-ekf_rho0: 0.001
-ekf_x0: [0, 0, -5,    # POS
+ekf_num_features: 10
+ekf_rho0: 1.0
+ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS
@@ -192,9 +192,9 @@ ekf_x0: [0, 0, -5,    # POS
 ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # VEL
          1e-1, 1e-1, 1e-1, # ATT
-         1e-1, 1e-1, 1e-1, # ACCEL BIAS
-         5e-2, 5e-2, 5e-2] # GYRO BIAS
-ekf_P0_feat: [1e-1, 1e-1, 0.2]
+         3e-1, 3e-1, 3e-1, # ACCEL BIAS
+         1e-2, 1e-2, 1e-2] # GYRO BIAS
+ekf_P0_feat: [1e-1, 1e-1, 0.25]
 ekf_Qx: [1e-8, 1e-8, 1e-8, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
@@ -207,4 +207,4 @@ ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
             0.05, 0.05, 0.15] # VELOCITY
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
-ekf_R_cam: [0.1, 0.1]
+ekf_R_cam: [100.0, 100.0]
