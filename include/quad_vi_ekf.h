@@ -190,6 +190,8 @@ private:
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
+  void removeFeatFromState(const int& idx);
+  void addFeatToState(const sensors::FeatVec &tracked_feats);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);

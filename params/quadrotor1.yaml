@@ -190,12 +190,12 @@ ekf_x0: [0, 0, -1,    # POS
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS
          0, 0, 0]    # GYRO BIAS
-ekf_P0: [1e-1, 1e-1, 1e-1, # POS
-         1e-1, 1e-1, 1e-1, # VEL
-         1e-1, 1e-1, 1e-1, # ATT
-         0.04, 0.04, 0.04, # ACCEL BIAS
-         0.004, 0.004, 0.004] # GYRO BIAS
-ekf_P0_feat: [0.01, 0.01, 1.0]
+ekf_P0: [1e-6, 1e-6, 1e-6, # POS
+         1e-6, 1e-6, 1e-6, # VEL
+         1e-4, 1e-4, 1e-4, # ATT
+         5e-2, 5e-2, 5e-2, # ACCEL BIAS
+         5e-3, 5e-3, 5e-3] # GYRO BIAS
+ekf_P0_feat: [0.01, 0.01, 0.5]
 ekf_Qx: [1e-8, 1e-8, 1e-8, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT

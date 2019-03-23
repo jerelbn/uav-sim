@@ -213,19 +213,7 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
 
   // Fill state with new features if needed
   if (nfa_ < nfm_)
-  {
-    for (int i = nfa_; i < nfm_; ++i)
-    {
-      // Random selection for now
-      int idx = round((double)rand() / RAND_MAX * tracked_feats.size());
-      x_.feats[i] = sensors::Feat(tracked_feats[idx].pix,rho0_,tracked_feats[idx].id);
-      P_.block<3,3>(NBD+3*i,NBD+3*i) = P0_feat_;
-      ++nfa_;
-
-      feats_true_[i].pix = tracked_feats[idx].pix;
-      feats_true_[i].rho = tracked_feats[idx].rho;
-    }
-  }
+    addFeatToState(tracked_feats);
 }
 
 
@@ -251,36 +239,56 @@ void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
 
     // Remove feature from state when no longer tracked
     if (!id_match_found)
-    {
-      // Shift and reset state and covariance
-      int j;
-      for (j = i; j < nfa_-1; ++j)
-      {
-        x_.feats[j] = x_.feats[j+1];
-        P_.row(NBD+3*j) = P_.row(NBD+3*(j+1));
-        P_.row(NBD+3*j+1) = P_.row(NBD+3*(j+1)+1);
-        P_.row(NBD+3*j+2) = P_.row(NBD+3*(j+1)+2);
-        P_.col(NBD+3*j) = P_.col(NBD+3*(j+1));
-        P_.col(NBD+3*j+1) = P_.col(NBD+3*(j+1)+1);
-        P_.col(NBD+3*j+2) = P_.col(NBD+3*(j+1)+2);
-      }
-      x_.feats[j] = sensors::Feat();
-      P_.row(NBD+3*j).setZero();
-      P_.row(NBD+3*j+1).setZero();
-      P_.row(NBD+3*j+2).setZero();
-      P_.col(NBD+3*j).setZero();
-      P_.col(NBD+3*j+1).setZero();
-      P_.col(NBD+3*j+2).setZero();
-
-      // Decrement the active feature counter
-      --nfa_;
-    }
+      removeFeatFromState(i);
     else
       ++i;
   }
 
   if (matched_feats_.size() != nfa_)
     cerr << "Matched camera measurements does not match number of active features!" << endl;
+}
+
+
+void EKF::removeFeatFromState(const int &idx)
+{
+  // Shift and reset state and covariance
+  int j;
+  for (j = idx; j < nfa_-1; ++j)
+  {
+    x_.feats[j] = x_.feats[j+1];
+    P_.row(NBD+3*j) = P_.row(NBD+3*(j+1));
+    P_.row(NBD+3*j+1) = P_.row(NBD+3*(j+1)+1);
+    P_.row(NBD+3*j+2) = P_.row(NBD+3*(j+1)+2);
+    P_.col(NBD+3*j) = P_.col(NBD+3*(j+1));
+    P_.col(NBD+3*j+1) = P_.col(NBD+3*(j+1)+1);
+    P_.col(NBD+3*j+2) = P_.col(NBD+3*(j+1)+2);
+  }
+  x_.feats[j] = sensors::Feat();
+  P_.row(NBD+3*j).setZero();
+  P_.row(NBD+3*j+1).setZero();
+  P_.row(NBD+3*j+2).setZero();
+  P_.col(NBD+3*j).setZero();
+  P_.col(NBD+3*j+1).setZero();
+  P_.col(NBD+3*j+2).setZero();
+
+  // Decrement the active feature counter
+  --nfa_;
+}
+
+
+void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
+{
+  for (int i = nfa_; i < nfm_; ++i)
+  {
+    // Random selection for now
+    int idx = round((double)rand() / RAND_MAX * tracked_feats.size());
+    x_.feats[i] = sensors::Feat(tracked_feats[idx].pix,rho0_,tracked_feats[idx].id);
+    P_.block<3,3>(NBD+3*i,NBD+3*i) = P0_feat_;
+    ++nfa_;
+
+    feats_true_[i].pix = tracked_feats[idx].pix;
+    feats_true_[i].rho = tracked_feats[idx].rho;
+  }
 }
 
 
