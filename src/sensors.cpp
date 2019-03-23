@@ -53,7 +53,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("accel_noise_stdev", filename, accel_noise_stdev);
   common::get_yaml_node("accel_walk_stdev", filename, accel_walk_stdev);
   common::get_yaml_node("accel_bias_init_bound", filename, accel_bias_init_bound);
-  q_ub_ = quat::Quatd(q_ub.data());
+  q_ub_ = quat::Quatd(q_ub);
   q_ub_.normalize();
   accel_noise_dist_ = normal_distribution<double>(0.0, accel_noise_stdev);
   accel_walk_dist_ = normal_distribution<double>(0.0, accel_walk_stdev);
@@ -97,7 +97,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_eigen("p_uc", filename, p_uc_);
   pixel_noise_dist_ = normal_distribution<double>(0.0, pixel_noise_stdev);
   K_inv_ = K_.inverse();
-  q_uc_ = quat::Quatd(q_uc.data());
+  q_uc_ = quat::Quatd(q_uc);
   q_uc_.normalize();
   pixel_noise_.setZero();
   new_camera_meas_ = false;
@@ -116,7 +116,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
   common::get_yaml_eigen("q_um", filename, q_um);
   common::get_yaml_eigen("p_um", filename, p_um_);
-  q_um_ = quat::Quatd(q_um.data());
+  q_um_ = quat::Quatd(q_um);
   q_um_.normalize();
   mocap_noise_dist_ = normal_distribution<double>(0.0, mocap_noise_stdev);
   mocap_noise_.setZero();

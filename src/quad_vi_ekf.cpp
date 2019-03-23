@@ -74,7 +74,7 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen("p_um", filename, p_um_);
   common::get_yaml_eigen("q_um", filename, q_um);
   common::get_yaml_eigen("p_uc", filename, p_uc_);
-  common::get_yaml_eigen("q_um", filename, q_uc);
+  common::get_yaml_eigen("q_uc", filename, q_uc);
   common::get_yaml_eigen("camera_matrix", filename, cam_matrix_);
   q_u2b_ = quat::Quatd(q_ub);
   q_u2m_ = quat::Quatd(q_um);
