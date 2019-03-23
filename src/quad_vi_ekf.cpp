@@ -193,8 +193,7 @@ void EKF::mocapUpdate(const Vector7d& z)
 
 void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
 {
-  // Collect measurement of each feature in the state and remove
-  // feature states that have lost tracking
+  // Collect measurement of each feature in the state and remove feature states that have lost tracking
   getPixMatches(tracked_feats);
 
   // Apply the update
