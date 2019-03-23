@@ -67,7 +67,8 @@ struct State
     v.setZero();
     ba.setZero();
     bg.setZero();
-    feats.reserve(nf);
+    for (int i = 0; i < nf; ++i)
+      feats.push_back(sensors::Feat());
   }
 
   State(const State<T>& x)
@@ -89,7 +90,8 @@ struct State
     q = quat::Quat<T>(x.template segment<4>(Q));
     ba = x.template segment<3>(BA);
     bg = x.template segment<3>(BG);
-    feats.reserve(nf);
+    for (int i = 0; i < nf; ++i)
+      feats.push_back(sensors::Feat());
   }
 
   State<T> operator+(const VectorXd &delta) const
@@ -106,7 +108,7 @@ struct State
       f.pix = feats[i].pix + delta.template segment<2>(NBD+3*i);
       f.rho = feats[i].rho + delta(NBD+3*i+2);
       f.id = feats[i].id;
-      x.feats.push_back(f);
+      x.feats[i] = f;
     }
     return x;
   }
@@ -133,7 +135,7 @@ struct State
   }
 
 
-  VectorXd toEigen() const
+  VectorXd vec() const
   {
     VectorXd x(NBS+3*nf);
     x.template segment<3>(P) = p;
@@ -183,31 +185,33 @@ private:
   void propagate(const double &t, const uVector &imu);
   void gpsUpdate(const Vector6d& z);
   void mocapUpdate(const Vector7d& z);
-  void cameraUpdate(const VectorXd &z);
+  void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
-  void proj(const vehicle::Stated& x_true, const Vector3d& lm, Vector2d& pix, double& rho);
+  void getPixMatches(const sensors::FeatVec& tracked_feats);
+  void removeFeatFromState(const int& idx);
+  void addFeatToState(const sensors::FeatVec &tracked_feats);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
   RowVector3d M(const Vector2d& nu);
 
-  // Temporary variables for testing pixel propagation
-  vector<Vector3d, aligned_allocator<Vector3d>> lms_; // landmarks in inertial frame
-
   // Primary variables
-  int num_feat_max_, num_feat_active_;
+  int nfm_; // maximum number of features in the state
+  int nfa_; // active number of features in the state
   int num_states_, num_dof_;
   double t_prev_;
   double rho0_;
+  bool init_imu_bias_;
   State<double> x_;
   VectorXd xdot_, xdot_prev_, dxp_, dxm_;
   MatrixXd P_, F_, A_, Qx_, G_, B_;
   Matrix3d P0_feat_, Qx_feat_;
   uMatrix Qu_;
-  MatrixXd I_NUM_DOF_;
+  MatrixXd I_DOF_;
   VectorXd P_diag_;
+  vector<Vector2d, aligned_allocator<Vector2d>> matched_feats_;
 
   // Sensor parameters
   Vector6d h_gps_;
@@ -224,6 +228,8 @@ private:
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;
   double fx_, fy_, u0_, v0_;
+  Vector2d image_center_;
+  sensors::FeatVec feats_true_;
 
   // Logging
   ofstream true_state_log_;

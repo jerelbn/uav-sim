@@ -1,14 +1,13 @@
-function animate_img(speed, name)
+function animate_img(speed, params)
 
 % Load data
-cam_max_feat = 10000;
-pix = reshape(fread(fopen(strcat(['/tmp/',name,'_camera.log']), 'r'), 'double'), 3*cam_max_feat+1, []);
+pix = reshape(fread(fopen(strcat(['/tmp/',params.name,'_camera.log']), 'r'), 'double'), 1+4*params.camera_max_features, []);
 
 persistent image_handle
 
 for i =1:speed:size(pix,2)
     pix_img = pix(pix(:,i) >= 0,i);
-    pix_img = reshape(pix_img(2:end),3,[]);
+    pix_img = reshape(pix_img(2:end),4,[]);
     if i == 1
         figure()
         image_handle = plot(pix_img(1,:), pix_img(2,:), 'b.');
