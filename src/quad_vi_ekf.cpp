@@ -49,6 +49,7 @@ void EKF::load(const string &filename, const std::string& name)
   baseXVector x0;
   baseDxVector P0_base, Qx_base;
   common::get_yaml_node("ekf_rho0", filename, rho0_);
+  common::get_yaml_node("ekf_init_imu_bias", filename, init_imu_bias_);
   common::get_yaml_eigen("ekf_x0", filename, x0);
   common::get_yaml_eigen("ekf_P0", filename, P0_base);
   common::get_yaml_eigen("ekf_Qx", filename, Qx_base);
@@ -100,7 +101,7 @@ void EKF::load(const string &filename, const std::string& name)
 void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
   // Initialize IMU close to the truth (simulate flat ground calibration)
-  if (t == -1)
+  if (t == 0 && init_imu_bias_)
   {
     x_.ba = sensors.getAccelBias() + 0.1 * Vector3d::Random();
     x_.bg = sensors.getGyroBias() + 0.01 * Vector3d::Random();

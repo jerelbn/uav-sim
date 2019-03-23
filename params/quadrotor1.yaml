@@ -183,7 +183,8 @@ target_noise_stdev: 1.0
 
 ## EKF Parameters
 ekf_num_features: 10
-ekf_rho0: 0.01
+ekf_rho0: 0.001
+ekf_init_imu_bias: false
 ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
@@ -192,9 +193,9 @@ ekf_x0: [0, 0, -1,    # POS
 ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # VEL
          1e-1, 1e-1, 1e-1, # ATT
-         0.1, 0.1, 0.1, # ACCEL BIAS
-         0.02, 0.02, 0.02] # GYRO BIAS
-ekf_P0_feat: [0.1, 0.1, 1.0]
+         0.04, 0.04, 0.04, # ACCEL BIAS
+         0.004, 0.004, 0.004] # GYRO BIAS
+ekf_P0_feat: [0.01, 0.01, 1.0]
 ekf_Qx: [1e-8, 1e-8, 1e-8, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT

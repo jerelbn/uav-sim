@@ -201,6 +201,7 @@ private:
   int num_states_, num_dof_;
   double t_prev_;
   double rho0_;
+  bool init_imu_bias_;
   State<double> x_;
   VectorXd xdot_, xdot_prev_, dxp_, dxm_;
   MatrixXd P_, F_, A_, Qx_, G_, B_;
