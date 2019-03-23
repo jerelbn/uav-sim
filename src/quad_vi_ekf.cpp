@@ -99,6 +99,13 @@ void EKF::load(const string &filename, const std::string& name)
 
 void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
+  // Initialize IMU close to the truth (simulate flat ground calibration)
+  if (t == -1)
+  {
+    x_.ba = sensors.getAccelBias() + 0.1 * Vector3d::Random();
+    x_.bg = sensors.getGyroBias() + 0.01 * Vector3d::Random();
+  }
+
   // Propagate the state and covariance to the current time step
   if (sensors.new_imu_meas_)
     propagate(t, sensors.imu_);

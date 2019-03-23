@@ -4,7 +4,7 @@ accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters
-x0: [0, 0, -10,    # POS
+x0: [0, 0, -1,    # POS
      0, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
@@ -76,11 +76,11 @@ waypoint_velocity_threshold: 0.5
 
 traj_delta_north: 10
 traj_delta_east: 10
-traj_delta_alt: 0
+traj_delta_alt: 2
 traj_delta_yaw: 0
 traj_nom_north: 0
 traj_nom_east: 0
-traj_nom_alt: 10
+traj_nom_alt: 5
 traj_nom_yaw: 0
 traj_north_period: 20
 traj_east_period: 10
@@ -119,7 +119,7 @@ accel_bias_init_bound: 0.5
 accel_walk_stdev: 0.1
 
 gyro_noise_stdev: 0.1
-gyro_bias_init_bound: 0.2
+gyro_bias_init_bound: 0.1
 gyro_walk_stdev: 0.01
 
 ## Camera
@@ -138,8 +138,8 @@ save_pixel_measurements: false
 ## Motion Capture
 mocap_update_rate: 50
 mocap_noise_stdev: 0.001
-p_um: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
-q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
+p_um: [0, 0, 0] # translation from body to mocap_body in body frame
+q_um: [1, 0, 0, 0] # rotation from body to mocap_body
 
 ## Barometer
 baro_update_rate: 50
@@ -183,9 +183,9 @@ target_noise_stdev: 1.0
 
 
 ## EKF Parameters
-ekf_num_features: 5
+ekf_num_features: 10
 ekf_rho0: 0.01
-ekf_x0: [0, 0, -10,    # POS
+ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS
@@ -193,19 +193,19 @@ ekf_x0: [0, 0, -10,    # POS
 ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          1e-1, 1e-1, 1e-1, # VEL
          1e-1, 1e-1, 1e-1, # ATT
-         0.5, 0.5, 0.5, # ACCEL BIAS
-         0.2, 0.2, 0.2] # GYRO BIAS
-ekf_P0_feat: [0.1, 0.1, 0.2]
+         0.1, 0.1, 0.1, # ACCEL BIAS
+         0.02, 0.02, 0.02] # GYRO BIAS
+ekf_P0_feat: [0.1, 0.1, 1.0]
 ekf_Qx: [1e-8, 1e-8, 1e-8, # POS
          1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
-         1e-8, 1e-8, 1e-8, # ACCEL BIAS
+         1e-6, 1e-6, 1e-6, # ACCEL BIAS
          1e-8, 1e-8, 1e-8] # GYRO BIAS
-ekf_Qx_feat: [1e-8, 1e-8, 1e-8]
+ekf_Qx_feat: [1e-8, 1e-8, 1e-6]
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
             0.05, 0.05, 0.15] # VELOCITY
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
-ekf_R_cam: [0.1, 0.1]
+ekf_R_cam: [10, 10]
