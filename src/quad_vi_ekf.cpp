@@ -86,6 +86,7 @@ void EKF::load(const string &filename, const std::string& name)
   fy_ = cam_matrix_(1,1);
   u0_ = cam_matrix_(0,2);
   v0_ = cam_matrix_(1,2);
+  image_center_ << u0_, v0_;
 
   // Logging
   std::stringstream ss_t, ss_e, ss_c;
@@ -278,16 +279,42 @@ void EKF::removeFeatFromState(const int &idx)
 
 void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
 {
-  for (int i = nfa_; i < nfm_; ++i)
-  {
-    // Random selection for now
-    int idx = round((double)rand() / RAND_MAX * tracked_feats.size());
-    x_.feats[i] = sensors::Feat(tracked_feats[idx].pix,rho0_,tracked_feats[idx].id);
-    P_.block<3,3>(NBD+3*i,NBD+3*i) = P0_feat_;
-    ++nfa_;
+  // Sort features by proximity to image center
+  auto sorted_feats = tracked_feats;
+  sort(sorted_feats.begin(), sorted_feats.end(),
+       [this](const sensors::Feat& f1, const sensors::Feat& f2)
+       {return (f1.pix - image_center_).norm() < (f2.pix - image_center_).norm();});
 
-    feats_true_[i].pix = tracked_feats[idx].pix;
-    feats_true_[i].rho = tracked_feats[idx].rho;
+  // Loop through features, adding the best ones to the state
+  for (auto& f : sorted_feats)
+  {
+    // Check if current sorted feature ID is already in the state then add it to the state
+    bool id_used = false;
+    for (auto sf : x_.feats)
+    {
+      if (f.id == sf.id)
+      {
+        id_used = true;
+        break;
+      }
+    }
+
+    if (!id_used)
+    {
+      // Initialize feature state and corresponding covariance block
+      x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
+      P_.block<3,3>(NBD+3*nfa_,NBD+3*nfa_) = P0_feat_;
+
+      // Store true inverse depth and pixel position
+      feats_true_[nfa_].pix = f.pix;
+      feats_true_[nfa_].rho = f.rho;
+
+      // Increment number of active features
+      ++nfa_;
+    }
+
+    // Don't try adding more features than allowed
+    if (nfa_ == nfm_) break;
   }
 }
 

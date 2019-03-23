@@ -228,6 +228,7 @@ private:
   quat::Quatd q_u2b_, q_u2m_, q_u2c_;
   Matrix3d cam_matrix_;
   double fx_, fy_, u0_, v0_;
+  Vector2d image_center_;
   sensors::FeatVec feats_true_;
 
   // Logging
