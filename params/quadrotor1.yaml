@@ -182,7 +182,7 @@ target_noise_stdev: 1.0
 
 
 ## EKF Parameters
-ekf_use_drag: false
+ekf_use_drag: true
 ekf_use_partial_update: false
 ekf_use_keyframe_reset: false
 ekf_num_features: 10
@@ -193,13 +193,13 @@ ekf_x0: [0, 0, -1,    # POS
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS
          0, 0, 0,    # GYRO BIAS
-         0.1]      # DRAG COEFFICIENT
+         0.001]      # DRAG COEFFICIENT
 ekf_P0: [1e-6, 1e-6, 1e-6, # POS
          1e-6, 1e-6, 1e-6, # VEL
          1e-4, 1e-4, 1e-4, # ATT
          5e-2, 5e-2, 5e-2, # ACCEL BIAS
          5e-3, 5e-3, 5e-3, # GYRO BIAS
-         1e-6]             # DRAG COEFFICIENT
+         1e-2]             # DRAG COEFFICIENT
 ekf_P0_feat: [0.01, 0.01, 0.5]
 ekf_Qx: [1e-8, 1e-8, 1e-8, # POS
          1e-8, 1e-8, 1e-8, # VEL
