@@ -1,10 +1,14 @@
 function plot_quad_ekf(params, plot_cov, plot_2d_pix)
 
 % Load data
-true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
-ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_est.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
-ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r'), 'double'), 1 + 15 + 3 * params.ekf_num_features, []); % [time;pos;vel;att;acc_bias;gyro_bias;pix;rho]
-
+if params.ekf_use_drag
+    nbd = 16; % number of base degrees of freedom
+else
+    nbd = 15;
+end
+true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + nbd + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
+ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_est.log']), 'r'), 'double'), 1 + nbd + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
+ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r'), 'double'), 1 + nbd + 3 * params.ekf_num_features, []); % [time;pos;vel;att;acc_bias;gyro_bias;drag;pix;rho]
 
 figure()
 set(gcf, 'name', 'EKF Position', 'NumberTitle', 'off');
@@ -121,7 +125,21 @@ for i=1:3
 end
 
 
-idx = 16;
+if params.ekf_use_drag
+    figure(), hold on, grid on
+    set(gcf, 'name', 'EKF Drag', 'NumberTitle', 'off');
+    title("Drag")
+    plot(true_state(1,:), true_state(17, :), 'linewidth', 2.0)
+    plot(ekf_state(1,:), ekf_state(17, :), 'linewidth', 1.5)
+    if plot_cov == true
+        plot(ekf_state(1,:), ekf_state(17, :) + 2 * sqrt(ekf_cov(17, :)), 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(17, :) - 2 * sqrt(ekf_cov(17, :)), 'm-', 'linewidth', 0.5)
+    end
+    legend('Truth', 'EKF')
+end
+
+
+idx = nbd+1;
 for j = 1:params.ekf_num_features
     figure()
     set(gcf, 'name', strcat(['EKF Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');

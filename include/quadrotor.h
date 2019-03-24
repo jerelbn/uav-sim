@@ -54,7 +54,6 @@ private:
   double mass_, max_thrust_, t_prev_;
   Eigen::Matrix3d inertia_matrix_, inertia_inv_;
   Eigen::Matrix3d linear_drag_matrix_;
-  Eigen::Vector3d linear_drag_;
   Eigen::Matrix3d angular_drag_matrix_;
   Eigen::Vector3d v_rel_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions_;

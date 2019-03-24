@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <chrono>
+#include "vi_ekf_state.h"
 #include "common_cpp/common.h"
 #include "geometry/quat.h"
 #include "geometry/xform.h"
@@ -15,152 +16,6 @@ using namespace Eigen;
 
 namespace qviekf
 {
-
-
-// State Indices
-enum
-{
-  P = 0,
-  V = 3,
-  Q = 6,
-  BA = 10,
-  BG = 13,
-  NBS = 16 // number of base states (neglecting features)
-};
-
-// Derivative indices
-enum
-{
-  DP = 0,
-  DV = 3,
-  DQ = 6,
-  DBA = 9,
-  DBG = 12,
-  NBD = 15 // number of base degrees of freedom (neglecting features)
-};
-
-// Input indices
-enum
-{
-  UA = 0,
-  UG = 3,
-  NI = 6 // number of propagation inputs (imu)
-};
-
-typedef Matrix<double, NBS, 1> baseXVector;
-typedef Matrix<double, NBD, 1> baseDxVector;
-typedef Matrix<double, NI, 1> uVector;
-typedef Matrix<double, NI, NI> uMatrix;
-
-
-template<typename T>
-struct State
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  State() {}
-
-  State(const int& num_feat)
-  {
-    nf = num_feat;
-    p.setZero();
-    v.setZero();
-    ba.setZero();
-    bg.setZero();
-    for (int i = 0; i < nf; ++i)
-      feats.push_back(sensors::Feat());
-  }
-
-  State(const State<T>& x)
-  {
-    nf = x.nf;
-    p = x.p;
-    v = x.v;
-    q = x.q;
-    ba = x.ba;
-    bg = x.bg;
-    feats = x.feats;
-  }
-
-  State(const baseXVector &x, const int& num_feat)
-  {
-    nf = num_feat;
-    p = x.template segment<3>(P);
-    v = x.template segment<3>(V);
-    q = quat::Quat<T>(x.template segment<4>(Q));
-    ba = x.template segment<3>(BA);
-    bg = x.template segment<3>(BG);
-    for (int i = 0; i < nf; ++i)
-      feats.push_back(sensors::Feat());
-  }
-
-  State<T> operator+(const VectorXd &delta) const
-  {
-    State<T> x(nf);
-    x.p = p + delta.template segment<3>(DP);
-    x.v = v + delta.template segment<3>(DV);
-    x.q = q + delta.template segment<3>(DQ);
-    x.ba = ba + delta.template segment<3>(DBA);
-    x.bg = bg + delta.template segment<3>(DBG);
-    for (int i = 0; i < nf; ++i)
-    {
-      sensors::Feat f;
-      f.pix = feats[i].pix + delta.template segment<2>(NBD+3*i);
-      f.rho = feats[i].rho + delta(NBD+3*i+2);
-      f.id = feats[i].id;
-      x.feats[i] = f;
-    }
-    return x;
-  }
-
-  VectorXd operator-(const State<T> &x2) const
-  {
-    VectorXd dx(NBD+3*nf);
-    dx.template segment<3>(DP) = p - x2.p;
-    dx.template segment<3>(DV) = v - x2.v;
-    dx.template segment<3>(DQ) = q - x2.q;
-    dx.template segment<3>(DBA) = ba - x2.ba;
-    dx.template segment<3>(DBG) = bg - x2.bg;
-    for (int i = 0; i < nf; ++i)
-    {
-      dx.template segment<2>(NBD+3*i) = feats[i].pix - x2.feats[i].pix;
-      dx(NBD+3*i+2) = feats[i].rho - x2.feats[i].rho;
-    }
-    return dx;
-  }
-
-  void operator+=(const VectorXd &delta)
-  {
-    *this = *this + delta;
-  }
-
-
-  VectorXd vec() const
-  {
-    VectorXd x(NBS+3*nf);
-    x.template segment<3>(P) = p;
-    x.template segment<3>(V) = v;
-    x.template segment<4>(Q) = q.elements();
-    x.template segment<3>(BA) = ba;
-    x.template segment<3>(BG) = bg;
-    for (int i = 0; i < nf; ++i)
-    {
-      x.template segment<2>(NBS+3*i) = feats[i].pix;
-      x(NBS+3*i+2) = feats[i].rho;
-    }
-    return x;
-  }
-
-  Matrix<T,3,1> p;
-  Matrix<T,3,1> v;
-  quat::Quat<T> q;
-  Matrix<T,3,1> ba;
-  Matrix<T,3,1> bg;
-  sensors::FeatVec feats;
-  int nf;
-
-};
-typedef State<double> Stated;
 
 
 class EKF
@@ -197,8 +52,10 @@ private:
   RowVector3d M(const Vector2d& nu);
 
   // Primary variables
+  bool use_drag_, use_partial_update_, use_keyframe_reset_;
   int nfm_; // maximum number of features in the state
   int nfa_; // active number of features in the state
+  int nbs_, nbd_; // number of base states/degrees of freedom
   int num_states_, num_dof_;
   double t_prev_;
   double rho0_;

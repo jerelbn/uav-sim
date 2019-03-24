@@ -46,6 +46,7 @@ struct State
   quat::Quat<T> q;
   Matrix<T,3,1> omega;
   Matrix<T,3,1> ang_accel;
+  T drag; // quadrotor horizontal drag
 
   State()
   {
@@ -73,6 +74,7 @@ struct State
     x.v = v + delta.template segment<3>(DV);
     x.q = q + delta.template segment<3>(DQ);
     x.omega = omega + delta.template segment<3>(DW);
+    x.drag = drag;
     return x;
   }
 

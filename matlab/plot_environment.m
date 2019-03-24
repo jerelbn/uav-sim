@@ -5,6 +5,11 @@ env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 cmd_state = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 bike_state = reshape(fread(fopen('/tmp/bike1_true_state.log', 'r'), 'double'), 7, []); % [pos;vel;heading;steering_angle]
+if quad_params.ekf_use_drag
+    nbd = 16; % number of base degrees of freedom
+else
+    nbd = 15;
+end
 
 % Plot 3D scene
 figure(), hold on, grid on
@@ -22,7 +27,7 @@ if name(1:4) == 'wing'
     est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;euler;acc_bias;gyro_bias;wind_inertial;baro_bias]
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 elseif name(1:4) == 'quad'
-    est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 15 + 3 * quad_params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+    est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + nbd + 3 * quad_params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 end
 plot3([true_state(2,1),cmd_state(2,1)], [true_state(3,1),cmd_state(3,1)], [true_state(4,1),cmd_state(4,1)], 'g--','HandleVisibility','off')

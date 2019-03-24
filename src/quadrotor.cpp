@@ -36,18 +36,13 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   common::get_yaml_node("control_using_estimates", filename, control_using_estimates_);
 
   vehicle::xVector x0;
-  Vector3d inertia_diag, angular_drag_diag;
-  common::get_yaml_eigen<vehicle::xVector>("x0", filename, x0);
+  common::get_yaml_eigen("x0", filename, x0);
+  common::get_yaml_eigen_diag("inertia", filename, inertia_matrix_);
+  common::get_yaml_eigen_diag("linear_drag", filename, linear_drag_matrix_);
+  common::get_yaml_eigen_diag("angular_drag", filename, angular_drag_matrix_);
   x_ = vehicle::Stated(x0);
-  if (common::get_yaml_eigen<Vector3d>("inertia", filename, inertia_diag))
-  {
-    inertia_matrix_ = inertia_diag.asDiagonal();
-    inertia_inv_ = inertia_matrix_.inverse();
-  }
-  if (common::get_yaml_eigen<Vector3d>("linear_drag", filename, linear_drag_))
-    linear_drag_matrix_ = linear_drag_.asDiagonal();
-  if (common::get_yaml_eigen<Vector3d>("angular_drag", filename, angular_drag_diag))
-    angular_drag_matrix_ = angular_drag_diag.asDiagonal();
+  x_.drag = linear_drag_matrix_(0,0);
+  inertia_inv_ = inertia_matrix_.inverse();
 
   // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);

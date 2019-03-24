@@ -20,8 +20,16 @@ void EKF::load(const string &filename, const std::string& name)
 {
   // Resize arrays to the correct sizes
   common::get_yaml_node("ekf_num_features", filename, nfm_);
-  num_states_ = NBS + 3 * nfm_;
-  num_dof_ = NBD + 3 * nfm_;
+  common::get_yaml_node("ekf_use_drag", filename, use_drag_);
+  common::get_yaml_node("ekf_use_partial_update", filename, use_partial_update_);
+  common::get_yaml_node("ekf_use_keyframe_reset", filename, use_keyframe_reset_);
+  if (use_drag_)
+    nbs_ = 17;
+  else
+    nbs_ = 16;
+  nbd_ = nbs_ - 1;
+  num_states_ = nbs_ + 3 * nfm_;
+  num_dof_ = nbd_ + 3 * nfm_;
 
   xdot_ = VectorXd::Zero(num_dof_);
   xdot_prev_ = VectorXd::Zero(num_dof_);
@@ -46,8 +54,7 @@ void EKF::load(const string &filename, const std::string& name)
   feats_true_.reserve(nfm_);
 
   // Initializations
-  baseXVector x0;
-  baseDxVector P0_base, Qx_base;
+  VectorXd x0(17), P0_base(16), Qx_base(16);
   common::get_yaml_node("ekf_rho0", filename, rho0_);
   common::get_yaml_node("ekf_init_imu_bias", filename, init_imu_bias_);
   common::get_yaml_eigen("ekf_x0", filename, x0);
@@ -56,14 +63,14 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
   common::get_yaml_eigen_diag("ekf_P0_feat", filename, P0_feat_);
   common::get_yaml_eigen_diag("ekf_Qx_feat", filename, Qx_feat_);
-  x_ = State<double>(x0, nfm_);
-  P_.topLeftCorner<NBD,NBD>() = P0_base.asDiagonal();
-  Qx_.topLeftCorner<NBD,NBD>() = Qx_base.asDiagonal();
+  x_ = State<double>(x0, nbs_, nfm_);
+  P_.topLeftCorner(nbd_,nbd_) = P0_base.topRows(nbd_).asDiagonal();
+  Qx_.topLeftCorner(nbd_,nbd_) = Qx_base.topRows(nbd_).asDiagonal();
   for (int i = 0; i < nfm_; ++i)
-    Qx_.block<3,3>(NBD+3*i,NBD+3*i) = Qx_feat_;
+    Qx_.block<3,3>(nbd_+3*i,nbd_+3*i) = Qx_feat_;
   I_DOF_.setIdentity();
   for (int i = 0; i < nfm_; ++i)
-    H_cam_.block<2,2>(2*i,NBD+3*i).setIdentity();
+    H_cam_.block<2,2>(2*i,nbd_+3*i).setIdentity();
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
@@ -146,8 +153,8 @@ void EKF::propagate(const double &t, const uVector& imu)
     numericalFG(x_, imu, F_, G_);
     A_ = I_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
     B_ = (I_DOF_ + F_ * dt / 2.0) * G_ * dt;
-    P_.topLeftCorner(NBD+3*nfa_,NBD+3*nfa_) = A_.topLeftCorner(NBD+3*nfa_,NBD+3*nfa_) * P_.topLeftCorner(NBD+3*nfa_,NBD+3*nfa_) * A_.topLeftCorner(NBD+3*nfa_,NBD+3*nfa_).transpose() +
-                                              B_.topRows(NBD+3*nfa_) * Qu_ * B_.topRows(NBD+3*nfa_).transpose() + Qx_.topLeftCorner(NBD+3*nfa_,NBD+3*nfa_);
+    P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
+                                              B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
 
     // Trapezoidal integration
     x_ += 0.5 * (xdot_ + xdot_prev_) * dt;
@@ -256,20 +263,20 @@ void EKF::removeFeatFromState(const int &idx)
   for (j = idx; j < nfa_-1; ++j)
   {
     x_.feats[j] = x_.feats[j+1];
-    P_.row(NBD+3*j) = P_.row(NBD+3*(j+1));
-    P_.row(NBD+3*j+1) = P_.row(NBD+3*(j+1)+1);
-    P_.row(NBD+3*j+2) = P_.row(NBD+3*(j+1)+2);
-    P_.col(NBD+3*j) = P_.col(NBD+3*(j+1));
-    P_.col(NBD+3*j+1) = P_.col(NBD+3*(j+1)+1);
-    P_.col(NBD+3*j+2) = P_.col(NBD+3*(j+1)+2);
+    P_.row(nbd_+3*j) = P_.row(nbd_+3*(j+1));
+    P_.row(nbd_+3*j+1) = P_.row(nbd_+3*(j+1)+1);
+    P_.row(nbd_+3*j+2) = P_.row(nbd_+3*(j+1)+2);
+    P_.col(nbd_+3*j) = P_.col(nbd_+3*(j+1));
+    P_.col(nbd_+3*j+1) = P_.col(nbd_+3*(j+1)+1);
+    P_.col(nbd_+3*j+2) = P_.col(nbd_+3*(j+1)+2);
   }
   x_.feats[j] = sensors::Feat();
-  P_.row(NBD+3*j).setZero();
-  P_.row(NBD+3*j+1).setZero();
-  P_.row(NBD+3*j+2).setZero();
-  P_.col(NBD+3*j).setZero();
-  P_.col(NBD+3*j+1).setZero();
-  P_.col(NBD+3*j+2).setZero();
+  P_.row(nbd_+3*j).setZero();
+  P_.row(nbd_+3*j+1).setZero();
+  P_.row(nbd_+3*j+2).setZero();
+  P_.col(nbd_+3*j).setZero();
+  P_.col(nbd_+3*j+1).setZero();
+  P_.col(nbd_+3*j+2).setZero();
 
   // Decrement the active feature counter
   --nfa_;
@@ -302,7 +309,7 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
     {
       // Initialize feature state and corresponding covariance block
       x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
-      P_.block<3,3>(NBD+3*nfa_,NBD+3*nfa_) = P0_feat_;
+      P_.block<3,3>(nbd_+3*nfa_,nbd_+3*nfa_) = P0_feat_;
 
       // Store true inverse depth and pixel position
       feats_true_[nfa_].pix = f.pix;
@@ -336,14 +343,18 @@ void EKF::f(const Stated &x, const uVector &u, VectorXd &dx, const uVector &eta)
 
   dx.setZero();
   dx.segment<3>(DP) = x.q.rota(x.v);
-  dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
+  if (use_drag_)
+    dx.segment<3>(DV) = common::e3 * common::e3.transpose() * accel + common::gravity * x.q.rotp(common::e3) -
+                        x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * x.v - omega.cross(x.v);
+  else
+    dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
   dx.segment<3>(DQ) = omega;
   for (int i = 0; i < nfm_; ++i)
   {
     Vector2d pix = x.feats[i].pix;
     double rho = x.feats[i].rho;
-    dx.segment<2>(NBD+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
-    dx(NBD+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
+    dx.segment<2>(nbd_+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
+    dx(nbd_+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
   }
 }
 
@@ -406,6 +417,8 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getAccelBias().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
+  if(use_drag_)
+    true_state_log_.write((char*)&x_true.drag, sizeof(double));
 
   // Compute true landmark pixel measurement
   for (int i = 0; i < nfm_; ++i)
@@ -434,6 +447,8 @@ void EKF::logEst(const double &t)
   ekf_state_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
+  if (use_drag_)
+    ekf_state_log_.write((char*)&x_.mu, sizeof(double));
   for (int i = 0; i < nfm_; ++i)
   {
     if (i+1 <= nfa_)
