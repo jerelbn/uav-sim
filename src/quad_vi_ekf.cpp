@@ -326,34 +326,18 @@ void EKF::update(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, Matr
 }
 
 
-void EKF::f(const Stated &x, const uVector &u, VectorXd &dx)
+void EKF::f(const Stated &x, const uVector &u, VectorXd &dx, const uVector &eta)
 {
-  Vector3d omega_c = q_u2c_.rotp(u.segment<3>(UG) - x.bg);
-  Vector3d v_c = q_u2c_.rotp(x.v + (u.segment<3>(UG) - x.bg).cross(p_uc_));
+  Vector3d accel = u.segment<3>(UA) - x.ba - eta.segment<3>(UA);
+  Vector3d omega = u.segment<3>(UG) - x.bg - eta.segment<3>(UG);
+
+  Vector3d omega_c = q_u2c_.rotp(omega);
+  Vector3d v_c = q_u2c_.rotp(x.v + omega.cross(p_uc_));
 
   dx.setZero();
   dx.segment<3>(DP) = x.q.rota(x.v);
-  dx.segment<3>(DV) = u.segment<3>(UA) - x.ba + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
-  dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
-  for (int i = 0; i < nfa_; ++i)
-  {
-    Vector2d pix = x.feats[i].pix;
-    double rho = x.feats[i].rho;
-    dx.segment<2>(NBD+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
-    dx(NBD+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
-  }
-}
-
-
-void EKF::f2(const Stated &x, const uVector &u, const uVector& eta, VectorXd &dx)
-{
-  Vector3d omega_c = q_u2c_.rotp(u.segment<3>(UG) - x.bg - eta.segment<3>(UG));
-  Vector3d v_c = q_u2c_.rotp(x.v + (u.segment<3>(UG) - x.bg).cross(p_uc_));
-
-  dx.setZero();
-  dx.segment<3>(DP) = x.q.rota(x.v);
-  dx.segment<3>(DV) = u.segment<3>(UA) - x.ba - eta.segment<3>(UA) + common::gravity * x.q.rotp(common::e3) - (u.segment<3>(UG) - x.bg).cross(x.v);
-  dx.segment<3>(DQ) = u.segment<3>(UG) - x.bg;
+  dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
+  dx.segment<3>(DQ) = omega;
   for (int i = 0; i < nfm_; ++i)
   {
     Vector2d pix = x.feats[i].pix;
@@ -406,8 +390,8 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
     uVector etap = eta + I6.col(i) * eps;
     uVector etam = eta + I6.col(i) * -eps;
 
-    f2(x, u, etap, dxp_);
-    f2(x, u, etam, dxm_);
+    f(x, u, dxp_, etap);
+    f(x, u, dxm_, etam);
 
     G.col(i) = (dxp_ - dxm_) / (2.0 * eps);
   }

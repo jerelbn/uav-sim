@@ -174,8 +174,7 @@ public:
 
   void load(const string &filename, const string &name);
   void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
-  void f(const Stated &x, const uVector& u, VectorXd &dx);
-  void f2(const Stated &x, const uVector& u, const uVector& eta, VectorXd& dx);
+  void f(const Stated &x, const uVector& u, VectorXd &dx, const uVector& eta = uVector::Zero());
   void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   vehicle::Stated getState() const;
