@@ -183,7 +183,7 @@ target_noise_stdev: 1.0
 
 ## EKF Parameters
 ekf_use_drag: true
-ekf_use_partial_update: false
+ekf_use_partial_update: true
 ekf_use_keyframe_reset: false
 ekf_num_features: 10
 ekf_rho0: 0.001
@@ -215,3 +215,10 @@ ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
 ekf_R_cam: [10, 10]
+ekf_lambda: [1.0, 1.0, 1.0, # POS
+             1.0, 1.0, 1.0, # VEL
+             1.0, 1.0, 1.0, # ATT
+             0.7, 0.7, 0.7, # ACCEL BIAS
+             0.8, 0.8, 0.8, # GYRO BIAS
+             1.0]           # DRAG COEFFICIENT
+ekf_lambda_feat: [1.0, 1.0, 1.0]

@@ -54,7 +54,8 @@ void EKF::load(const string &filename, const std::string& name)
   feats_true_.reserve(nfm_);
 
   // Initializations
-  VectorXd x0(17), P0_base(16), Qx_base(16);
+  Vector3d lambda_feat;
+  VectorXd x0(17), P0_base(16), Qx_base(16), lambda_base(16);
   common::get_yaml_node("ekf_rho0", filename, rho0_);
   common::get_yaml_node("ekf_init_imu_bias", filename, init_imu_bias_);
   common::get_yaml_eigen("ekf_x0", filename, x0);
@@ -68,9 +69,22 @@ void EKF::load(const string &filename, const std::string& name)
   Qx_.topLeftCorner(nbd_,nbd_) = Qx_base.topRows(nbd_).asDiagonal();
   for (int i = 0; i < nfm_; ++i)
     Qx_.block<3,3>(nbd_+3*i,nbd_+3*i) = Qx_feat_;
-  I_DOF_.setIdentity();
   for (int i = 0; i < nfm_; ++i)
     H_cam_.block<2,2>(2*i,nbd_+3*i).setIdentity();
+  I_DOF_.setIdentity();
+
+  if (use_partial_update_)
+  {
+    common::get_yaml_eigen("ekf_lambda", filename, lambda_base);
+    common::get_yaml_eigen("ekf_lambda_feat", filename, lambda_feat);
+    dx_ones_ = VectorXd::Ones(num_dof_);
+    lambda_ = VectorXd::Zero(num_dof_);
+    Lambda_ = MatrixXd::Zero(num_dof_,num_dof_);
+    lambda_.topRows(nbd_) = lambda_base.topRows(nbd_);
+    for (int i = 0; i < nfm_; ++i)
+      lambda_.segment<3>(nbd_+3*i) = lambda_feat;
+    Lambda_ = dx_ones_ * lambda_.transpose() + lambda_*dx_ones_.transpose() - lambda_*lambda_.transpose();
+  }
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
@@ -328,8 +342,16 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
 void EKF::update(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, MatrixXd &K)
 {
   K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
-  x_ += K * err;
-  P_ = (I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose();
+  if (use_partial_update_)
+  {
+    x_ += lambda_.cwiseProduct(K * err);
+    P_ += Lambda_.cwiseProduct((I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose() - P_);
+  }
+  else
+  {
+    x_ += K * err;
+    P_ = (I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose();
+  }
 }
 
 

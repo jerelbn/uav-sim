@@ -61,8 +61,8 @@ private:
   double rho0_;
   bool init_imu_bias_;
   State<double> x_;
-  VectorXd xdot_, xdot_prev_, dxp_, dxm_;
-  MatrixXd P_, F_, A_, Qx_, G_, B_;
+  VectorXd xdot_, xdot_prev_, dxp_, dxm_, lambda_, dx_ones_;
+  MatrixXd P_, F_, A_, Qx_, G_, B_, Lambda_;
   Matrix3d P0_feat_, Qx_feat_;
   uMatrix Qu_;
   MatrixXd I_DOF_;
