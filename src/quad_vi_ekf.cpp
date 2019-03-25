@@ -40,6 +40,7 @@ void EKF::load(const string &filename, const std::string& name)
   A_ = MatrixXd::Zero(num_dof_,num_dof_);
   Qx_ = MatrixXd::Zero(num_dof_,num_dof_);
   I_DOF_ = MatrixXd::Zero(num_dof_,num_dof_);
+  N_ = MatrixXd::Zero(num_dof_,num_dof_);
   G_ = MatrixXd::Zero(num_dof_,NI);
   B_ = MatrixXd::Zero(num_dof_,NI);
   R_cam_big_ = MatrixXd::Zero(2*nfm_,2*nfm_);
@@ -84,6 +85,17 @@ void EKF::load(const string &filename, const std::string& name)
     for (int i = 0; i < nfm_; ++i)
       lambda_.segment<3>(nbd_+3*i) = lambda_feat;
     Lambda_ = dx_ones_ * lambda_.transpose() + lambda_*dx_ones_.transpose() - lambda_*lambda_.transpose();
+  }
+
+  if (use_keyframe_reset_)
+  {
+    common::get_yaml_node("ekf_kfr_mean_pix_disparity_thresh", filename, kfr_mean_pix_disparity_thresh_);
+    common::get_yaml_node("ekf_kfr_min_matches", filename, kfr_min_matches_);
+    initial_keyframe_ = true;
+    p_kf_ = x_.p;
+    q_kf_yaw_ = x_.q;
+    x_.p.setZero();
+    x_.q = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
   }
 
   // Load sensor parameters
@@ -235,6 +247,9 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
   // Fill state with new features if needed
   if (nfa_ < nfm_)
     addFeatToState(tracked_feats);
+
+  if (use_keyframe_reset_)
+    keyframeReset(tracked_feats);
 }
 
 
@@ -335,6 +350,67 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
 
     // Don't try adding more features than allowed
     if (nfa_ == nfm_) break;
+  }
+}
+
+
+void EKF::keyframeReset(const sensors::FeatVec &tracked_feats)
+{
+  // Calculate mean pixel disparity between current features and keyframe
+  double pix_disparity = 0;
+  int match_count = 0;
+  for (auto& tf : tracked_feats)
+  {
+    for (auto& kff : kf_feats_)
+    {
+      if (tf.id == kff.id)
+      {
+        pix_disparity = (match_count * pix_disparity + (tf.pix - kff.pix).norm()) / (match_count + 1);
+        ++match_count;
+      }
+    }
+  }
+
+  if (initial_keyframe_ || pix_disparity >= kfr_mean_pix_disparity_thresh_ || match_count < kfr_min_matches_)
+  {
+    // Update keyframe tracked features, position, attitude
+    kf_feats_ = tracked_feats;
+    p_kf_ += x_.p;
+    q_kf_yaw_ = q_kf_yaw_ * quat::Quatd(0, 0, x_.q.yaw());
+
+    if (initial_keyframe_)
+    {
+      initial_keyframe_ = false;
+      return;
+    }
+
+    // Compute covariance update Jacobian
+    numericalN(x_, N_);
+
+    // Reset state and covariance
+    x_.p.setZero();
+    x_.q = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
+    P_ = N_ * P_ * N_.transpose();
+  }
+}
+
+
+void EKF::numericalN(const Stated &x, MatrixXd &N)
+{
+  static const double eps(1e-5);
+  for (int i = 0; i < N.cols(); ++i)
+  {
+    Stated xp = x + I_DOF_.col(i) * eps;
+    Stated x_plusp = xp;
+    x_plusp.p.setZero();
+    x_plusp.q = quat::Quatd(xp.q.roll(), xp.q.pitch(), 0);
+
+    Stated xm = x + I_DOF_.col(i) * -eps;
+    Stated x_plusm = xm;
+    x_plusm.p.setZero();
+    x_plusm.q = quat::Quatd(xm.q.roll(), xm.q.pitch(), 0);
+
+    N.col(i) = (x_plusp - x_plusm) / (2.0 * eps);
   }
 }
 
@@ -463,10 +539,23 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
 
 void EKF::logEst(const double &t)
 {
+  Vector3d p;
+  quat::Quatd q;
+  if (use_keyframe_reset_)
+  {
+    p = p_kf_ + x_.p;
+    q = quat::Quatd(x_.q.roll(), x_.q.pitch(), q_kf_yaw_.yaw() + x_.q.yaw());
+  }
+  else
+  {
+    p = x_.p;
+    q = x_.q;
+  }
+
   ekf_state_log_.write((char*)&t, sizeof(double));
-  ekf_state_log_.write((char*)x_.p.data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)p.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.v.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)q.euler().data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
   if (use_drag_)

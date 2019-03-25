@@ -184,10 +184,12 @@ target_noise_stdev: 1.0
 ## EKF Parameters
 ekf_use_drag: true
 ekf_use_partial_update: true
-ekf_use_keyframe_reset: false
+ekf_use_keyframe_reset: true
 ekf_num_features: 10
 ekf_rho0: 0.001
 ekf_init_imu_bias: false
+ekf_kfr_mean_pix_disparity_thresh: 60
+ekf_kfr_min_matches: 1
 ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # VEL
          1, 0, 0, 0, # ATT

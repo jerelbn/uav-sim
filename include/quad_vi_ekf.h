@@ -29,14 +29,14 @@ public:
 
   void load(const string &filename, const string &name);
   void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
-  void f(const Stated &x, const uVector& u, VectorXd &dx, const uVector& eta = uVector::Zero());
-  void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
-  void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   vehicle::Stated getState() const;
 
 private:
 
   void propagate(const double &t, const uVector &imu);
+  void f(const Stated &x, const uVector& u, VectorXd &dx, const uVector& eta = uVector::Zero());
+  void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
+  void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void gpsUpdate(const Vector6d& z);
   void mocapUpdate(const Vector7d& z);
   void cameraUpdate(const sensors::FeatVec &tracked_feats);
@@ -46,6 +46,8 @@ private:
   void getPixMatches(const sensors::FeatVec& tracked_feats);
   void removeFeatFromState(const int& idx);
   void addFeatToState(const sensors::FeatVec &tracked_feats);
+  void keyframeReset(const sensors::FeatVec &tracked_feats);
+  void numericalN(const Stated &x, MatrixXd& N);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
@@ -62,12 +64,20 @@ private:
   bool init_imu_bias_;
   State<double> x_;
   VectorXd xdot_, xdot_prev_, dxp_, dxm_, lambda_, dx_ones_;
-  MatrixXd P_, F_, A_, Qx_, G_, B_, Lambda_;
+  MatrixXd P_, F_, A_, Qx_, G_, B_, Lambda_, N_;
   Matrix3d P0_feat_, Qx_feat_;
   uMatrix Qu_;
   MatrixXd I_DOF_;
   VectorXd P_diag_;
   vector<Vector2d, aligned_allocator<Vector2d>> matched_feats_;
+
+  // Keyframe reset parameters
+  bool initial_keyframe_;
+  int kfr_min_matches_;
+  double kfr_mean_pix_disparity_thresh_;
+  sensors::FeatVec kf_feats_;
+  Vector3d p_kf_;
+  quat::Quatd q_kf_yaw_;
 
   // Sensor parameters
   Vector6d h_gps_;
