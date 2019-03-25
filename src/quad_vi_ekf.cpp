@@ -32,7 +32,6 @@ void EKF::load(const string &filename, const std::string& name)
   num_dof_ = nbd_ + 3 * nfm_;
 
   xdot_ = VectorXd::Zero(num_dof_);
-  xdot_prev_ = VectorXd::Zero(num_dof_);
   dxp_ = VectorXd::Zero(num_dof_);
   dxm_ = VectorXd::Zero(num_dof_);
   P_ = MatrixXd::Zero(num_dof_,num_dof_);
@@ -168,12 +167,8 @@ void EKF::propagate(const double &t, const uVector& imu)
   double dt = t - t_prev_;
   t_prev_ = t;
 
-  // Kinematics
-  f(x_, imu, xdot_);
-
   if (t > 0)
   {
-    // TODO: try trapezoidal integration of continuous covariance kinematics
     // Propagate the covariance - guarantee positive-definite P with discrete propagation
 //    analyticalFG(x_, imu, F_, G_);
     numericalFG(x_, imu, F_, G_);
@@ -182,12 +177,13 @@ void EKF::propagate(const double &t, const uVector& imu)
     P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
                                               B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
 
-    // Trapezoidal integration
-    x_ += 0.5 * (xdot_ + xdot_prev_) * dt;
+    // Trapezoidal integration on the IMU input
+    f(x_, 0.5*(imu+imu_prev_), xdot_);
+    x_ += xdot_ * dt;
   }
 
-  // Save current kinematics for next iteration
-  xdot_prev_ = xdot_;
+  // Save current IMU for next iteration
+  imu_prev_ = imu;
 }
 
 
