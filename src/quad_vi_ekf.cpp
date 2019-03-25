@@ -92,8 +92,8 @@ void EKF::load(const string &filename, const std::string& name)
     common::get_yaml_node("ekf_kfr_mean_pix_disparity_thresh", filename, kfr_mean_pix_disparity_thresh_);
     common::get_yaml_node("ekf_kfr_min_matches", filename, kfr_min_matches_);
     initial_keyframe_ = true;
-    p_kf_ = x_.p;
-    q_kf_yaw_ = x_.q;
+    p_global_ = x_.p;
+    q_yaw_global_ = x_.q;
     x_.p.setZero();
     x_.q = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
   }
@@ -375,8 +375,8 @@ void EKF::keyframeReset(const sensors::FeatVec &tracked_feats)
   {
     // Update keyframe tracked features, position, attitude
     kf_feats_ = tracked_feats;
-    p_kf_ += x_.p;
-    q_kf_yaw_ = q_kf_yaw_ * quat::Quatd(0, 0, x_.q.yaw());
+    p_global_ += q_yaw_global_.rota(x_.p);
+    q_yaw_global_ = q_yaw_global_ * quat::Quatd(0, 0, x_.q.yaw());
 
     if (initial_keyframe_)
     {
@@ -543,8 +543,8 @@ void EKF::logEst(const double &t)
   quat::Quatd q;
   if (use_keyframe_reset_)
   {
-    p = p_kf_ + x_.p;
-    q = quat::Quatd(x_.q.roll(), x_.q.pitch(), q_kf_yaw_.yaw() + x_.q.yaw());
+    p = p_global_ + q_yaw_global_.rota(x_.p);
+    q = quat::Quatd(x_.q.roll(), x_.q.pitch(), q_yaw_global_.yaw() + x_.q.yaw());
   }
   else
   {

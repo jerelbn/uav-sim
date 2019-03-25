@@ -76,8 +76,8 @@ private:
   int kfr_min_matches_;
   double kfr_mean_pix_disparity_thresh_;
   sensors::FeatVec kf_feats_;
-  Vector3d p_kf_;
-  quat::Quatd q_kf_yaw_;
+  Vector3d p_global_;
+  quat::Quatd q_yaw_global_;
 
   // Sensor parameters
   Vector6d h_gps_;
