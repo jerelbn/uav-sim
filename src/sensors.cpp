@@ -356,15 +356,15 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
       common::randomNormal(mocap_noise_,mocap_noise_dist_,rng_);
 
     // Populate mocap measurement
-    mocap_truth_.head<3>() = x.p + x.q.rota(p_um_);
-    mocap_truth_.tail<4>() = (x.q * q_um_).elements();
-    mocap_.head<3>() = mocap_truth_.head<3>() + mocap_noise_.head<3>();
-    mocap_.tail<4>() = (quat::Quatd(mocap_truth_.tail<4>()) + mocap_noise_.tail<3>()).elements();
+    mocap_truth_.t_ = x.p + x.q.rota(p_um_);
+    mocap_truth_.q_ = x.q * q_um_;
+    mocap_.t_ = mocap_truth_.t_ + mocap_noise_.head<3>();
+    mocap_.q_ = mocap_truth_.q_ + mocap_noise_.tail<3>();
 
     // Log data
     mocap_log_.write((char*)&t, sizeof(double));
-    mocap_log_.write((char*)mocap_.data(), mocap_.rows() * sizeof(double));
-    mocap_log_.write((char*)mocap_truth_.data(), mocap_truth_.rows() * sizeof(double));
+    mocap_log_.write((char*)mocap_.arr_.data(), mocap_.arr_.rows() * sizeof(double));
+    mocap_log_.write((char*)mocap_truth_.arr_.data(), mocap_truth_.arr_.rows() * sizeof(double));
     mocap_log_.write((char*)p_um_.data(), 3 * sizeof(double));
     mocap_log_.write((char*)q_um_.data(), 4 * sizeof(double));
   }

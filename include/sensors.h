@@ -4,6 +4,7 @@
 #include <random>
 #include <chrono>
 #include "common_cpp/common.h"
+#include "geometry/xform.h"
 #include "vehicle.h"
 
 using namespace std;
@@ -50,6 +51,7 @@ class Sensors
 {
 
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Sensors();
   ~Sensors();
@@ -62,7 +64,7 @@ public:
 
   Vector3d gyro_, accel_;
   Matrix<double, 6, 1> imu_;
-  Matrix<double, 7, 1> mocap_;
+  xform::Xformd mocap_;
   FeatVec cam_;
   double baro_;
   double pitot_;
@@ -125,7 +127,7 @@ private:
   double mocap_update_rate_;
   normal_distribution<double> mocap_noise_dist_;
   Matrix<double, 6, 1> mocap_noise_;
-  Matrix<double, 7, 1> mocap_truth_;
+  xform::Xformd mocap_truth_;
   Vector3d p_um_; // translation body-to-mocap-body in body frame
   quat::Quatd q_um_; // rotation body-to-mocap-body
   ofstream mocap_log_;

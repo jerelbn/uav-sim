@@ -5,7 +5,7 @@ namespace qviekf
 {
 
 
-EKF::EKF() : t_prev_(0), nfa_(0) {}
+EKF::EKF() : last_filer_update_(0), nfa_(0) {}
 
 
 EKF::~EKF()
@@ -19,6 +19,8 @@ EKF::~EKF()
 void EKF::load(const string &filename, const std::string& name)
 {
   // Resize arrays to the correct sizes
+  common::get_yaml_node("ekf_update_rate", filename, update_rate_);
+  common::get_yaml_node("ekf_max_history_size", filename, max_history_size_);
   common::get_yaml_node("ekf_num_features", filename, nfm_);
   common::get_yaml_node("ekf_use_drag", filename, use_drag_);
   common::get_yaml_node("ekf_use_partial_update", filename, use_partial_update_);
@@ -64,7 +66,7 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
   common::get_yaml_eigen_diag("ekf_P0_feat", filename, P0_feat_);
   common::get_yaml_eigen_diag("ekf_Qx_feat", filename, Qx_feat_);
-  x_ = State<double>(x0, nbs_, nfm_);
+  x_ = State<double>(0, x0, nbs_, nfm_);
   P_.topLeftCorner(nbd_,nbd_) = P0_base.topRows(nbd_).asDiagonal();
   Qx_.topLeftCorner(nbd_,nbd_) = Qx_base.topRows(nbd_).asDiagonal();
   for (int i = 0; i < nfm_; ++i)
@@ -96,6 +98,9 @@ void EKF::load(const string &filename, const std::string& name)
     x_.p.setZero();
     x_.q = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
   }
+
+  x_hist_.push_back(x_);
+  P_hist_.push_back(P_);
 
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
@@ -140,50 +145,134 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     x_.bg = sensors.getGyroBias() + 0.01 * Vector3d::Random();
   }
 
-  // Propagate the state and covariance to the current time step
+  // Store new measurements
   if (sensors.new_imu_meas_)
-    propagate(t, sensors.imu_);
-
-  // Apply updates
+    new_measurements_.emplace_back(Measurement(IMU, t, sensors.imu_));
   if (t > 0)
   {
     if (sensors.new_gps_meas_)
-      gpsUpdate(sensors.gps_);
+      new_measurements_.emplace_back(Measurement(GPS, t, sensors.gps_));
     if (sensors.new_mocap_meas_)
-      mocapUpdate(sensors.mocap_);
+      new_measurements_.emplace_back(Measurement(MOCAP, t, sensors.mocap_));
     if (sensors.new_camera_meas_)
-      cameraUpdate(sensors.cam_);
+      new_measurements_.emplace_back(Measurement(IMAGE, t, sensors.cam_));
   }
 
+  // Update the filter at desired update rate
+  if (common::decRound(t - last_filer_update_, 1e6) >= 1.0 / update_rate_)
+  {
+    filterUpdate(new_measurements_,sensors, x_true);
+    last_filer_update_ = t;
+  }
+}
+
+
+void EKF::filterUpdate(vector<Measurement>& new_measurements, const sensors::Sensors &sensors, const vehicle::Stated& x_true)
+{
+  // Dump new measurements into sorted container for all measurements, while getting oldest time stamp
+  double t_oldest = INFINITY;
+  for (auto& nm : new_measurements)
+  {
+    if (t_oldest > nm.stamp)
+      t_oldest = nm.stamp;
+    all_measurements_.emplace(nm);
+  }
+  new_measurements.clear();
+
+  // Rewind the state and covariance to just before the oldest measurement
+  while (t_oldest < (x_hist_.end()-1)->t)
+  {
+    x_hist_.pop_back();
+    P_hist_.pop_back();
+  }
+  x_ = *x_hist_.rbegin();
+  P_ = *P_hist_.rbegin();
+
+  // Get iterator to oldest measurement from new set
+  auto nmit = all_measurements_.rbegin();
+  while (nmit->stamp > t_oldest)
+    ++nmit;
+
+  // Run the filter up throuth the latest measurements
+  while (nmit != all_measurements_.rbegin())
+  {
+    if (nmit->type == IMU)
+      propagate(nmit->stamp, nmit->imu);
+    if (nmit->type == GPS)
+    {
+      propagate(nmit->stamp);
+      gpsUpdate(nmit->gps);
+    }
+    if (nmit->type == MOCAP)
+    {
+      propagate(nmit->stamp);
+      mocapUpdate(nmit->mocap);
+    }
+    if (nmit->type == IMAGE)
+    {
+      propagate(nmit->stamp);
+      cameraUpdate(nmit->image);
+    }
+    x_hist_.push_back(x_);
+    P_hist_.push_back(P_);
+    --nmit;
+  }
+
+  // Drop states exceeding the max history size
+  while (x_hist_.size() > max_history_size_)
+  {
+    x_hist_.pop_front();
+    P_hist_.pop_front();
+  }
+
+  // Drop any measurements older than the state history
+  while (x_hist_.begin()->t > all_measurements_.begin()->stamp)
+    all_measurements_.erase(all_measurements_.begin());
+
   // Log data
-  logTruth(t, sensors, x_true);
-  logEst(t);
+  logTruth(x_.t, sensors, x_true);
+  logEst(x_.t);
+}
+
+
+void EKF::propagate(const double &t)
+{
+  // Time step
+  double dt = t - x_.t;
+
+  // Propagate the covariance - guarantee positive-definite P with discrete propagation
+//    analyticalFG(x_, imu, F_, G_);
+  numericalFG(x_, x_.imu, F_, G_);
+  A_ = I_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
+  B_ = (I_DOF_ + F_ * dt / 2.0) * G_ * dt;
+  P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
+                                            B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
+
+  // Trapezoidal integration on the IMU input
+  f(x_, x_.imu, xdot_);
+  x_ += xdot_ * dt;
+  x_.t = t;
 }
 
 
 void EKF::propagate(const double &t, const uVector& imu)
 {
   // Time step
-  double dt = t - t_prev_;
-  t_prev_ = t;
+  double dt = t - x_.t;
 
-  if (t > 0)
-  {
-    // Propagate the covariance - guarantee positive-definite P with discrete propagation
-//    analyticalFG(x_, imu, F_, G_);
-    numericalFG(x_, imu, F_, G_);
-    A_ = I_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
-    B_ = (I_DOF_ + F_ * dt / 2.0) * G_ * dt;
-    P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
-                                              B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
+  // Propagate the covariance - guarantee positive-definite P with discrete propagation
+  //    analyticalFG(x_, imu, F_, G_);
+  numericalFG(x_, imu, F_, G_);
+  A_ = I_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
+  B_ = (I_DOF_ + F_ * dt / 2.0) * G_ * dt;
+  P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
+      B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
 
-    // Trapezoidal integration on the IMU input
-    f(x_, 0.5*(imu+imu_prev_), xdot_);
-    x_ += xdot_ * dt;
-  }
-
-  // Save current IMU for next iteration
-  imu_prev_ = imu;
+  // Trapezoidal integration on the IMU input
+  f(x_, 0.5*(imu+x_.imu), xdot_);
+  x_ += xdot_ * dt;
+  x_.t = t;
+  x_.imu = imu;
 }
 
 
@@ -198,15 +287,12 @@ void EKF::gpsUpdate(const Vector6d& z)
   H_gps_.block<3,3>(3,DQ) = -x_.q.inverse().R() * common::skew(x_.v);
 
   // Apply the update
-  update(z-h_gps_, R_gps_, H_gps_, K_gps_);
+  measurementUpdate(z-h_gps_, R_gps_, H_gps_, K_gps_);
 }
 
 
-void EKF::mocapUpdate(const Vector7d& z)
+void EKF::mocapUpdate(const xform::Xformd &z)
 {
-  // Pack measurement into Xform
-  xform::Xformd Xz(z);
-
   // Measurement model and matrix
   h_mocap_.t_ = x_.p + x_.q.rota(p_um_);
   h_mocap_.q_ = x_.q * q_u2m_;
@@ -216,7 +302,7 @@ void EKF::mocapUpdate(const Vector7d& z)
   H_mocap_.block<3,3>(3,DQ) = q_u2m_.inverse().R();
 
   // Apply the update
-  update(Xz-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
+  measurementUpdate(z-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
 }
 
 
@@ -237,7 +323,7 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
       h_cam_.segment<2>(2*i) = x_.feats[i].pix;
     }
 
-    update(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
+    measurementUpdate(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
   }
 
   // Fill state with new features if needed
@@ -411,7 +497,7 @@ void EKF::numericalN(const Stated &x, MatrixXd &N)
 }
 
 
-void EKF::update(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, MatrixXd &K)
+void EKF::measurementUpdate(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, MatrixXd &K)
 {
   K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
   if (use_partial_update_)

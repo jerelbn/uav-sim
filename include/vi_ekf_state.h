@@ -53,8 +53,9 @@ struct State
 
   State() {}
 
-  State(const int& _nbs, const int& _nf)
+  State(const double& _t, const int& _nbs, const int& _nf)
   {
+    t = _t;
     nf = _nf;
     nbs = _nbs;
     nbd = nbs - 1;
@@ -62,8 +63,9 @@ struct State
       feats.push_back(sensors::Feat());
   }
 
-  State(const VectorXd &x, const int& _nbs, const int& _nf)
+  State(const double& _t, const VectorXd &x, const int& _nbs, const int& _nf)
   {
+    t = _t;
     nf = _nf;
     nbs = _nbs;
     nbd = nbs - 1;
@@ -80,7 +82,7 @@ struct State
 
   State<T> operator+(const VectorXd &delta) const
   {
-    State<T> x(nbs, nf);
+    State<T> x(t, nbs, nf);
     x.p = p + delta.template segment<3>(DP);
     x.v = v + delta.template segment<3>(DV);
     x.q = q + delta.template segment<3>(DQ);
@@ -140,6 +142,8 @@ struct State
     return x;
   }
 
+  double t; // time
+  Vector6d imu;
   Matrix<T,3,1> p;
   Matrix<T,3,1> v;
   quat::Quat<T> q;

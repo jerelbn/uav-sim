@@ -182,6 +182,8 @@ target_noise_stdev: 1.0
 
 
 ## EKF Parameters
+ekf_update_rate: 100 # Hz
+ekf_max_history_size: 10
 ekf_use_drag: true
 ekf_use_partial_update: true
 ekf_use_keyframe_reset: true

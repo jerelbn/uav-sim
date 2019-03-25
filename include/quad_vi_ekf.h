@@ -2,6 +2,8 @@
 
 #include <Eigen/Dense>
 #include <chrono>
+#include <set>
+#include <deque>
 #include "vi_ekf_state.h"
 #include "common_cpp/common.h"
 #include "geometry/quat.h"
@@ -18,10 +20,65 @@ namespace qviekf
 {
 
 
+enum
+{
+  IMU = 0,
+  IMAGE = 1,
+  GPS = 2,
+  MOCAP = 3
+};
+
+
+class Measurement
+{
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  int type;
+  double stamp;
+  Vector6d imu, gps;
+  xform::Xformd mocap;
+  sensors::FeatVec image;
+
+  Measurement(const int& _type, const double& _stamp, const Vector6d& _imu_or_gps)
+    : type(_type), stamp(_stamp), imu(_imu_or_gps), gps(_imu_or_gps)
+  {
+    if (type == IMU)
+      gps.setConstant(NAN);
+    else if (type == GPS)
+      imu.setConstant(NAN);
+    mocap.arr_.setConstant(NAN);
+    image.clear();
+  }
+
+  Measurement(const int& _type, const double& _stamp, const sensors::FeatVec& _image)
+    : type(_type), stamp(_stamp), image(_image)
+  {
+    imu.setConstant(NAN);
+    gps.setConstant(NAN);
+    mocap.arr_.setConstant(NAN);
+  }
+
+  Measurement(const int& _type, const double& _stamp, const xform::Xformd& _mocap)
+    : type(_type), stamp(_stamp), mocap(_mocap)
+  {
+    imu.setConstant(NAN);
+    gps.setConstant(NAN);
+    image.clear();
+  }
+
+  bool operator< (const Measurement& other) const
+  {
+    return stamp < other.stamp;
+  }
+};
+typedef multiset<Measurement> Measurements;
+
+
 class EKF
 {
-
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   EKF();
   EKF(string filename);
@@ -32,15 +89,15 @@ public:
   vehicle::Stated getState() const;
 
 private:
-
-  void propagate(const double &t, const uVector &imu);
+  void propagate(const double &t); // propagate to non-IMU measurement time
+  void propagate(const double &t, const uVector &imu); // propagate more accurately with new and previous IMU measurements
   void f(const Stated &x, const uVector& u, VectorXd &dx, const uVector& eta = uVector::Zero());
   void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void gpsUpdate(const Vector6d& z);
-  void mocapUpdate(const Vector7d& z);
+  void mocapUpdate(const xform::Xformd& z);
   void cameraUpdate(const sensors::FeatVec &tracked_feats);
-  void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
+  void measurementUpdate(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
   void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
@@ -48,21 +105,21 @@ private:
   void addFeatToState(const sensors::FeatVec &tracked_feats);
   void keyframeReset(const sensors::FeatVec &tracked_feats);
   void numericalN(const Stated &x, MatrixXd& N);
+  void filterUpdate(vector<Measurement> &new_measurements, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
   RowVector3d M(const Vector2d& nu);
 
   // Primary variables
+  double update_rate_, last_filer_update_;
   bool use_drag_, use_partial_update_, use_keyframe_reset_;
   int nfm_; // maximum number of features in the state
   int nfa_; // active number of features in the state
   int nbs_, nbd_; // number of base states/degrees of freedom
   int num_states_, num_dof_;
-  double t_prev_;
   double rho0_;
   bool init_imu_bias_;
-  uVector imu_prev_;
   State<double> x_;
   VectorXd xdot_, dxp_, dxm_, lambda_, dx_ones_;
   MatrixXd P_, F_, A_, Qx_, G_, B_, Lambda_, N_;
@@ -71,6 +128,12 @@ private:
   MatrixXd I_DOF_;
   VectorXd P_diag_;
   vector<Vector2d, aligned_allocator<Vector2d>> matched_feats_;
+
+  int max_history_size_;
+  Measurements all_measurements_;
+  vector<Measurement> new_measurements_;
+  deque<State<double>> x_hist_;
+  deque<MatrixXd> P_hist_;
 
   // Keyframe reset parameters
   bool initial_keyframe_;
@@ -102,7 +165,6 @@ private:
   ofstream true_state_log_;
   ofstream ekf_state_log_;
   ofstream cov_log_;
-
 };
 
 
