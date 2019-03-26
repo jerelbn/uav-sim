@@ -90,6 +90,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
   common::get_yaml_node("save_pixel_measurements", filename, save_pixel_measurements_);
   common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
+  common::get_yaml_node("camera_time_delay", filename, camera_time_delay_);
   common::get_yaml_node("pixel_noise_stdev", filename, pixel_noise_stdev);
   common::get_yaml_eigen("image_size", filename, image_size_);
   common::get_yaml_eigen("camera_matrix", filename, K_);
@@ -113,6 +114,9 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("mocap_enabled", filename, mocap_enabled_);
   common::get_yaml_node("use_mocap_truth", filename, use_mocap_truth_);
   common::get_yaml_node("mocap_update_rate", filename, mocap_update_rate_);
+  common::get_yaml_node("mocap_time_delay", filename, mocap_time_delay_);
+  if (mocap_time_delay_ < 0)
+    throw runtime_error("Cannot have a negative motion capture time delay!");
   common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
   common::get_yaml_eigen("q_um", filename, q_um);
   common::get_yaml_eigen("p_um", filename, p_um_);
@@ -294,7 +298,6 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
   double dt = common::decRound(t - last_camera_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
-    new_camera_meas_ = true;
     last_camera_update_ = t;
     if (!use_camera_truth_)
       common::randomNormal(pixel_noise_,pixel_noise_dist_,rng_);
@@ -337,6 +340,18 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
           cam_log_.write((char*)a.data(), a.rows() * sizeof(double));
       }
     }
+
+    // Store measurements in a buffer to be published later
+    cam_buffer_.push_back(pair<double,FeatVec>(t,cam_));
+  }
+
+  // Publish measurement after sufficient time delay
+  if (fabs(t - cam_buffer_.begin()->first) >= camera_time_delay_ && cam_buffer_.size() > 0)
+  {
+    new_camera_meas_ = true;
+    cam_stamp_ = cam_buffer_.begin()->first;
+    cam_= cam_buffer_.begin()->second;
+    cam_buffer_.erase(cam_buffer_.begin());
   }
   else
   {
@@ -350,7 +365,6 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
   double dt = common::decRound(t - last_mocap_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / mocap_update_rate_)
   {
-    new_mocap_meas_ = true;
     last_mocap_update_ = t;
     if (!use_mocap_truth_)
       common::randomNormal(mocap_noise_,mocap_noise_dist_,rng_);
@@ -367,11 +381,24 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
     mocap_log_.write((char*)mocap_truth_.arr_.data(), mocap_truth_.arr_.rows() * sizeof(double));
     mocap_log_.write((char*)p_um_.data(), 3 * sizeof(double));
     mocap_log_.write((char*)q_um_.data(), 4 * sizeof(double));
+
+    // Store measurements in a buffer to be published later
+    mocap_buffer_.push_back(pair<double,xform::Xformd>(t,mocap_));
+  }
+
+  // Publish measurement after sufficient time delay
+  if (fabs(t - mocap_buffer_.begin()->first) >= mocap_time_delay_ && mocap_buffer_.size() > 0)
+  {
+    new_mocap_meas_ = true;
+    mocap_stamp_ = mocap_buffer_.begin()->first;
+    mocap_= mocap_buffer_.begin()->second;
+    mocap_buffer_.erase(mocap_buffer_.begin());
   }
   else
   {
     new_mocap_meas_ = false;
   }
+
 }
 
 

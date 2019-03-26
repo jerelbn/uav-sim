@@ -157,14 +157,14 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     }
     new_measurements_.emplace_back(Measurement(IMU, t, sensors.imu_));
   }
-  if (t > 0 && first_imu_received_)
+  if (first_imu_received_)
   {
-    if (sensors.new_gps_meas_)
+    if (sensors.new_gps_meas_ && t > 0)
       new_measurements_.emplace_back(Measurement(GPS, t, sensors.gps_));
-    if (sensors.new_mocap_meas_)
-      new_measurements_.emplace_back(Measurement(MOCAP, t, sensors.mocap_));
-    if (sensors.new_camera_meas_)
-      new_measurements_.emplace_back(Measurement(IMAGE, t, sensors.cam_));
+    if (sensors.new_mocap_meas_ && sensors.mocap_stamp_ > 0)
+      new_measurements_.emplace_back(Measurement(MOCAP, sensors.mocap_stamp_, sensors.mocap_));
+    if (sensors.new_camera_meas_ && sensors.cam_stamp_ > 0)
+      new_measurements_.emplace_back(Measurement(IMAGE, sensors.cam_stamp_, sensors.cam_));
   }
 
   // Update the filter at desired update rate

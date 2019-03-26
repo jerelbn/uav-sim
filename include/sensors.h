@@ -64,7 +64,9 @@ public:
 
   Vector3d gyro_, accel_;
   Matrix<double, 6, 1> imu_;
+  double mocap_stamp_;
   xform::Xformd mocap_;
+  double cam_stamp_;
   FeatVec cam_;
   double baro_;
   double pitot_;
@@ -113,6 +115,8 @@ private:
   int cam_max_feat_;
   double last_camera_update_;
   double camera_update_rate_;
+  double camera_time_delay_;
+  vector<pair<double,FeatVec>> cam_buffer_;
   normal_distribution<double> pixel_noise_dist_;
   Vector2d pixel_noise_;
   Matrix3d K_, K_inv_;
@@ -125,6 +129,8 @@ private:
   bool use_mocap_truth_, mocap_enabled_;
   double last_mocap_update_;
   double mocap_update_rate_;
+  double mocap_time_delay_;
+  vector<pair<double,xform::Xformd>> mocap_buffer_;
   normal_distribution<double> mocap_noise_dist_;
   Matrix<double, 6, 1> mocap_noise_;
   xform::Xformd mocap_truth_;
