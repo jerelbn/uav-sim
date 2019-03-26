@@ -38,7 +38,7 @@ private:
   void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void gpsUpdate(const Vector6d& z);
-  void mocapUpdate(const Vector7d& z);
+  void mocapUpdate(const xform::Xformd &z);
   void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);

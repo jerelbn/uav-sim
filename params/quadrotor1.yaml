@@ -125,6 +125,7 @@ gyro_walk_stdev: 0.01
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 30
+camera_time_delay: 0.082
 pixel_noise_stdev: 0.1
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
@@ -136,6 +137,7 @@ save_pixel_measurements: false
 
 ## Motion Capture
 mocap_update_rate: 50
+mocap_time_delay: 0.0
 mocap_noise_stdev: 0.001
 p_um: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
 q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
@@ -209,7 +211,7 @@ ekf_Qx: [0, 0, 0, # POS
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8, # GYRO BIAS
          1e-9]             # DRAG COEFFICIENT
-ekf_Qx_feat: [0, 0, 0]
+ekf_Qx_feat: [1e-7, 1e-7, 1e-7]
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
@@ -222,5 +224,5 @@ ekf_lambda: [1.0, 1.0, 1.0, # POS
              1.0, 1.0, 1.0, # ATT
              0.7, 0.7, 0.7, # ACCEL BIAS
              0.8, 0.8, 0.8, # GYRO BIAS
-             0.9]           # DRAG COEFFICIENT
+             1.0]           # DRAG COEFFICIENT
 ekf_lambda_feat: [1.0, 1.0, 1.0]

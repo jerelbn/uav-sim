@@ -193,6 +193,7 @@ gyro_walk_stdev: 0.01
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 50
+camera_time_delay: 0.0
 pixel_noise_stdev: 0.5
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
@@ -204,6 +205,7 @@ save_pixel_measurements: true
 
 ## Motion Capture
 mocap_update_rate: 50
+mocap_time_delay: 0.0
 mocap_noise_stdev: 0.001
 p_um: [0, 0, 0] # translation from IMU to mocap body in IMU frame
 q_um: [1, 0, 0, 0] # rotation from IMU to mocap body

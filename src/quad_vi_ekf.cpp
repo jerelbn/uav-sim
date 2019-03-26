@@ -202,7 +202,7 @@ void EKF::gpsUpdate(const Vector6d& z)
 }
 
 
-void EKF::mocapUpdate(const Vector7d& z)
+void EKF::mocapUpdate(const xform::Xformd& z)
 {
   // Pack measurement into Xform
   xform::Xformd Xz(z);
