@@ -34,8 +34,7 @@ public:
   vehicle::Stated getState() const;
 
 private:
-  void propagate(const double &t); // propagate to non-IMU measurement time
-  void propagate(const double &t, const uVector &imu); // propagate more accurately with new and previous IMU measurements
+  void propagate(const double &t, const uVector &imu);
   void f(const Stated &x, const uVector& u, VectorXd &dx, const uVector& eta = uVector::Zero());
   void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);

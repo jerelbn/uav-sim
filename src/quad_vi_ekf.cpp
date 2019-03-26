@@ -66,7 +66,7 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
   common::get_yaml_eigen_diag("ekf_P0_feat", filename, P0_feat_);
   common::get_yaml_eigen_diag("ekf_Qx_feat", filename, Qx_feat_);
-  x_ = State<double>(0, x0, nbs_, nfm_);
+  x_ = State<double>(0, uVector::Constant(NAN), nbs_, nfm_, nfa_, x0);
   P_.topLeftCorner(nbd_,nbd_) = P0_base.topRows(nbd_).asDiagonal();
   Qx_.topLeftCorner(nbd_,nbd_) = Qx_base.topRows(nbd_).asDiagonal();
   for (int i = 0; i < nfm_; ++i)
@@ -151,6 +151,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     if (!first_imu_received_)
     {
       x_.imu = sensors.imu_;
+      x_hist_[0].imu = sensors.imu_;
       first_imu_received_ = true;
       return;
     }
@@ -209,19 +210,19 @@ void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x
     if (nmit->type == GPS)
     {
       if (fabs(nmit->stamp - x_.t) > 1e-5)
-        propagate(nmit->stamp);
+        propagate(nmit->stamp, x_.imu);
       gpsUpdate(nmit->gps);
     }
     if (nmit->type == MOCAP)
     {
       if (fabs(nmit->stamp - x_.t) > 1e-5)
-        propagate(nmit->stamp);
+        propagate(nmit->stamp, x_.imu);
       mocapUpdate(nmit->mocap);
     }
     if (nmit->type == IMAGE)
     {
       if (fabs(nmit->stamp - x_.t) > 1e-5)
-        propagate(nmit->stamp);
+        propagate(nmit->stamp, x_.imu);
       cameraUpdate(nmit->image);
     }
     x_hist_.push_back(x_);
@@ -246,26 +247,6 @@ void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x
 }
 
 
-void EKF::propagate(const double &t)
-{
-  // Time step
-  double dt = t - x_.t;
-
-  // Propagate the covariance - guarantee positive-definite P with discrete propagation
-//    analyticalFG(x_, imu, F_, G_);
-  numericalFG(x_, x_.imu, F_, G_);
-  A_ = I_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
-  B_ = (I_DOF_ + F_ * dt / 2.0) * G_ * dt;
-  P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
-                                            B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
-
-  // Trapezoidal integration on the IMU input
-  f(x_, x_.imu, xdot_);
-  x_ += xdot_ * dt;
-  x_.t = t;
-}
-
-
 void EKF::propagate(const double &t, const uVector& imu)
 {
   // Time step
@@ -276,8 +257,8 @@ void EKF::propagate(const double &t, const uVector& imu)
   numericalFG(x_, imu, F_, G_);
   A_ = I_DOF_ + F_ * dt + F_ * F_ * dt * dt / 2.0; // Approximate state transition matrix
   B_ = (I_DOF_ + F_ * dt / 2.0) * G_ * dt;
-  P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) = A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * P_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_) * A_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_).transpose() +
-      B_.topRows(nbd_+3*nfa_) * Qu_ * B_.topRows(nbd_+3*nfa_).transpose() + Qx_.topLeftCorner(nbd_+3*nfa_,nbd_+3*nfa_);
+  P_.topLeftCorner(nbd_+3*x_.nfa,nbd_+3*x_.nfa) = A_.topLeftCorner(nbd_+3*x_.nfa,nbd_+3*x_.nfa) * P_.topLeftCorner(nbd_+3*x_.nfa,nbd_+3*x_.nfa) * A_.topLeftCorner(nbd_+3*x_.nfa,nbd_+3*x_.nfa).transpose() +
+      B_.topRows(nbd_+3*x_.nfa) * Qu_ * B_.topRows(nbd_+3*x_.nfa).transpose() + Qx_.topLeftCorner(nbd_+3*x_.nfa,nbd_+3*x_.nfa);
 
   // Trapezoidal integration on the IMU input
   f(x_, 0.5*(imu+x_.imu), xdot_);
@@ -323,12 +304,12 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
   getPixMatches(tracked_feats);
 
   // Apply the update
-  if (nfa_ > 0)
+  if (x_.nfa > 0)
   {
     // Build measurement vector and model
     z_cam_.setZero();
     h_cam_.setZero();
-    for (int i = 0; i < nfa_; ++i)
+    for (int i = 0; i < x_.nfa; ++i)
     {
       z_cam_.segment<2>(2*i) = matched_feats_[i];
       h_cam_.segment<2>(2*i) = x_.feats[i].pix;
@@ -338,7 +319,7 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
   }
 
   // Fill state with new features if needed
-  if (nfa_ < nfm_)
+  if (x_.nfa < nfm_)
     addFeatToState(tracked_feats);
 
   if (use_keyframe_reset_)
@@ -350,7 +331,7 @@ void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
 {
   int i = 0;
   matched_feats_.clear();
-  while (i < nfa_)
+  while (i < x_.nfa)
   {
     // Look for an ID match to the current state feature
     bool id_match_found = false;
@@ -373,7 +354,7 @@ void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
       ++i;
   }
 
-  if (matched_feats_.size() != nfa_)
+  if (matched_feats_.size() != x_.nfa)
     cerr << "Matched camera measurements does not match number of active features!" << endl;
 }
 
@@ -382,7 +363,7 @@ void EKF::removeFeatFromState(const int &idx)
 {
   // Shift and reset state and covariance
   int j;
-  for (j = idx; j < nfa_-1; ++j)
+  for (j = idx; j < x_.nfa-1; ++j)
   {
     x_.feats[j] = x_.feats[j+1];
     P_.row(nbd_+3*j) = P_.row(nbd_+3*(j+1));
@@ -401,7 +382,7 @@ void EKF::removeFeatFromState(const int &idx)
   P_.col(nbd_+3*j+2).setZero();
 
   // Decrement the active feature counter
-  --nfa_;
+  --x_.nfa;
 }
 
 
@@ -430,19 +411,19 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
     if (!id_used)
     {
       // Initialize feature state and corresponding covariance block
-      x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
-      P_.block<3,3>(nbd_+3*nfa_,nbd_+3*nfa_) = P0_feat_;
+      x_.feats[x_.nfa] = sensors::Feat(f.pix,rho0_,f.id);
+      P_.block<3,3>(nbd_+3*x_.nfa,nbd_+3*x_.nfa) = P0_feat_;
 
       // Store true inverse depth and pixel position
-      feats_true_[nfa_].pix = f.pix;
-      feats_true_[nfa_].rho = f.rho;
+      feats_true_[x_.nfa].pix = f.pix;
+      feats_true_[x_.nfa].rho = f.rho;
 
       // Increment number of active features
-      ++nfa_;
+      ++x_.nfa;
     }
 
     // Don't try adding more features than allowed
-    if (nfa_ == nfm_) break;
+    if (x_.nfa == nfm_) break;
   }
 }
 
@@ -614,7 +595,7 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   // Compute true landmark pixel measurement
   for (int i = 0; i < nfm_; ++i)
   {
-    if (i+1 <= nfa_)
+    if (i+1 <= x_.nfa)
     {
       true_state_log_.write((char*)feats_true_[i].pix.data(), 2 * sizeof(double));
       true_state_log_.write((char*)&feats_true_[i].rho, sizeof(double));
@@ -655,7 +636,7 @@ void EKF::logEst(const double &t)
     ekf_state_log_.write((char*)&x_.mu, sizeof(double));
   for (int i = 0; i < nfm_; ++i)
   {
-    if (i+1 <= nfa_)
+    if (i+1 <= x_.nfa)
     {
       ekf_state_log_.write((char*)x_.feats[i].pix.data(), 2 * sizeof(double));
       ekf_state_log_.write((char*)&x_.feats[i].rho, sizeof(double));

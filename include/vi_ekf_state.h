@@ -53,22 +53,24 @@ struct State
 
   State() {}
 
-  State(const double& _t, const int& _nbs, const int& _nf)
+  State(const double& _t, const Vector6d& _imu, const int& _nbs, const int& _nfm, const int& _nfa)
   {
     t = _t;
-    imu.setZero();
-    nf = _nf;
+    imu = _imu;
+    nfm = _nfm;
+    nfa = _nfa;
     nbs = _nbs;
     nbd = nbs - 1;
-    for (int i = 0; i < nf; ++i)
+    for (int i = 0; i < nfm; ++i)
       feats.push_back(sensors::Feat());
   }
 
-  State(const double& _t, const VectorXd &x, const int& _nbs, const int& _nf)
+  State(const double& _t, const Vector6d& _imu, const int& _nbs, const int& _nfm, const int& _nfa, const VectorXd &x)
   {
     t = _t;
-    imu.setZero();
-    nf = _nf;
+    imu = _imu;
+    nfm = _nfm;
+    nfa = _nfa;
     nbs = _nbs;
     nbd = nbs - 1;
     p = x.template segment<3>(P);
@@ -78,13 +80,13 @@ struct State
     bg = x.template segment<3>(BG);
     if (nbs == 17)
       mu = x(MU);
-    for (int i = 0; i < nf; ++i)
+    for (int i = 0; i < nfm; ++i)
       feats.push_back(sensors::Feat());
   }
 
   State<T> operator+(const VectorXd &delta) const
   {
-    State<T> x(t, nbs, nf);
+    State<T> x(t, imu, nbs, nfm, nfa);
     x.p = p + delta.template segment<3>(DP);
     x.v = v + delta.template segment<3>(DV);
     x.q = q + delta.template segment<3>(DQ);
@@ -92,7 +94,7 @@ struct State
     x.bg = bg + delta.template segment<3>(DBG);
     if (nbs == 17)
       x.mu = mu + delta(DMU);
-    for (int i = 0; i < nf; ++i)
+    for (int i = 0; i < nfm; ++i)
     {
       sensors::Feat f;
       f.pix = feats[i].pix + delta.template segment<2>(nbd+3*i);
@@ -100,13 +102,12 @@ struct State
       f.id = feats[i].id;
       x.feats[i] = f;
     }
-    x.imu = imu;
     return x;
   }
 
   VectorXd operator-(const State<T> &x2) const
   {
-    VectorXd dx(nbd+3*nf);
+    VectorXd dx(nbd+3*nfm);
     dx.template segment<3>(DP) = p - x2.p;
     dx.template segment<3>(DV) = v - x2.v;
     dx.template segment<3>(DQ) = q - x2.q;
@@ -114,7 +115,7 @@ struct State
     dx.template segment<3>(DBG) = bg - x2.bg;
     if (nbs == 17)
       dx(DMU) = mu - x2.mu;
-    for (int i = 0; i < nf; ++i)
+    for (int i = 0; i < nfm; ++i)
     {
       dx.template segment<2>(nbd+3*i) = feats[i].pix - x2.feats[i].pix;
       dx(nbd+3*i+2) = feats[i].rho - x2.feats[i].rho;
@@ -129,7 +130,7 @@ struct State
 
   VectorXd vec() const
   {
-    VectorXd x(nbs+3*nf);
+    VectorXd x(nbs+3*nfm);
     x.template segment<3>(P) = p;
     x.template segment<3>(V) = v;
     x.template segment<4>(Q) = q.elements();
@@ -137,7 +138,7 @@ struct State
     x.template segment<3>(BG) = bg;
     if (nbs == 17)
       x(MU) = mu;
-    for (int i = 0; i < nf; ++i)
+    for (int i = 0; i < nfm; ++i)
     {
       x.template segment<2>(nbs+3*i) = feats[i].pix;
       x(nbs+3*i+2) = feats[i].rho;
@@ -146,6 +147,10 @@ struct State
   }
 
   double t; // time
+  int nfa; // number of active features
+  int nfm; // max number of features
+  int nbs; // number of base states
+  int nbd; // number of base degrees of freedom
   Vector6d imu;
   Matrix<T,3,1> p;
   Matrix<T,3,1> v;
@@ -154,9 +159,6 @@ struct State
   Matrix<T,3,1> bg;
   T mu;
   sensors::FeatVec feats;
-  int nf; // number of features
-  int nbs; // number of base states
-  int nbd; // number of base degrees of freedom
 
 };
 typedef State<double> Stated;
