@@ -28,7 +28,7 @@ public:
   ~EKF();
 
   void load(const string &filename, const string &name);
-  void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
+  void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true, const MatrixXd &lm);
   vehicle::Stated getState() const;
 
 private:
@@ -41,7 +41,7 @@ private:
   void mocapUpdate(const xform::Xformd &z);
   void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
-  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
+  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
   void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
   void removeFeatFromState(const int& idx);
@@ -96,7 +96,6 @@ private:
   Matrix3d cam_matrix_;
   double fx_, fy_, u0_, v0_;
   Vector2d image_center_;
-  sensors::FeatVec feats_true_;
 
   // Logging
   ofstream true_state_log_;
