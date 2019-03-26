@@ -48,7 +48,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw());
   sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
-  ekf_.run(0, sensors_, env.get_vw(), getState());
+  ekf_.run(0, sensors_, env.get_vw(), getState(), env.get_points());
 
   // Initialize loggers and log initial data
   std::stringstream ss_s, ss_e;
@@ -108,7 +108,7 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
     controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw()); // Update true acceleration
   sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
-  ekf_.run(t, sensors_, env.get_vw(), getState());
+  ekf_.run(t, sensors_, env.get_vw(), getState(), env.get_points());
   log(t); // Log current data
 }
 

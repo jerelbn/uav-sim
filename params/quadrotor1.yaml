@@ -213,7 +213,7 @@ ekf_Qx: [0, 0, 0, # POS
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8, # GYRO BIAS
          1e-9]             # DRAG COEFFICIENT
-ekf_Qx_feat: [0, 0, 0]
+ekf_Qx_feat: [1e-7, 1e-7, 1e-7]
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION

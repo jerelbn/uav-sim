@@ -53,7 +53,6 @@ void EKF::load(const string &filename, const std::string& name)
   K_gps_ = MatrixXd::Zero(num_dof_,6);
   H_mocap_ = MatrixXd::Zero(6,num_dof_);
   K_mocap_ = MatrixXd::Zero(num_dof_,6);
-  feats_true_.reserve(nfm_);
 
   // Initializations
   Vector3d lambda_feat;
@@ -136,7 +135,7 @@ void EKF::load(const string &filename, const std::string& name)
 }
 
 
-void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
+void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true, const MatrixXd& lm)
 {
   // Initialize IMU close to the truth (simulate flat ground calibration)
   if (t == 0 && init_imu_bias_)
@@ -170,13 +169,13 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
   // Update the filter at desired update rate
   if (common::decRound(t - last_filter_update_, 1e6) >= 1.0 / update_rate_ && first_imu_received_)
   {
-    filterUpdate(sensors, x_true);
+    filterUpdate(sensors, x_true, lm);
     last_filter_update_ = t;
   }
 }
 
 
-void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x_true)
+void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd& lm)
 {
   // Dump new measurements into sorted container for all measurements, while getting oldest time stamp
   double t_oldest = INFINITY;
@@ -242,7 +241,7 @@ void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x
     all_measurements_.erase(all_measurements_.begin());
 
   // Log data
-  logTruth(x_.t, sensors, x_true);
+  logTruth(x_.t, sensors, x_true, lm);
   logEst(x_.t);
 }
 
@@ -341,8 +340,6 @@ void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
       {
         matched_feats_.push_back(tf.pix);
         id_match_found = true;
-        feats_true_[i].pix = tf.pix;
-        feats_true_[i].rho = tf.rho;
         break;
       }
     }
@@ -413,10 +410,6 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
       // Initialize feature state and corresponding covariance block
       x_.feats[x_.nfa] = sensors::Feat(f.pix,rho0_,f.id);
       P_.block<3,3>(nbd_+3*x_.nfa,nbd_+3*x_.nfa) = P0_feat_;
-
-      // Store true inverse depth and pixel position
-      feats_true_[x_.nfa].pix = f.pix;
-      feats_true_[x_.nfa].rho = f.rho;
 
       // Increment number of active features
       ++x_.nfa;
@@ -581,7 +574,7 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
 }
 
 
-void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true)
+void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd& lm)
 {
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x_true.p.data(), 3 * sizeof(double));
@@ -597,8 +590,30 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   {
     if (i+1 <= x_.nfa)
     {
-      true_state_log_.write((char*)feats_true_[i].pix.data(), 2 * sizeof(double));
-      true_state_log_.write((char*)&feats_true_[i].rho, sizeof(double));
+      // Find the inertial landmark that matches the current state feature label
+      Vector3d lmi;
+      for (int j = 0; j < lm.cols(); ++j)
+      {
+        if (j == x_.feats[i].id)
+        {
+          lmi = lm.col(j);
+          break;
+        }
+      }
+
+      // Calculate the true vector from camera to landmark in the camera frame
+      quat::Quatd q_i2c = x_true.q * q_u2c_;
+      Vector3d p_i2c = x_true.p + x_true.q.rota(p_uc_);
+      Vector3d lmc = q_i2c.rotp(lmi - p_i2c);
+
+      // Compute pixel position and inverse z-depth
+      Vector2d pix;
+      common::projToImg(pix, lmc, cam_matrix_);
+      double rho = 1.0 / lmc(2);
+
+      // Log the data
+      true_state_log_.write((char*)pix.data(), 2 * sizeof(double));
+      true_state_log_.write((char*)&rho, sizeof(double));
     }
     else
     {

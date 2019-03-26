@@ -323,7 +323,7 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
       common::projToImg(pix, l, K_);
       pix += pixel_noise_;
       if (pix(0) >= 1 && pix(1) >= 1 && pix(0) <= image_size_(0) && pix(1) <= image_size_(1))
-        cam_.push_back(Feat(pix, rho, i));
+        cam_.push_back(Feat(pix, rho, i)); // feature labels correspond to its column in the inertial points matrix
 
       if (cam_.size() == cam_max_feat_) break;
     }
