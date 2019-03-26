@@ -208,17 +208,20 @@ void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x
       propagate(nmit->stamp, nmit->imu);
     if (nmit->type == GPS)
     {
-      propagate(nmit->stamp);
+      if (fabs(nmit->stamp - x_.t) > 1e-5)
+        propagate(nmit->stamp);
       gpsUpdate(nmit->gps);
     }
     if (nmit->type == MOCAP)
     {
-      propagate(nmit->stamp);
+      if (fabs(nmit->stamp - x_.t) > 1e-5)
+        propagate(nmit->stamp);
       mocapUpdate(nmit->mocap);
     }
     if (nmit->type == IMAGE)
     {
-      propagate(nmit->stamp);
+      if (fabs(nmit->stamp - x_.t) > 1e-5)
+        propagate(nmit->stamp);
       cameraUpdate(nmit->image);
     }
     x_hist_.push_back(x_);
