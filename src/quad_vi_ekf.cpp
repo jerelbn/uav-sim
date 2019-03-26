@@ -203,9 +203,6 @@ void EKF::gpsUpdate(const Vector6d& z)
 
 void EKF::mocapUpdate(const xform::Xformd& z)
 {
-  // Pack measurement into Xform
-  xform::Xformd Xz(z);
-
   // Measurement model and matrix
   h_mocap_.t_ = x_.p + x_.q.rota(p_um_);
   h_mocap_.q_ = x_.q * q_u2m_;
@@ -215,7 +212,7 @@ void EKF::mocapUpdate(const xform::Xformd& z)
   H_mocap_.block<3,3>(3,DQ) = q_u2m_.inverse().R();
 
   // Apply the update
-  update(Xz-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
+  update(z-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
 }
 
 
