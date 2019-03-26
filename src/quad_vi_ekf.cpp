@@ -5,7 +5,7 @@ namespace qviekf
 {
 
 
-EKF::EKF() : last_filer_update_(0), nfa_(0) {}
+EKF::EKF() : last_filter_update_(0), nfa_(0), first_imu_received_(false) {}
 
 
 EKF::~EKF()
@@ -147,8 +147,16 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
 
   // Store new measurements
   if (sensors.new_imu_meas_)
+  {
+    if (!first_imu_received_)
+    {
+      x_.imu = sensors.imu_;
+      first_imu_received_ = true;
+      return;
+    }
     new_measurements_.emplace_back(Measurement(IMU, t, sensors.imu_));
-  if (t > 0)
+  }
+  if (t > 0 && first_imu_received_)
   {
     if (sensors.new_gps_meas_)
       new_measurements_.emplace_back(Measurement(GPS, t, sensors.gps_));
@@ -159,25 +167,25 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
   }
 
   // Update the filter at desired update rate
-  if (common::decRound(t - last_filer_update_, 1e6) >= 1.0 / update_rate_)
+  if (common::decRound(t - last_filter_update_, 1e6) >= 1.0 / update_rate_ && first_imu_received_)
   {
-    filterUpdate(new_measurements_,sensors, x_true);
-    last_filer_update_ = t;
+    filterUpdate(sensors, x_true);
+    last_filter_update_ = t;
   }
 }
 
 
-void EKF::filterUpdate(vector<Measurement>& new_measurements, const sensors::Sensors &sensors, const vehicle::Stated& x_true)
+void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x_true)
 {
   // Dump new measurements into sorted container for all measurements, while getting oldest time stamp
   double t_oldest = INFINITY;
-  for (auto& nm : new_measurements)
+  for (auto& nm : new_measurements_)
   {
     if (t_oldest > nm.stamp)
       t_oldest = nm.stamp;
     all_measurements_.emplace(nm);
   }
-  new_measurements.clear();
+  new_measurements_.clear();
 
   // Rewind the state and covariance to just before the oldest measurement
   while (t_oldest < (x_hist_.end()-1)->t)
@@ -189,12 +197,12 @@ void EKF::filterUpdate(vector<Measurement>& new_measurements, const sensors::Sen
   P_ = *P_hist_.rbegin();
 
   // Get iterator to oldest measurement from new set
-  auto nmit = all_measurements_.rbegin();
+  auto nmit = --all_measurements_.end();
   while (nmit->stamp > t_oldest)
-    ++nmit;
+    --nmit;
 
   // Run the filter up throuth the latest measurements
-  while (nmit != all_measurements_.rbegin())
+  while (nmit != all_measurements_.end())
   {
     if (nmit->type == IMU)
       propagate(nmit->stamp, nmit->imu);
@@ -215,7 +223,7 @@ void EKF::filterUpdate(vector<Measurement>& new_measurements, const sensors::Sen
     }
     x_hist_.push_back(x_);
     P_hist_.push_back(P_);
-    --nmit;
+    ++nmit;
   }
 
   // Drop states exceeding the max history size

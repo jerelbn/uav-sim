@@ -56,6 +56,7 @@ struct State
   State(const double& _t, const int& _nbs, const int& _nf)
   {
     t = _t;
+    imu.setZero();
     nf = _nf;
     nbs = _nbs;
     nbd = nbs - 1;
@@ -66,6 +67,7 @@ struct State
   State(const double& _t, const VectorXd &x, const int& _nbs, const int& _nf)
   {
     t = _t;
+    imu.setZero();
     nf = _nf;
     nbs = _nbs;
     nbd = nbs - 1;
@@ -98,6 +100,7 @@ struct State
       f.id = feats[i].id;
       x.feats[i] = f;
     }
+    x.imu = imu;
     return x;
   }
 

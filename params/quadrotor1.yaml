@@ -93,8 +93,8 @@ circ_hd: 5.0
 
 # Sensors
 imu_enabled: true
-camera_enabled: true
-mocap_enabled: false
+camera_enabled: false
+mocap_enabled: true
 baro_enabled: false
 pitot_enabled: false
 wvane_enabled: false
@@ -184,10 +184,10 @@ target_noise_stdev: 1.0
 ## EKF Parameters
 ekf_update_rate: 100 # Hz
 ekf_max_history_size: 10
-ekf_use_drag: true
-ekf_use_partial_update: true
-ekf_use_keyframe_reset: true
-ekf_num_features: 10
+ekf_use_drag: false
+ekf_use_partial_update: false
+ekf_use_keyframe_reset: false
+ekf_num_features: 1
 ekf_rho0: 0.001
 ekf_init_imu_bias: false
 ekf_kfr_mean_pix_disparity_thresh: 60

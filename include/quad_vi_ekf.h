@@ -105,14 +105,15 @@ private:
   void addFeatToState(const sensors::FeatVec &tracked_feats);
   void keyframeReset(const sensors::FeatVec &tracked_feats);
   void numericalN(const Stated &x, MatrixXd& N);
-  void filterUpdate(vector<Measurement> &new_measurements, const sensors::Sensors &sensors, const vehicle::Stated& x_true);
+  void filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x_true);
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
   RowVector3d M(const Vector2d& nu);
 
   // Primary variables
-  double update_rate_, last_filer_update_;
+  bool first_imu_received_;
+  double update_rate_, last_filter_update_;
   bool use_drag_, use_partial_update_, use_keyframe_reset_;
   int nfm_; // maximum number of features in the state
   int nfa_; // active number of features in the state
