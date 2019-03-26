@@ -151,7 +151,7 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     if (sensors.new_mocap_meas_ && sensors.mocap_stamp_ > 0)
       mocapUpdate(sensors.mocap_);
     if (sensors.new_camera_meas_ && sensors.cam_stamp_ > 0)
-      cameraUpdate(sensors.cam_);
+      cameraUpdate(t, sensors.cam_stamp_, sensors.cam_);
   }
 
   // Log data
@@ -216,7 +216,7 @@ void EKF::mocapUpdate(const xform::Xformd& z)
 }
 
 
-void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
+void EKF::cameraUpdate(const double& t_now, const double& t_image, const sensors::FeatVec &tracked_feats)
 {
   // Collect measurement of each feature in the state and remove feature states that have lost tracking
   getPixMatches(tracked_feats);
@@ -229,7 +229,27 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
     h_cam_.setZero();
     for (int i = 0; i < nfa_; ++i)
     {
-      z_cam_.segment<2>(2*i) = matched_feats_[i];
+      // Get previous measurement of current feature state
+      Vector2d z_prev;
+      bool match_found = false;
+      for (auto& fp : feats_prev_)
+      {
+        if (fp.id == x_.feats[i].id)
+        {
+          z_prev = fp.pix;
+          match_found = true;
+        }
+      }
+
+      // Appoximate delay measurement at current time by linear extrapolation
+      Vector2d z_image = matched_feats_[i].pix;
+      Vector2d z_approx = z_image + (z_image - z_prev) / (t_image - t_image_prev_) * (t_now - t_image);
+
+      // Fill measurement and model vectors
+      if (!match_found)
+        z_cam_.segment<2>(2*i) = x_.feats[i].pix; // if previous measurement doesn't exist, copy state to have zero update
+      else
+        z_cam_.segment<2>(2*i) = z_approx;
       h_cam_.segment<2>(2*i) = x_.feats[i].pix;
     }
 
@@ -242,6 +262,10 @@ void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
 
   if (use_keyframe_reset_)
     keyframeReset(tracked_feats);
+
+  // Save features for linear interpolation of delayed feature measurements
+  t_image_prev_ = t_image;
+  feats_prev_ = tracked_feats;
 }
 
 
@@ -257,7 +281,7 @@ void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
     {
       if (x_.feats[i].id == tf.id)
       {
-        matched_feats_.push_back(tf.pix);
+        matched_feats_.push_back(tf);
         id_match_found = true;
         break;
       }

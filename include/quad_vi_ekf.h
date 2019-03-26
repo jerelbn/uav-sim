@@ -39,7 +39,7 @@ private:
   void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void gpsUpdate(const Vector6d& z);
   void mocapUpdate(const xform::Xformd &z);
-  void cameraUpdate(const sensors::FeatVec &tracked_feats);
+  void cameraUpdate(const double &t_now, const double &t_image, const sensors::FeatVec &tracked_feats);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
   void logEst(const double &t);
@@ -70,7 +70,9 @@ private:
   uMatrix Qu_;
   MatrixXd I_DOF_;
   VectorXd P_diag_;
-  vector<Vector2d, aligned_allocator<Vector2d>> matched_feats_;
+  sensors::FeatVec matched_feats_;
+  double t_image_prev_;
+  sensors::FeatVec feats_prev_;
 
   // Keyframe reset parameters
   bool initial_keyframe_;
