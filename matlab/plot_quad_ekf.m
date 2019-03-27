@@ -1,4 +1,4 @@
-function plot_quad_ekf(params, plot_cov, plot_2d_pix)
+function plot_quad_ekf(params, plot_cov, plot_pix_components, plot_2d_pix)
 
 % Load data
 if params.ekf_use_drag
@@ -139,29 +139,31 @@ if params.ekf_use_drag
 end
 
 
-idx = nbd+1;
-for j = 1:params.ekf_num_features
-    figure()
-    set(gcf, 'name', strcat(['EKF Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
-    titles = ["pix_x","pix_y","depth"];
-    for i=1:3
-        subplot(3, 1, i), hold on, grid on
-        title(titles(i))
-        plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
-        plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
-        if plot_cov == true
-            plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
-            plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+if plot_pix_components
+    idx = nbd+1;
+    for j = 1:params.ekf_num_features
+        figure()
+        set(gcf, 'name', strcat(['EKF Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
+        titles = ["pix_x","pix_y","depth"];
+        for i=1:3
+            subplot(3, 1, i), hold on, grid on
+            title(titles(i))
+            plot(true_state(1,:), true_state(i + idx, :), 'linewidth', 2.0)
+            plot(ekf_state(1,:), ekf_state(i + idx, :), 'linewidth', 1.5)
+            if plot_cov == true
+                plot(ekf_state(1,:), ekf_state(i + idx, :) + 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+                plot(ekf_state(1,:), ekf_state(i + idx, :) - 2 * sqrt(ekf_cov(i + idx, :)), 'm-', 'linewidth', 0.5)
+            end
+            if i == 1
+                ylim([0,params.image_size{1}])
+                legend('Truth', 'EKF')
+            end
+            if i == 2
+                ylim([0,params.image_size{2}])
+            end
         end
-        if i == 1
-            ylim([0,params.image_size{1}])
-            legend('Truth', 'EKF')
-        end
-        if i == 2
-            ylim([0,params.image_size{2}])
-        end
+        idx = idx + 3;
     end
-    idx = idx + 3;
 end
 
 

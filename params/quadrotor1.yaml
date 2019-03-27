@@ -190,7 +190,7 @@ ekf_use_keyframe_reset: true
 ekf_num_features: 10
 ekf_rho0: 0.001
 ekf_init_imu_bias: false
-ekf_kfr_mean_pix_disparity_thresh: 60
+ekf_kfr_mean_pix_disparity_thresh: 240
 ekf_kfr_min_matches: 1
 ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # VEL
@@ -198,19 +198,19 @@ ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # ACCEL BIAS
          0, 0, 0,    # GYRO BIAS
          0.001]      # DRAG COEFFICIENT
-ekf_P0: [1e-6, 1e-6, 1e-6, # POS
-         1e-6, 1e-6, 1e-6, # VEL
-         1e-4, 1e-4, 1e-4, # ATT
+ekf_P0: [0, 0, 0, # POS
+         1e-8, 1e-8, 1e-8, # VEL
+         1e-8, 1e-8, 0, # ATT
          5e-2, 5e-2, 5e-2, # ACCEL BIAS
          5e-3, 5e-3, 5e-3, # GYRO BIAS
          1e-2]             # DRAG COEFFICIENT
-ekf_P0_feat: [1e4, 1e4, 0.5]
+ekf_P0_feat: [2500, 2500, 0.3]
 ekf_Qx: [0, 0, 0, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8, # GYRO BIAS
-         1e-9]             # DRAG COEFFICIENT
+         0]             # DRAG COEFFICIENT
 ekf_Qx_feat: [1e-7, 1e-7, 1e-7]
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
@@ -218,11 +218,11 @@ ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
             0.05, 0.05, 0.15] # VELOCITY
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
-ekf_R_cam: [100, 100]
+ekf_R_cam: [0.25, 0.25]
 ekf_lambda: [1.0, 1.0, 1.0, # POS
              1.0, 1.0, 1.0, # VEL
              1.0, 1.0, 1.0, # ATT
-             0.7, 0.7, 0.7, # ACCEL BIAS
-             0.8, 0.8, 0.8, # GYRO BIAS
+             1.0, 1.0, 1.0, # ACCEL BIAS
+             1.0, 1.0, 1.0, # GYRO BIAS
              1.0]           # DRAG COEFFICIENT
 ekf_lambda_feat: [1.0, 1.0, 1.0]

@@ -16,7 +16,7 @@ quad1_params = ReadYaml('../params/quadrotor1.yaml');
 plot_environment('quad1', sim_params, quad1_params)
 % plot_vehicle(quad1_params)
 % plot_sensors(quad1_params)
-plot_quad_ekf(quad1_params, true, false)
+plot_quad_ekf(quad1_params, true, false, false) % inputs: params, plot covariance, plot pix components, plot 2d pixel position
 % animate_3d(50, 'quad1')
 % animate_img(1,quad1_params)
 
