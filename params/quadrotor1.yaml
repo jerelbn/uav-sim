@@ -204,14 +204,14 @@ ekf_P0: [0, 0, 0, # POS
          5e-2, 5e-2, 5e-2, # ACCEL BIAS
          5e-3, 5e-3, 5e-3, # GYRO BIAS
          1e-2]             # DRAG COEFFICIENT
-ekf_P0_feat: [2500, 2500, 0.3]
+ekf_P0_feat: [100.0, 100.0, 0.25]
 ekf_Qx: [0, 0, 0, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
          1e-8, 1e-8, 1e-8, # GYRO BIAS
          0]             # DRAG COEFFICIENT
-ekf_Qx_feat: [1e-7, 1e-7, 1e-7]
+ekf_Qx_feat: [0, 0, 0]
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
