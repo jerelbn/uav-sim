@@ -40,12 +40,13 @@ private:
   void gpsUpdate(const Vector6d& z);
   void mocapUpdate(const xform::Xformd &z);
   void cameraUpdate(const double &t_now, const double &t_image, const sensors::FeatVec &tracked_feats);
+  bool linearExtrapolate(const int &idx, const double &t_now, const double &t_image, const Vector2d &z_image, Vector2d& z_approx);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
   void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
   void removeFeatFromState(const int& idx);
-  void addFeatToState(const sensors::FeatVec &tracked_feats);
+  void addFeatToState(const double& t_now, const double& t_image, const sensors::FeatVec &tracked_feats);
   void keyframeReset(const sensors::FeatVec &tracked_feats);
   void numericalN(const Stated &x, MatrixXd& N);
 
@@ -71,6 +72,7 @@ private:
   MatrixXd I_DOF_;
   VectorXd P_diag_;
   sensors::FeatVec matched_feats_;
+  bool first_image_;
   double t_image_prev_;
   sensors::FeatVec feats_prev_;
 

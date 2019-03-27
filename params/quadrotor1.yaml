@@ -125,7 +125,7 @@ gyro_walk_stdev: 0.01
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 30
-camera_time_delay: 0.04
+camera_time_delay: 0.082
 pixel_noise_stdev: 0.1
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
@@ -204,7 +204,7 @@ ekf_P0: [1e-6, 1e-6, 1e-6, # POS
          5e-2, 5e-2, 5e-2, # ACCEL BIAS
          5e-3, 5e-3, 5e-3, # GYRO BIAS
          1e-2]             # DRAG COEFFICIENT
-ekf_P0_feat: [10.0, 10.0, 1.0]
+ekf_P0_feat: [400.0, 400.0, 0.5]
 ekf_Qx: [0, 0, 0, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT

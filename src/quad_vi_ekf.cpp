@@ -5,7 +5,7 @@ namespace qviekf
 {
 
 
-EKF::EKF() : t_prev_(0), nfa_(0) {}
+EKF::EKF() : t_prev_(0), nfa_(0), first_image_(true) {}
 
 
 EKF::~EKF()
@@ -218,54 +218,65 @@ void EKF::mocapUpdate(const xform::Xformd& z)
 
 void EKF::cameraUpdate(const double& t_now, const double& t_image, const sensors::FeatVec &tracked_feats)
 {
-  // Collect measurement of each feature in the state and remove feature states that have lost tracking
-  getPixMatches(tracked_feats);
-
-  // Apply the update
-  if (nfa_ > 0)
+  if (!first_image_)
   {
-    // Build measurement vector and model
-    z_cam_.setZero();
-    h_cam_.setZero();
-    for (int i = 0; i < nfa_; ++i)
+    // Collect measurement of each feature in the state and remove feature states that have lost tracking
+    getPixMatches(tracked_feats);
+
+    // Apply the update
+    if (nfa_ > 0)
     {
-      // Get previous measurement of current feature state
-      Vector2d z_prev;
-      bool match_found = false;
-      for (auto& fp : feats_prev_)
+      // Build measurement vector and model
+      z_cam_.setZero();
+      h_cam_.setZero();
+      for (int i = 0; i < nfa_; ++i)
       {
-        if (fp.id == x_.feats[i].id)
-        {
-          z_prev = fp.pix;
-          match_found = true;
-        }
+        // Fill measurement and model vectors
+        Vector2d z_approx;
+        if (linearExtrapolate(x_.feats[i].id, t_now, t_image, matched_feats_[i].pix, z_approx))
+          z_cam_.segment<2>(2*i) = z_approx;
+        else
+          z_cam_.segment<2>(2*i) = x_.feats[i].pix;
+        h_cam_.segment<2>(2*i) = x_.feats[i].pix;
       }
 
-      // Appoximate delay measurement at current time by linear extrapolation
-      Vector2d z_image = matched_feats_[i].pix;
-      Vector2d z_approx = z_image + (z_image - z_prev) / (t_image - t_image_prev_) * (t_now - t_image);
-
-      // Fill measurement and model vectors
-      if (!match_found)
-        z_cam_.segment<2>(2*i) = x_.feats[i].pix; // if previous measurement doesn't exist, copy state to have zero update
-      else
-        z_cam_.segment<2>(2*i) = z_approx;
-      h_cam_.segment<2>(2*i) = x_.feats[i].pix;
+      update(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
     }
 
-    update(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
+    // Fill state with new features if needed
+    if (nfa_ < nfm_)
+      addFeatToState(t_now, t_image, tracked_feats);
+
+    if (use_keyframe_reset_)
+      keyframeReset(tracked_feats);
   }
-
-  // Fill state with new features if needed
-  if (nfa_ < nfm_)
-    addFeatToState(tracked_feats);
-
-  if (use_keyframe_reset_)
-    keyframeReset(tracked_feats);
+  else
+    first_image_ = false;
 
   // Save features for linear interpolation of delayed feature measurements
   t_image_prev_ = t_image;
   feats_prev_ = tracked_feats;
+}
+
+
+bool EKF::linearExtrapolate(const int& id, const double& t_now, const double& t_image, const Vector2d& z_image, Vector2d &z_approx)
+{
+  // Get previous measurement of current feature state
+  Vector2d z_prev;
+  bool match_found = false;
+  for (auto& fp : feats_prev_)
+  {
+    if (fp.id == id)
+    {
+      z_prev = fp.pix;
+      match_found = true;
+    }
+  }
+
+  // Appoximate delay measurement at current time by linear extrapolation
+  z_approx = z_image + (z_image - z_prev) / (t_image - t_image_prev_) * (t_now - t_image);
+
+  return match_found;
 }
 
 
@@ -326,7 +337,7 @@ void EKF::removeFeatFromState(const int &idx)
 }
 
 
-void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
+void EKF::addFeatToState(const double& t_now, const double& t_image, const sensors::FeatVec &tracked_feats)
 {
   // Sort features by proximity to image center
   auto sorted_feats = tracked_feats;
@@ -350,8 +361,14 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
 
     if (!id_used)
     {
-      // Initialize feature state and corresponding covariance block
-      x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
+      // Initialize feature state with linear extrapolation to account for time delay in pixel measurement
+      Vector2d z_approx;
+      if (linearExtrapolate(f.id, t_now, t_image, f.pix, z_approx))
+        x_.feats[nfa_] = sensors::Feat(z_approx,rho0_,f.id);
+      else
+        x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
+
+      // Initialize corresponding covariance block
       P_.block<3,3>(nbd_+3*nfa_,nbd_+3*nfa_) = P0_feat_;
 
       // Increment number of active features
