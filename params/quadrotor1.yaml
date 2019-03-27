@@ -204,7 +204,7 @@ ekf_P0: [1e-6, 1e-6, 1e-6, # POS
          5e-2, 5e-2, 5e-2, # ACCEL BIAS
          5e-3, 5e-3, 5e-3, # GYRO BIAS
          1e-2]             # DRAG COEFFICIENT
-ekf_P0_feat: [400.0, 400.0, 0.5]
+ekf_P0_feat: [1e4, 1e4, 0.5]
 ekf_Qx: [0, 0, 0, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT

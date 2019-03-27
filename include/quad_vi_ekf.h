@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <chrono>
+#include <deque>
 #include "vi_ekf_state.h"
 #include "common_cpp/common.h"
 #include "geometry/quat.h"
@@ -41,6 +42,7 @@ private:
   void mocapUpdate(const xform::Xformd &z);
   void cameraUpdate(const double &t_now, const double &t_image, const sensors::FeatVec &tracked_feats);
   bool linearExtrapolate(const int &idx, const double &t_now, const double &t_image, const Vector2d &z_image, Vector2d& z_approx);
+  bool quadraticExtrapolate(const int &idx, const double &t_now, const double &t_image, const Vector2d &z_image, Vector2d& z_approx);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
   void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
   void logEst(const double &t);
@@ -72,9 +74,7 @@ private:
   MatrixXd I_DOF_;
   VectorXd P_diag_;
   sensors::FeatVec matched_feats_;
-  bool first_image_;
-  double t_image_prev_;
-  sensors::FeatVec feats_prev_;
+  deque<pair<double,sensors::FeatVec>> feats_prev_;
 
   // Keyframe reset parameters
   bool initial_keyframe_;

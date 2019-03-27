@@ -5,7 +5,7 @@ namespace qviekf
 {
 
 
-EKF::EKF() : t_prev_(0), nfa_(0), first_image_(true) {}
+EKF::EKF() : t_prev_(0), nfa_(0) {}
 
 
 EKF::~EKF()
@@ -218,7 +218,7 @@ void EKF::mocapUpdate(const xform::Xformd& z)
 
 void EKF::cameraUpdate(const double& t_now, const double& t_image, const sensors::FeatVec &tracked_feats)
 {
-  if (!first_image_)
+  if (feats_prev_.size() >= 2)
   {
     // Collect measurement of each feature in the state and remove feature states that have lost tracking
     getPixMatches(tracked_feats);
@@ -234,6 +234,7 @@ void EKF::cameraUpdate(const double& t_now, const double& t_image, const sensors
         // Fill measurement and model vectors
         Vector2d z_approx;
         if (linearExtrapolate(x_.feats[i].id, t_now, t_image, matched_feats_[i].pix, z_approx))
+//        if (quadraticExtrapolate(x_.feats[i].id, t_now, t_image, matched_feats_[i].pix, z_approx))
           z_cam_.segment<2>(2*i) = z_approx;
         else
           z_cam_.segment<2>(2*i) = x_.feats[i].pix;
@@ -250,12 +251,11 @@ void EKF::cameraUpdate(const double& t_now, const double& t_image, const sensors
     if (use_keyframe_reset_)
       keyframeReset(tracked_feats);
   }
-  else
-    first_image_ = false;
 
-  // Save features for linear interpolation of delayed feature measurements
-  t_image_prev_ = t_image;
-  feats_prev_ = tracked_feats;
+  // Save features for quadratic extrapolation of delayed feature measurements
+  feats_prev_.push_back(pair<double,sensors::FeatVec>(t_image,tracked_feats));
+  if (feats_prev_.size() > 2)
+    feats_prev_.pop_front();
 }
 
 
@@ -264,7 +264,7 @@ bool EKF::linearExtrapolate(const int& id, const double& t_now, const double& t_
   // Get previous measurement of current feature state
   Vector2d z_prev;
   bool match_found = false;
-  for (auto& fp : feats_prev_)
+  for (auto& fp : feats_prev_[1].second)
   {
     if (fp.id == id)
     {
@@ -272,11 +272,61 @@ bool EKF::linearExtrapolate(const int& id, const double& t_now, const double& t_
       match_found = true;
     }
   }
+  double t_image_prev = feats_prev_[1].first;
 
   // Appoximate delay measurement at current time by linear extrapolation
-  z_approx = z_image + (z_image - z_prev) / (t_image - t_image_prev_) * (t_now - t_image);
+  z_approx = z_image + (z_image - z_prev) / (t_image - t_image_prev) * (t_now - t_image);
 
   return match_found;
+}
+
+
+bool EKF::quadraticExtrapolate(const int& id, const double& t_now, const double& t_image, const Vector2d& z_image, Vector2d &z_approx)
+{
+  // Get previous measurements of current feature state
+  Vector2d z1, z2, z3;
+  bool match_found1 = false;
+  for (auto& fp : feats_prev_[0].second)
+  {
+    if (fp.id == id)
+    {
+      z1 = fp.pix;
+      match_found1 = true;
+    }
+  }
+  bool match_found2 = false;
+  for (auto& fp : feats_prev_[1].second)
+  {
+    if (fp.id == id)
+    {
+      z2 = fp.pix;
+      match_found2 = true;
+    }
+  }
+  double t1 = feats_prev_[0].first;
+  double t2 = feats_prev_[1].first;
+  double t3 = t_image;
+  z3 = z_image;
+
+  // Fit a quadratic curve to the three most recently measured pixels
+  Matrix3d A, Ainv;
+  A << t1 * t1, t1, 1,
+       t2 * t2, t2, 1,
+       t3 * t3, t3, 1;
+  Ainv = A.inverse();
+  Vector3d bx(z1(0), z2(0), z3(0));
+  Vector3d by(z1(1), z2(1), z3(1));
+  Vector3d cx = Ainv * bx;
+  Vector3d cy = Ainv * by;
+
+  // Appoximate delay measurement at current time by extrapolating along quadratic fit to current time
+  z_approx << cx(0) * t_now * t_now + cx(1) * t_now + cx(2),
+              cy(0) * t_now * t_now + cy(1) * t_now + cy(2);
+
+  if (match_found1 && match_found2)
+    return true;
+  else
+    return false;
 }
 
 
@@ -364,6 +414,7 @@ void EKF::addFeatToState(const double& t_now, const double& t_image, const senso
       // Initialize feature state with linear extrapolation to account for time delay in pixel measurement
       Vector2d z_approx;
       if (linearExtrapolate(f.id, t_now, t_image, f.pix, z_approx))
+//      if (quadraticExtrapolate(f.id, t_now, t_image, f.pix, z_approx))
         x_.feats[nfa_] = sensors::Feat(z_approx,rho0_,f.id);
       else
         x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
