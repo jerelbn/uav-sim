@@ -42,9 +42,8 @@ private:
   void mocapUpdate(const xform::Xformd &z);
   void cameraUpdate(const double &t_now, const double &t_image, const sensors::FeatVec &tracked_feats);
   bool linearExtrapolate(const int &idx, const double &t_now, const double &t_image, const Vector2d &z_image, Vector2d& z_approx);
-  bool quadraticExtrapolate(const int &idx, const double &t_now, const double &t_image, const Vector2d &z_image, Vector2d& z_approx);
   void update(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
-  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
+  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& xb_true, const MatrixXd &lm);
   void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
   void removeFeatFromState(const int& idx);
@@ -58,6 +57,7 @@ private:
 
   // Primary variables
   bool use_drag_, use_partial_update_, use_keyframe_reset_;
+  bool estimate_q_ub_, estimate_q_uc_, estimate_p_uc_;
   int nfm_; // maximum number of features in the state
   int nfa_; // active number of features in the state
   int nbs_, nbd_; // number of base states/degrees of freedom
@@ -96,7 +96,7 @@ private:
   Matrix2d R_cam_;
   MatrixXd R_cam_big_;
   Vector3d p_ub_, p_um_, p_uc_;
-  quat::Quatd q_u2b_, q_u2m_, q_u2c_;
+  quat::Quatd q_ub_, q_um_, q_uc_;
   Matrix3d cam_matrix_;
   double fx_, fy_, u0_, v0_;
   Vector2d image_center_;

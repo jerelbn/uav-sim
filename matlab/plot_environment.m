@@ -5,10 +5,18 @@ env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []
 true_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 cmd_state = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 bike_state = reshape(fread(fopen('/tmp/bike1_true_state.log', 'r'), 'double'), 7, []); % [pos;vel;heading;steering_angle]
+nbd = 15; % number of base degrees of freedom
 if quad_params.ekf_use_drag
-    nbd = 16; % number of base degrees of freedom
-else
-    nbd = 15;
+    nbd = nbd + 1;
+end
+if quad_params.ekf_estimate_imu_to_body_rotation
+    nbd = nbd + 3;
+end
+if quad_params.ekf_estimate_imu_to_camera_rotation
+    nbd = nbd + 3;
+end
+if quad_params.ekf_estimate_imu_to_camera_translation
+    nbd = nbd + 3;
 end
 
 % Plot 3D scene

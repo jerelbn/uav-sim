@@ -1,5 +1,7 @@
 #include "quad_vi_ekf.h"
 
+#include <unsupported/Eigen/AutoDiff>
+
 
 namespace qviekf
 {
@@ -20,14 +22,15 @@ void EKF::load(const string &filename, const std::string& name)
 {
   // Resize arrays to the correct sizes
   common::get_yaml_node("ekf_num_features", filename, nfm_);
+  common::get_yaml_node("ekf_estimate_imu_to_body_rotation", filename, estimate_q_ub_);
+  common::get_yaml_node("ekf_estimate_imu_to_camera_rotation", filename, estimate_q_uc_);
+  common::get_yaml_node("ekf_estimate_imu_to_camera_translation", filename, estimate_p_uc_);
   common::get_yaml_node("ekf_use_drag", filename, use_drag_);
   common::get_yaml_node("ekf_use_partial_update", filename, use_partial_update_);
   common::get_yaml_node("ekf_use_keyframe_reset", filename, use_keyframe_reset_);
-  if (use_drag_)
-    nbs_ = 17;
-  else
-    nbs_ = 16;
-  nbd_ = nbs_ - 1;
+  x_ = State<double>(use_drag_, estimate_q_ub_, estimate_q_uc_, estimate_p_uc_, nfm_);
+  nbs_ = x_.nbs;
+  nbd_ = x_.nbd;
   num_states_ = nbs_ + 3 * nfm_;
   num_dof_ = nbd_ + 3 * nfm_;
 
@@ -54,7 +57,7 @@ void EKF::load(const string &filename, const std::string& name)
 
   // Initializations
   Vector3d lambda_feat;
-  VectorXd x0(17), P0_base(16), Qx_base(16), lambda_base(16);
+  VectorXd x0(28), P0_base(25), Qx_base(25), lambda_base(25);
   common::get_yaml_node("ekf_rho0", filename, rho0_);
   common::get_yaml_node("ekf_init_imu_bias", filename, init_imu_bias_);
   common::get_yaml_eigen("ekf_x0", filename, x0);
@@ -63,7 +66,7 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen_diag("ekf_Qu", filename, Qu_);
   common::get_yaml_eigen_diag("ekf_P0_feat", filename, P0_feat_);
   common::get_yaml_eigen_diag("ekf_Qx_feat", filename, Qx_feat_);
-  x_ = State<double>(x0, nbs_, nfm_);
+  x_.initBaseState(x0);
   P_.topLeftCorner(nbd_,nbd_) = P0_base.topRows(nbd_).asDiagonal();
   Qx_.topLeftCorner(nbd_,nbd_) = Qx_base.topRows(nbd_).asDiagonal();
   for (int i = 0; i < nfm_; ++i)
@@ -108,9 +111,10 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen("p_uc", filename, p_uc_);
   common::get_yaml_eigen("q_uc", filename, q_uc);
   common::get_yaml_eigen("camera_matrix", filename, cam_matrix_);
-  q_u2b_ = quat::Quatd(q_ub);
-  q_u2m_ = quat::Quatd(q_um);
-  q_u2c_ = quat::Quatd(q_uc);
+  q_um_ = quat::Quatd(q_um.normalized());
+  q_uc_ = quat::Quatd(q_uc.normalized());
+  q_ub_ = quat::Quatd(q_ub.normalized());
+
   for (int i = 0; i < nfm_; ++i)
     R_cam_big_.block<2,2>(2*i,2*i) = R_cam_;
   fx_ = cam_matrix_(0,0);
@@ -205,11 +209,11 @@ void EKF::mocapUpdate(const xform::Xformd& z)
 {
   // Measurement model and matrix
   h_mocap_.t_ = x_.p + x_.q.rota(p_um_);
-  h_mocap_.q_ = x_.q * q_u2m_;
+  h_mocap_.q_ = x_.q * q_um_;
 
   H_mocap_.block<3,3>(0,DP).setIdentity();
   H_mocap_.block<3,3>(0,DQ) = -x_.q.inverse().R() * common::skew(p_um_);
-  H_mocap_.block<3,3>(3,DQ) = q_u2m_.inverse().R();
+  H_mocap_.block<3,3>(3,DQ) = q_um_.inverse().R();
 
   // Apply the update
   update(z-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
@@ -234,7 +238,6 @@ void EKF::cameraUpdate(const double& t_now, const double& t_image, const sensors
         // Fill measurement and model vectors
         Vector2d z_approx;
         if (linearExtrapolate(x_.feats[i].id, t_now, t_image, matched_feats_[i].pix, z_approx))
-//        if (quadraticExtrapolate(x_.feats[i].id, t_now, t_image, matched_feats_[i].pix, z_approx))
           z_cam_.segment<2>(2*i) = z_approx;
         else
           z_cam_.segment<2>(2*i) = x_.feats[i].pix;
@@ -278,55 +281,6 @@ bool EKF::linearExtrapolate(const int& id, const double& t_now, const double& t_
   z_approx = z_image + (z_image - z_prev) / (t_image - t_image_prev) * (t_now - t_image);
 
   return match_found;
-}
-
-
-bool EKF::quadraticExtrapolate(const int& id, const double& t_now, const double& t_image, const Vector2d& z_image, Vector2d &z_approx)
-{
-  // Get previous measurements of current feature state
-  Vector2d z1, z2, z3;
-  bool match_found1 = false;
-  for (auto& fp : feats_prev_[0].second)
-  {
-    if (fp.id == id)
-    {
-      z1 = fp.pix;
-      match_found1 = true;
-    }
-  }
-  bool match_found2 = false;
-  for (auto& fp : feats_prev_[1].second)
-  {
-    if (fp.id == id)
-    {
-      z2 = fp.pix;
-      match_found2 = true;
-    }
-  }
-  double t1 = feats_prev_[0].first;
-  double t2 = feats_prev_[1].first;
-  double t3 = t_image;
-  z3 = z_image;
-
-  // Fit a quadratic curve to the three most recently measured pixels
-  Matrix3d A, Ainv;
-  A << t1 * t1, t1, 1,
-       t2 * t2, t2, 1,
-       t3 * t3, t3, 1;
-  Ainv = A.inverse();
-  Vector3d bx(z1(0), z2(0), z3(0));
-  Vector3d by(z1(1), z2(1), z3(1));
-  Vector3d cx = Ainv * bx;
-  Vector3d cy = Ainv * by;
-
-  // Appoximate delay measurement at current time by extrapolating along quadratic fit to current time
-  z_approx << cx(0) * t_now * t_now + cx(1) * t_now + cx(2),
-              cy(0) * t_now * t_now + cy(1) * t_now + cy(2);
-
-  if (match_found1 && match_found2)
-    return true;
-  else
-    return false;
 }
 
 
@@ -414,7 +368,6 @@ void EKF::addFeatToState(const double& t_now, const double& t_image, const senso
       // Initialize feature state with linear extrapolation to account for time delay in pixel measurement
       Vector2d z_approx;
       if (linearExtrapolate(f.id, t_now, t_image, f.pix, z_approx))
-//      if (quadraticExtrapolate(f.id, t_now, t_image, f.pix, z_approx))
         x_.feats[nfa_] = sensors::Feat(z_approx,rho0_,f.id);
       else
         x_.feats[nfa_] = sensors::Feat(f.pix,rho0_,f.id);
@@ -514,14 +467,39 @@ void EKF::f(const Stated &x, const uVector &u, VectorXd &dx, const uVector &eta)
   Vector3d accel = u.segment<3>(UA) - x.ba - eta.segment<3>(UA);
   Vector3d omega = u.segment<3>(UG) - x.bg - eta.segment<3>(UG);
 
-  Vector3d omega_c = q_u2c_.rotp(omega);
-  Vector3d v_c = q_u2c_.rotp(x.v + omega.cross(p_uc_));
+  Vector3d omega_c, v_c;
+  if (estimate_q_uc_ && estimate_p_uc_)
+  {
+    omega_c = x.q_uc.rotp(omega);
+    v_c = x.q_uc.rotp(x.v + omega.cross(x.p_uc));
+  }
+  else if (estimate_q_uc_)
+  {
+    omega_c = x.q_uc.rotp(omega);
+    v_c = x.q_uc.rotp(x.v + omega.cross(p_uc_));
+  }
+  else if (estimate_p_uc_)
+  {
+    omega_c = q_uc_.rotp(omega);
+    v_c = q_uc_.rotp(x.v + omega.cross(x.p_uc));
+  }
+  else
+  {
+    omega_c = q_uc_.rotp(omega);
+    v_c = q_uc_.rotp(x.v + omega.cross(p_uc_));
+  }
 
   dx.setZero();
   dx.segment<3>(DP) = x.q.rota(x.v);
   if (use_drag_)
-    dx.segment<3>(DV) = common::e3 * common::e3.transpose() * accel + common::gravity * x.q.rotp(common::e3) -
-                        x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * x.v - omega.cross(x.v);
+  {
+    if (estimate_q_ub_)
+      dx.segment<3>(DV) = x.q_ub.rota(common::e3 * common::e3.transpose() * x.q_ub.rotp(accel)) + common::gravity * x.q.rotp(common::e3) -
+                          x.q_ub.rota(x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * x.q_ub.rotp(x.v)) - omega.cross(x.v);
+    else
+      dx.segment<3>(DV) = q_ub_.rota(common::e3 * common::e3.transpose() * q_ub_.rotp(accel)) + common::gravity * x.q.rotp(common::e3) -
+                          q_ub_.rota(x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * q_ub_.rotp(x.v)) - omega.cross(x.v);
+  }
   else
     dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
   dx.segment<3>(DQ) = omega;
@@ -585,16 +563,29 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
 }
 
 
-void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm)
+void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& xb_true, const MatrixXd &lm)
 {
+  static Vector3d dq_ub = quat::Quatd::log(q_ub_);
+  static Vector3d dq_uc = quat::Quatd::log(q_uc_);
+
+  // Truth is given in terms of the body, but this estimator is written in terms of IMU
+  Vector3d p_iu_i = xb_true.p + xb_true.q.rota(q_ub_.rotp(-p_ub_));
+  Vector3d v_ui_u = q_ub_.rota(xb_true.v + xb_true.omega.cross(q_ub_.rotp(-p_ub_)));
+  quat::Quatd q_iu = xb_true.q * q_ub_.inverse();
   true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)x_true.p.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)x_true.v.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
+  true_state_log_.write((char*)p_iu_i.data(), 3 * sizeof(double));
+  true_state_log_.write((char*)v_ui_u.data(), 3 * sizeof(double));
+  true_state_log_.write((char*)quat::Quatd::log(q_iu).data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getAccelBias().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
-  if(use_drag_)
-    true_state_log_.write((char*)&x_true.drag, sizeof(double));
+  if (use_drag_)
+    true_state_log_.write((char*)&xb_true.drag, sizeof(double));
+  if (estimate_q_ub_)
+    true_state_log_.write((char*)dq_ub.data(), 3 * sizeof(double));
+  if (estimate_q_uc_)
+    true_state_log_.write((char*)dq_uc.data(), 3 * sizeof(double));
+  if (estimate_p_uc_)
+    true_state_log_.write((char*)p_uc_.data(), 3 * sizeof(double));
 
   // Compute true landmark pixel measurement
   for (int i = 0; i < nfm_; ++i)
@@ -613,9 +604,9 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
       }
 
       // Calculate the true vector from camera to landmark in the camera frame
-      quat::Quatd q_i2c = x_true.q * q_u2c_;
-      Vector3d p_i2c = x_true.p + x_true.q.rota(p_uc_);
-      Vector3d lmc = q_i2c.rotp(lmi - p_i2c);
+      quat::Quatd q_ic = q_iu * q_uc_;
+      Vector3d p_ic = p_iu_i + q_iu.rota(p_uc_);
+      Vector3d lmc = q_ic.rotp(lmi - p_ic);
 
       // Compute pixel position and inverse z-depth
       Vector2d pix;
@@ -655,11 +646,17 @@ void EKF::logEst(const double &t)
   ekf_state_log_.write((char*)&t, sizeof(double));
   ekf_state_log_.write((char*)p.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.v.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)q.euler().data(), 3 * sizeof(double));
+  ekf_state_log_.write((char*)quat::Quatd::log(q).data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
   if (use_drag_)
     ekf_state_log_.write((char*)&x_.mu, sizeof(double));
+  if (estimate_q_ub_)
+    ekf_state_log_.write((char*)quat::Quatd::log(x_.q_ub).data(), 3 * sizeof(double));
+  if (estimate_q_uc_)
+    ekf_state_log_.write((char*)quat::Quatd::log(x_.q_uc).data(), 3 * sizeof(double));
+  if (estimate_p_uc_)
+    ekf_state_log_.write((char*)x_.p_uc.data(), 3 * sizeof(double));
   for (int i = 0; i < nfm_; ++i)
   {
     if (i+1 <= nfa_)
