@@ -113,9 +113,9 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen("p_uc", filename, p_uc_);
   common::get_yaml_eigen("q_uc", filename, q_uc);
   common::get_yaml_eigen("camera_matrix", filename, cam_matrix_);
-  q_u2b_ = quat::Quatd(q_ub);
-  q_u2m_ = quat::Quatd(q_um);
-  q_u2c_ = quat::Quatd(q_uc);
+  q_ub_ = quat::Quatd(q_ub.normalized());
+  q_um_ = quat::Quatd(q_um.normalized());
+  q_uc_ = quat::Quatd(q_uc.normalized());
   for (int i = 0; i < nfm_; ++i)
     R_cam_big_.block<2,2>(2*i,2*i) = R_cam_;
   fx_ = cam_matrix_(0,0);
@@ -140,8 +140,12 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
   // Initialize IMU close to the truth (simulate flat ground calibration)
   if (t == 0 && init_imu_bias_)
   {
-    x_.ba = sensors.getAccelBias() + 0.1 * Vector3d::Random();
-    x_.bg = sensors.getGyroBias() + 0.01 * Vector3d::Random();
+    x_.ba = sensors.getAccelBias() + 0.01 * Vector3d::Random();
+    x_.bg = sensors.getGyroBias() + 0.001 * Vector3d::Random();
+    P_.block<3,3>(DBA,DBA) = 0.0001 * Matrix3d::Identity();
+    P_.block<3,3>(DBG,DBG) = 0.000001 * Matrix3d::Identity();
+    x_hist_[0] = x_;
+    P_hist_[0] = P_;
   }
 
   // Store new measurements
@@ -285,12 +289,24 @@ void EKF::gpsUpdate(const Vector6d& z)
 void EKF::mocapUpdate(const xform::Xformd &z)
 {
   // Measurement model and matrix
-  h_mocap_.t_ = x_.p + x_.q.rota(p_um_);
-  h_mocap_.q_ = x_.q * q_u2m_;
+  h_mocap_.t_ = x_.p + x_.q.rota(q_ub_.rotp(p_um_ - p_ub_));
+  h_mocap_.q_ = x_.q * q_ub_.inverse() * q_um_;
 
-  H_mocap_.block<3,3>(0,DP).setIdentity();
-  H_mocap_.block<3,3>(0,DQ) = -x_.q.inverse().R() * common::skew(p_um_);
-  H_mocap_.block<3,3>(3,DQ) = q_u2m_.inverse().R();
+  static xform::Xformd hp, hm;
+  static Stated xp, xm;
+  static double eps = 1e-5;
+  for (int i = 0; i < H_mocap_.cols(); ++i)
+  {
+    xp = x_ + I_DOF_.col(i) * eps;
+    xm = x_ + I_DOF_.col(i) * -eps;
+
+    hp.t_ = xp.p + xp.q.rota(q_ub_.rotp(p_um_ - p_ub_));
+    hp.q_ = xp.q * q_ub_.inverse() * q_um_;
+    hm.t_ = xm.p + xm.q.rota(q_ub_.rotp(p_um_ - p_ub_));
+    hm.q_ = xm.q * q_ub_.inverse() * q_um_;
+
+    H_mocap_.col(i) = (hp - hm) / (2.0 * eps);
+  }
 
   // Apply the update
   measurementUpdate(z-h_mocap_, R_mocap_, H_mocap_, K_mocap_);
@@ -465,15 +481,16 @@ void EKF::keyframeReset(const sensors::FeatVec &tracked_feats)
 void EKF::numericalN(const Stated &x, MatrixXd &N)
 {
   static const double eps(1e-5);
+  static Stated xp, xm, x_plusp, x_plusm;
   for (int i = 0; i < N.cols(); ++i)
   {
-    Stated xp = x + I_DOF_.col(i) * eps;
-    Stated x_plusp = xp;
+    xp = x + I_DOF_.col(i) * eps;
+    x_plusp = xp;
     x_plusp.p.setZero();
     x_plusp.q = quat::Quatd(xp.q.roll(), xp.q.pitch(), 0);
 
-    Stated xm = x + I_DOF_.col(i) * -eps;
-    Stated x_plusm = xm;
+    xm = x + I_DOF_.col(i) * -eps;
+    x_plusm = xm;
     x_plusm.p.setZero();
     x_plusm.q = quat::Quatd(xm.q.roll(), xm.q.pitch(), 0);
 
@@ -503,14 +520,14 @@ void EKF::f(const Stated &x, const uVector &u, VectorXd &dx, const uVector &eta)
   Vector3d accel = u.segment<3>(UA) - x.ba - eta.segment<3>(UA);
   Vector3d omega = u.segment<3>(UG) - x.bg - eta.segment<3>(UG);
 
-  Vector3d omega_c = q_u2c_.rotp(omega);
-  Vector3d v_c = q_u2c_.rotp(x.v + omega.cross(p_uc_));
+  Vector3d omega_c = q_uc_.rotp(omega);
+  Vector3d v_c = q_uc_.rotp(x.v + omega.cross(p_uc_));
 
   dx.setZero();
   dx.segment<3>(DP) = x.q.rota(x.v);
   if (use_drag_)
-    dx.segment<3>(DV) = common::e3 * common::e3.transpose() * accel + common::gravity * x.q.rotp(common::e3) -
-                        x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * x.v - omega.cross(x.v);
+    dx.segment<3>(DV) = q_ub_.rota(common::e3 * common::e3.transpose() * q_ub_.rotp(accel)) + common::gravity * x.q.rotp(common::e3) -
+                        q_ub_.rota(x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * q_ub_.rotp(x.v)) - omega.cross(x.v);
   else
     dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
   dx.segment<3>(DQ) = omega;
@@ -547,12 +564,14 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
 {
   static const double eps(1e-5);
   static Matrix6d I6 = Matrix6d::Identity();
-  static Vector6d eta = Vector6d::Ones();
+  static uVector eta = Vector6d::Ones();
+  static Stated xp, xm;
+  static uVector etap, etam;
 
   for (int i = 0; i < F.cols(); ++i)
   {
-    Stated xp = x + I_DOF_.col(i) * eps;
-    Stated xm = x + I_DOF_.col(i) * -eps;
+    xp = x + I_DOF_.col(i) * eps;
+    xm = x + I_DOF_.col(i) * -eps;
 
     f(xp, u, dxp_);
     f(xm, u, dxm_);
@@ -563,8 +582,8 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
 
   for (int i = 0; i < G.cols(); ++i)
   {
-    uVector etap = eta + I6.col(i) * eps;
-    uVector etam = eta + I6.col(i) * -eps;
+    etap = eta + I6.col(i) * eps;
+    etam = eta + I6.col(i) * -eps;
 
     f(x, u, dxp_, etap);
     f(x, u, dxm_, etam);
@@ -574,16 +593,21 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
 }
 
 
-void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd& lm)
+void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& xb_true, const MatrixXd& lm)
 {
+  // This filter state is in the IMU frame but truth is in the body frame
+  Vector3d p_iu = xb_true.p + xb_true.q.rota(q_ub_.rotp(-p_ub_));
+  Vector3d v_ui = q_ub_.rota(xb_true.v + xb_true.omega.cross(q_ub_.rotp(-p_ub_)));
+  quat::Quatd q_iu = xb_true.q * q_ub_.inverse();
+
   true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)x_true.p.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)x_true.v.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
+  true_state_log_.write((char*)p_iu.data(), 3 * sizeof(double));
+  true_state_log_.write((char*)v_ui.data(), 3 * sizeof(double));
+  true_state_log_.write((char*)q_iu.euler().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getAccelBias().data(), 3 * sizeof(double));
   true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
   if(use_drag_)
-    true_state_log_.write((char*)&x_true.drag, sizeof(double));
+    true_state_log_.write((char*)&xb_true.drag, sizeof(double));
 
   // Compute true landmark pixel measurement
   for (int i = 0; i < nfm_; ++i)
@@ -602,8 +626,8 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
       }
 
       // Calculate the true vector from camera to landmark in the camera frame
-      quat::Quatd q_i2c = x_true.q * q_u2c_;
-      Vector3d p_i2c = x_true.p + x_true.q.rota(p_uc_);
+      quat::Quatd q_i2c = xb_true.q * q_ub_.inverse() * q_uc_;
+      Vector3d p_i2c = xb_true.p + xb_true.q.rota(q_ub_.rotp(p_uc_ - p_ub_));
       Vector3d lmc = q_i2c.rotp(lmi - p_i2c);
 
       // Compute pixel position and inverse z-depth

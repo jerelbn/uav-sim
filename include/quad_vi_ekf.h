@@ -42,7 +42,7 @@ private:
   void mocapUpdate(const xform::Xformd& z);
   void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void measurementUpdate(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
-  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
+  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& xb_true, const MatrixXd &lm);
   void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
   void removeFeatFromState(const int& idx);
@@ -100,7 +100,7 @@ private:
   Matrix2d R_cam_;
   MatrixXd R_cam_big_;
   Vector3d p_ub_, p_um_, p_uc_;
-  quat::Quatd q_u2b_, q_u2m_, q_u2c_;
+  quat::Quatd q_ub_, q_um_, q_uc_;
   Matrix3d cam_matrix_;
   double fx_, fy_, u0_, v0_;
   Vector2d image_center_;

@@ -75,7 +75,7 @@ struct State
     nbd = nbs - 1;
     p = x.template segment<3>(P);
     v = x.template segment<3>(V);
-    q = quat::Quat<T>(x.template segment<4>(Q));
+    q = quat::Quat<T>(x.template segment<4>(Q).normalized());
     ba = x.template segment<3>(BA);
     bg = x.template segment<3>(BG);
     if (nbs == 17)

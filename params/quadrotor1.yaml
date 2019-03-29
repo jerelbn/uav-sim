@@ -26,7 +26,7 @@ max_roll: 1.0
 max_pitch: 1.0
 max_yaw_rate: 1.5
 max_throttle: 1.0
-max_vel: 2.0
+max_vel: 5.0
 max_tau_x: 200.0
 max_tau_y: 200.0
 max_tau_z: 50.0
@@ -111,8 +111,10 @@ use_gps_truth: false
 
 ## IMU
 imu_update_rate: 250
-p_ub: [0.0, 0.0, 0.0] # translation from body to IMU in body frame
-q_ub: [1.0, 0.0, 0.0, 0.0] # rotation from body to IMU frame
+# p_ub: [0, 0, 0] # translation from IMU to body in IMU frame
+# q_ub: [1, 0, 0, 0] # rotation from IMU to body frame
+p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame
+q_ub: [0.9991, -0.0078, 0.0416, 0.0003] # rotation from IMU to body frame
 
 accel_noise_stdev: 0.5
 accel_bias_init_bound: 0.5
@@ -125,22 +127,22 @@ gyro_walk_stdev: 0.01
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 30
-camera_time_delay: 0.082
+camera_time_delay: 0.045
 pixel_noise_stdev: 0.1
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
                   0, 480, 240,
                   0,   0,   1]
-p_uc: [0.1, 0.05, 0.03] # translation from body to camera in body frame
-q_uc: [0.707106781186548, 0.0, 0.0, 0.707106781186548] # rotation from body to camera
+p_uc: [0.1, 0.05, 0.03] # translation from IMU to camera in IMU frame
+q_uc: [0.7071, 0.0, 0.0, 0.7071] # rotation from IMU to camera
 save_pixel_measurements: false
 
 ## Motion Capture
 mocap_update_rate: 50
 mocap_time_delay: 0.0
 mocap_noise_stdev: 0.001
-p_um: [0.1, 0.1, 0.1] # translation from body to mocap_body in body frame
-q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mocap_body
+p_um: [0.0930, -0.0685, 0.0941] # translation from IMU to mocap_body in body frame
+q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from IMU to mocap_body
 
 ## Barometer
 baro_update_rate: 50
@@ -186,34 +188,41 @@ target_noise_stdev: 1.0
 ## EKF Parameters
 ekf_update_rate: 100 # Hz
 ekf_max_history_size: 200
-ekf_use_drag: true
-ekf_use_partial_update: true
+
+ekf_use_drag: false
+ekf_use_partial_update: false
 ekf_use_keyframe_reset: true
+
 ekf_num_features: 10
 ekf_rho0: 0.001
-ekf_init_imu_bias: false
-ekf_kfr_mean_pix_disparity_thresh: 240
+ekf_init_imu_bias: true
+
+ekf_kfr_mean_pix_disparity_thresh: 60
 ekf_kfr_min_matches: 1
+
 ekf_x0: [0, 0, -1,    # POS
          0, 0, 0,    # VEL
-         1, 0, 0, 0, # ATT
+         0.9991, 0.0078, -0.0416, -0.0003, # ATT
          0, 0, 0,    # ACCEL BIAS
          0, 0, 0,    # GYRO BIAS
-         0.001]      # DRAG COEFFICIENT
+         0.1]      # DRAG COEFFICIENT
+
 ekf_P0: [0, 0, 0, # POS
-         1e-8, 1e-8, 0, # VEL
+         1e-8, 1e-8, 1e-8, # VEL
          1e-8, 1e-8, 1e-8, # ATT
          5e-2, 5e-2, 5e-2, # ACCEL BIAS
-         5e-3, 5e-3, 5e-3, # GYRO BIAS
-         1e-2]             # DRAG COEFFICIENT
+         2e-3, 2e-3, 2e-3, # GYRO BIAS
+         1e-8]             # DRAG COEFFICIENT
 ekf_P0_feat: [4.0, 4.0, 0.25]
+
 ekf_Qx: [0, 0, 0, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT
          1e-7, 1e-7, 1e-7, # ACCEL BIAS
-         1e-8, 1e-8, 1e-8, # GYRO BIAS
+         1e-9, 1e-9, 1e-9, # GYRO BIAS
          0]             # DRAG COEFFICIENT
 ekf_Qx_feat: [0, 0, 0]
+
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
@@ -221,6 +230,7 @@ ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
 ekf_R_cam: [0.1, 0.1]
+
 ekf_lambda: [1.0, 1.0, 1.0, # POS
              1.0, 1.0, 1.0, # VEL
              1.0, 1.0, 1.0, # ATT
