@@ -93,7 +93,7 @@ void EKF::load(const string &filename, const std::string& name)
     common::get_yaml_node("ekf_kfr_min_matches", filename, kfr_min_matches_);
     initial_keyframe_ = true;
     p_global_ = x_.p;
-    q_yaw_global_ = x_.q;
+    q_yaw_global_ = quat::Quatd(0, 0, x_.q.yaw());
     x_.p.setZero();
     x_.q = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
   }
