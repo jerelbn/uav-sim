@@ -6,19 +6,7 @@ namespace sensors
 
 
 Sensors::Sensors() {}
-
-
-Sensors::~Sensors()
-{
-  accel_log_.close();
-  gyro_log_.close();
-  cam_log_.close();
-  mocap_log_.close();
-  baro_log_.close();
-  pitot_log_.close();
-  wvane_log_.close();
-  gps_log_.close();
-}
+Sensors::~Sensors() {}
 
 
 void Sensors::load(const string& filename, const bool& use_random_seed, const string& name)
@@ -34,7 +22,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
 
   // General parameters
   double origin_temp;
-  t_round_off_ = 1e6;
+  t_round_off_ = 6;
   common::get_yaml_node("origin_latitude", filename, origin_lat_);
   common::get_yaml_node("origin_longitude", filename, origin_lon_);
   common::get_yaml_node("origin_altitude", filename, origin_alt_);
@@ -248,7 +236,7 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const
 
 void Sensors::imu(const double t, const vehicle::Stated& x)
 {
-  double dt = common::decRound(t - last_imu_update_, t_round_off_);
+  double dt = common::round2dec(t - last_imu_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / imu_update_rate_)
   {
     new_imu_meas_ = true;
@@ -270,18 +258,15 @@ void Sensors::imu(const double t, const vehicle::Stated& x)
     accel_ = q_ub_.rota(x.lin_accel + x.omega.cross(x.v) + x.omega.cross(x.omega.cross(p_bu)) +
              x.ang_accel.cross(p_bu)) - common::gravity * q_i2u.rotp(common::e3) + accel_bias_ + accel_noise_;
     gyro_ = q_ub_.rota(x.omega) + gyro_bias_ + gyro_noise_;
+    imu_stamp_ = t;
     imu_.head<3>() = accel_;
     imu_.tail<3>() = gyro_;
 
     // Log data
-    accel_log_.write((char*)&t, sizeof(double));
-    accel_log_.write((char*)accel_.data(), accel_.rows() * sizeof(double));
-    accel_log_.write((char*)accel_bias_.data(), accel_bias_.rows() * sizeof(double));
-    accel_log_.write((char*)accel_noise_.data(), accel_noise_.rows() * sizeof(double));
-    gyro_log_.write((char*)&t, sizeof(double));
-    gyro_log_.write((char*)gyro_.data(), gyro_.rows() * sizeof(double));
-    gyro_log_.write((char*)gyro_bias_.data(), gyro_bias_.rows() * sizeof(double));
-    gyro_log_.write((char*)gyro_noise_.data(), gyro_noise_.rows() * sizeof(double));
+    accel_log_.log(t);
+    accel_log_.logMatrix(accel_, accel_bias_, accel_noise_);
+    gyro_log_.log(t);
+    gyro_log_.logMatrix(gyro_, gyro_bias_, gyro_noise_);
   }
   else
   {
@@ -292,7 +277,7 @@ void Sensors::imu(const double t, const vehicle::Stated& x)
 
 void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &lm)
 {
-  double dt = common::decRound(t - last_camera_update_, t_round_off_);
+  double dt = common::round2dec(t - last_camera_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
     last_camera_update_ = t;
@@ -324,13 +309,13 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
     if (cam_.size() > 0 && save_pixel_measurements_)
     {
       static const Vector4d a = Vector4d::Constant(NAN);
-      cam_log_.write((char*)&t, sizeof(double));
+      cam_log_.log(t);
       for (int i = 0; i < cam_max_feat_; ++i)
       {
         if (i <= cam_.size())
-          cam_log_.write((char*)cam_[i].vec().data(), cam_[i].vec().rows() * sizeof(double));
+          cam_log_.logMatrix(cam_[i].vec());
         else
-          cam_log_.write((char*)a.data(), a.rows() * sizeof(double));
+          cam_log_.logMatrix(a);
       }
     }
 
@@ -355,7 +340,7 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
 
 void Sensors::mocap(const double t, const vehicle::Stated &x)
 {
-  double dt = common::decRound(t - last_mocap_update_, t_round_off_);
+  double dt = common::round2dec(t - last_mocap_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / mocap_update_rate_)
   {
     last_mocap_update_ = t;
@@ -369,11 +354,8 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
     mocap_.q_ = mocap_truth_.q_ + mocap_noise_.tail<3>();
 
     // Log data
-    mocap_log_.write((char*)&t, sizeof(double));
-    mocap_log_.write((char*)mocap_.arr_.data(), mocap_.arr_.rows() * sizeof(double));
-    mocap_log_.write((char*)mocap_truth_.arr_.data(), mocap_truth_.arr_.rows() * sizeof(double));
-    mocap_log_.write((char*)p_um_.data(), 3 * sizeof(double));
-    mocap_log_.write((char*)q_um_.data(), 4 * sizeof(double));
+    mocap_log_.log(t);
+    mocap_log_.logMatrix(mocap_.arr_, mocap_truth_.arr_, p_um_, q_um_.arr_);
 
     // Store measurements in a buffer to be published later
     mocap_buffer_.push_back(pair<double,xform::Xformd>(t,mocap_));
@@ -397,7 +379,7 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
 
 void Sensors::baro(const double t, const vehicle::Stated& x)
 {
-  double dt = common::decRound(t - last_baro_update_, t_round_off_);
+  double dt = common::round2dec(t - last_baro_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / baro_update_rate_)
   {
     new_baro_meas_ = true;
@@ -410,13 +392,11 @@ void Sensors::baro(const double t, const vehicle::Stated& x)
     }
 
     // Populate barometer measurement
+    baro_stamp_ = t;
     baro_ = rho_ * common::gravity * -x.p(2) + baro_bias_ + baro_noise_;
 
     // Log data
-    baro_log_.write((char*)&t, sizeof(double));
-    baro_log_.write((char*)&baro_, sizeof(double));
-    baro_log_.write((char*)&baro_bias_, sizeof(double));
-    baro_log_.write((char*)&baro_noise_, sizeof(double));
+    baro_log_.log(t, baro_, baro_bias_, baro_noise_);
   }
   else
   {
@@ -427,7 +407,7 @@ void Sensors::baro(const double t, const vehicle::Stated& x)
 
 void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw)
 {
-  double dt = common::decRound(t - last_pitot_update_, t_round_off_);
+  double dt = common::round2dec(t - last_pitot_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / pitot_update_rate_)
   {
     new_pitot_meas_ = true;
@@ -440,14 +420,12 @@ void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw
     }
 
     // Populate pitot tube measurement
+    pitot_stamp_ = t;
     double Va = common::e1.dot(q_b2pt_.rotp(x.v - x.q.rotp(vw)));
     pitot_ = 0.5 * rho_ * Va * Va + pitot_bias_ + pitot_noise_;
 
     // Log data
-    pitot_log_.write((char*)&t, sizeof(double));
-    pitot_log_.write((char*)&pitot_, sizeof(double));
-    pitot_log_.write((char*)&pitot_bias_, sizeof(double));
-    pitot_log_.write((char*)&pitot_noise_, sizeof(double));
+    pitot_log_.log(t, pitot_, pitot_bias_, pitot_noise_);
   }
   else
   {
@@ -458,7 +436,7 @@ void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw
 
 void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw)
 {
-  double dt = common::decRound(t - last_wvane_update_, t_round_off_);
+  double dt = common::round2dec(t - last_wvane_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / wvane_update_rate_)
   {
     new_wvane_meas_ = true;
@@ -467,15 +445,14 @@ void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw
       wvane_noise_ = wvane_noise_dist_(rng_);
 
     // Populate weather vane measurement
+    wvane_stamp_ = t;
     Vector3d v_aI_b = x.v - x.q.rotp(vw);
     double wvane_true = asin(common::e2.dot(q_b2wv_.rotp(v_aI_b)) / v_aI_b.norm());
     int num_ticks = round((wvane_true + wvane_noise_) * wvane_resolution_ / (2.0 * M_PI));
     wvane_ = 2.0 * M_PI * num_ticks / wvane_resolution_;
 
     // Log data
-    wvane_log_.write((char*)&t, sizeof(double));
-    wvane_log_.write((char*)&wvane_, sizeof(double));
-    wvane_log_.write((char*)&wvane_true, sizeof(double));
+    wvane_log_.log(t, wvane_, wvane_true);
   }
   else
   {
@@ -486,7 +463,7 @@ void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw
 
 void Sensors::gps(const double t, const vehicle::Stated& x)
 {
-  double dt = common::decRound(t - last_gps_update_, t_round_off_);
+  double dt = common::round2dec(t - last_gps_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / gps_update_rate_)
   {
     new_gps_meas_ = true;
@@ -506,6 +483,7 @@ void Sensors::gps(const double t, const vehicle::Stated& x)
     }
 
     // Populate GPS measurement
+    gps_stamp_ = t;
     Vector3d gps_pos = x.p;
     Vector3d gps_vel = x.q.rota(x.v);
 
@@ -516,14 +494,13 @@ void Sensors::gps(const double t, const vehicle::Stated& x)
     gps_(5) = gps_vel(2) + gps_vvel_noise_;
 
     // Log data
-    gps_log_.write((char*)&t, sizeof(double));
-    gps_log_.write((char*)gps_.data(), gps_.rows() * sizeof(double));
-    gps_log_.write((char*)gps_hpos_bias_.data(), gps_hpos_bias_.rows() * sizeof(double));
-    gps_log_.write((char*)&gps_vpos_bias_, sizeof(double));
-    gps_log_.write((char*)gps_hpos_noise_.data(), gps_hpos_noise_.rows() * sizeof(double));
-    gps_log_.write((char*)&gps_vpos_noise_, sizeof(double));
-    gps_log_.write((char*)gps_hvel_noise_.data(), gps_hvel_noise_.rows() * sizeof(double));
-    gps_log_.write((char*)&gps_vvel_noise_, sizeof(double));
+    gps_log_.log(t);
+    gps_log_.logMatrix(gps_, gps_hpos_bias_);
+    gps_log_.log(gps_vpos_bias_);
+    gps_log_.logMatrix(gps_hpos_noise_);
+    gps_log_.log(gps_vpos_noise_);
+    gps_log_.logMatrix(gps_hvel_noise_);
+    gps_log_.log(gps_vvel_noise_);
   }
   else
   {

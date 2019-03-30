@@ -1,9 +1,8 @@
 #pragma once
 
-#include <fstream>
 #include <random>
-#include <chrono>
 #include "common_cpp/common.h"
+#include "common_cpp/logger.h"
 #include "geometry/xform.h"
 #include "vehicle.h"
 
@@ -62,15 +61,20 @@ public:
   const Vector3d& getGyroBias() const { return gyro_bias_; }
   const double& getBaroBias() const { return baro_bias_; }
 
+  double imu_stamp_;
   Vector3d gyro_, accel_;
   Matrix<double, 6, 1> imu_;
   double mocap_stamp_;
   xform::Xformd mocap_;
   double cam_stamp_;
   FeatVec cam_;
+  double baro_stamp_;
   double baro_;
+  double pitot_stamp_;
   double pitot_;
+  double wvane_stamp_;
   double wvane_;
+  double gps_stamp_;
   Matrix<double, 6, 1> gps_;
 
   bool new_imu_meas_;
@@ -108,7 +112,7 @@ private:
   normal_distribution<double> gyro_noise_dist_, gyro_walk_dist_;
   quat::Quatd q_ub_; // rotations body-to-IMU
   Vector3d p_ub_; // translations body-to-IMU in body frame
-  ofstream accel_log_, gyro_log_;
+  common::Logger accel_log_, gyro_log_;
 
   // Camera
   bool use_camera_truth_, save_pixel_measurements_, camera_enabled_;
@@ -123,7 +127,7 @@ private:
   Vector2d image_size_;
   quat::Quatd q_uc_; // rotations body-to-camera
   Vector3d p_uc_; // translations body-to-camera in body frame
-  ofstream cam_log_;
+  common::Logger cam_log_;
 
   // Motion Capture
   bool use_mocap_truth_, mocap_enabled_;
@@ -136,7 +140,7 @@ private:
   xform::Xformd mocap_truth_;
   Vector3d p_um_; // translation body-to-mocap-body in body frame
   quat::Quatd q_um_; // rotation body-to-mocap-body
-  ofstream mocap_log_;
+  common::Logger mocap_log_;
 
   // Barometer
   bool use_baro_truth_, baro_enabled_;
@@ -145,7 +149,7 @@ private:
   normal_distribution<double> baro_walk_dist_;
   normal_distribution<double> baro_noise_dist_;
   double baro_bias_, baro_walk_, baro_noise_;
-  ofstream baro_log_;
+  common::Logger baro_log_;
 
   // Pitot Tube (for air speed along some axis)
   bool use_pitot_truth_, pitot_enabled_;
@@ -155,7 +159,7 @@ private:
   normal_distribution<double> pitot_noise_dist_;
   double pitot_bias_, pitot_walk_, pitot_noise_;
   quat::Quatd q_b2pt_; // rotation from body to pitot tube frame
-  ofstream pitot_log_;
+  common::Logger pitot_log_;
 
   // Weather vane (for sideslip angle)
   bool use_wvane_truth_, wvane_enabled_;
@@ -165,7 +169,7 @@ private:
   int wvane_resolution_; // rotary encoder discrete measurement steps
   double wvane_noise_;
   quat::Quatd q_b2wv_; // rotation from body to weather vane frame
-  ofstream wvane_log_;
+  common::Logger wvane_log_;
 
   // GPS
   bool use_gps_truth_, gps_enabled_;
@@ -180,7 +184,7 @@ private:
   double gps_vpos_bias_;
   Vector2d gps_hpos_noise_, gps_hvel_noise_;
   double gps_vpos_noise_, gps_vvel_noise_;
-  ofstream gps_log_;
+  common::Logger gps_log_;
 
 };
 
