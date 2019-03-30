@@ -5,15 +5,17 @@ namespace qviekf
 {
 
 
-EKF::EKF() : last_filter_update_(-1e9), nfa_(0), second_imu_received_(false) {}
+EKF::EKF()
+  : last_filter_update_(-1e9), nfa_(0), second_imu_received_(false)
+{}
 
-
-EKF::~EKF()
+EKF::EKF(const string& filename, const string& name)
+  : last_filter_update_(-1e9), nfa_(0), second_imu_received_(false)
 {
-  true_state_log_.close();
-  ekf_state_log_.close();
-  cov_log_.close();
+  load(filename, name);
 }
+
+EKF::~EKF() {}
 
 
 void EKF::load(const string &filename, const std::string& name)
@@ -640,14 +642,10 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
   Vector3d v_ui = q_ub_.rota(xb_true.v + xb_true.omega.cross(q_ub_.rotp(-p_ub_)));
   quat::Quatd q_iu = xb_true.q * q_ub_.inverse();
 
-  true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)p_iu.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)v_ui.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)q_iu.euler().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)sensors.getAccelBias().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
+  true_state_log_.log(t);
+  true_state_log_.logMatrix(p_iu, v_ui, q_iu.euler(), sensors.getAccelBias(), sensors.getGyroBias());
   if(use_drag_)
-    true_state_log_.write((char*)&xb_true.drag, sizeof(double));
+    true_state_log_.log(xb_true.drag);
 
   // Compute true landmark pixel measurement
   for (int i = 0; i < nfm_; ++i)
@@ -676,15 +674,15 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
       double rho = 1.0 / lmc(2);
 
       // Log the data
-      true_state_log_.write((char*)pix.data(), 2 * sizeof(double));
-      true_state_log_.write((char*)&rho, sizeof(double));
+      true_state_log_.logMatrix(pix);
+      true_state_log_.log(rho);
     }
     else
     {
       static const Vector2d a(NAN,NAN);
       static const double b(NAN);
-      true_state_log_.write((char*)a.data(), 2 * sizeof(double));
-      true_state_log_.write((char*)&b, sizeof(double));
+      true_state_log_.logMatrix(a);
+      true_state_log_.log(b);
     }
   }
 }
@@ -705,33 +703,29 @@ void EKF::logEst()
     q = x_.q;
   }
 
-  ekf_state_log_.write((char*)&x_.t, sizeof(double));
-  ekf_state_log_.write((char*)p.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)x_.v.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)q.euler().data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)x_.ba.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
+  ekf_state_log_.log(x_.t);
+  ekf_state_log_.logMatrix(p, x_.v, q.euler(), x_.ba, x_.bg);
   if (use_drag_)
-    ekf_state_log_.write((char*)&x_.mu, sizeof(double));
+    ekf_state_log_.log(x_.mu);
   for (int i = 0; i < nfm_; ++i)
   {
     if (i+1 <= x_.nfa)
     {
-      ekf_state_log_.write((char*)x_.feats[i].pix.data(), 2 * sizeof(double));
-      ekf_state_log_.write((char*)&x_.feats[i].rho, sizeof(double));
+      ekf_state_log_.logMatrix(x_.feats[i].pix);
+      ekf_state_log_.log(x_.feats[i].rho);
     }
     else
     {
       static const Vector2d a(NAN,NAN);
       static const double b(NAN);
-      ekf_state_log_.write((char*)a.data(), 2 * sizeof(double));
-      ekf_state_log_.write((char*)&b, sizeof(double));
+      ekf_state_log_.logMatrix(a);
+      ekf_state_log_.log(b);
     }
   }
 
   P_diag_ = P_.diagonal();
-  cov_log_.write((char*)&x_.t, sizeof(double));
-  cov_log_.write((char*)P_diag_.data(), P_diag_.rows() * sizeof(double));
+  cov_log_.log(x_.t);
+  cov_log_.logMatrix(P_diag_);
 }
 
 

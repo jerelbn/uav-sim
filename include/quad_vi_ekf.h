@@ -6,6 +6,7 @@
 #include "vi_ekf_state.h"
 #include "vi_ekf_meas.h"
 #include "common_cpp/common.h"
+#include "common_cpp/logger.h"
 #include "geometry/quat.h"
 #include "geometry/xform.h"
 #include "geometry/support.h"
@@ -26,7 +27,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   EKF();
-  EKF(string filename);
+  EKF(const string& filename, const string &name);
   ~EKF();
 
   void load(const string &filename, const string &name);
@@ -111,9 +112,9 @@ private:
   Vector2d image_center_;
 
   // Logging
-  ofstream true_state_log_;
-  ofstream ekf_state_log_;
-  ofstream cov_log_;
+  common::Logger true_state_log_;
+  common::Logger ekf_state_log_;
+  common::Logger cov_log_;
 };
 
 
