@@ -5,7 +5,7 @@ namespace qviekf
 {
 
 
-EKF::EKF() : last_filter_update_(0), nfa_(0), first_imu_received_(false) {}
+EKF::EKF() : last_filter_update_(-1e9), nfa_(0), second_imu_received_(false) {}
 
 
 EKF::~EKF()
@@ -98,9 +98,6 @@ void EKF::load(const string &filename, const std::string& name)
     x_.q = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
   }
 
-  x_hist_.push_back(x_);
-  P_hist_.push_back(P_);
-
   // Load sensor parameters
   Vector4d q_ub, q_um, q_uc;
   common::get_yaml_eigen_diag("ekf_R_gps", filename, R_gps_);
@@ -138,48 +135,118 @@ void EKF::load(const string &filename, const std::string& name)
 void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true, const MatrixXd& lm)
 {
   // Initialize IMU close to the truth (simulate flat ground calibration)
-  if (t == 0 && init_imu_bias_)
+  if (init_imu_bias_)
   {
     x_.ba = sensors.getAccelBias() + 0.01 * Vector3d::Random();
     x_.bg = sensors.getGyroBias() + 0.001 * Vector3d::Random();
     P_.block<3,3>(DBA,DBA) = 0.0001 * Matrix3d::Identity();
     P_.block<3,3>(DBG,DBG) = 0.000001 * Matrix3d::Identity();
-    x_hist_[0] = x_;
-    P_hist_[0] = P_;
+    init_imu_bias_ = false;
   }
 
-  // Store new measurements
+  // Run all sensor callbacks
   if (sensors.new_imu_meas_)
+    imuCallback(sensors.imu_stamp_, sensors.imu_);
+  if (sensors.new_camera_meas_)
+    cameraCallback(sensors.cam_stamp_, sensors.cam_);
+  if (sensors.new_gps_meas_)
+    gpsCallback(sensors.gps_stamp_, sensors.gps_);
+  if (sensors.new_mocap_meas_)
+    mocapCallback(sensors.mocap_stamp_, sensors.mocap_);
+
+  // Truth logging
+  if (common::round2dec(t - last_filter_update_, 6) == 0 && second_imu_received_)
+    logTruth(t, sensors, x_true, lm);
+}
+
+
+void EKF::imuCallback(const double &t, const Vector6d &z)
+{
+  // Store the new measurement
+  new_measurements_.emplace_back(Measurement(IMU, t, z));
+
+  // Filter initialization
+  if (!second_imu_received_)
   {
-    if (!first_imu_received_)
+    if (new_measurements_.size() == 1)
     {
-      x_.imu = sensors.imu_;
-      x_hist_[0].imu = sensors.imu_;
-      first_imu_received_ = true;
-      return;
+      x_.t = t;
+      x_.imu = z;
+      x_hist_.push_back(x_);
+      P_hist_.push_back(P_);
     }
-    new_measurements_.emplace_back(Measurement(IMU, t, sensors.imu_));
-  }
-  if (first_imu_received_)
-  {
-    if (sensors.new_gps_meas_ && t > 0)
-      new_measurements_.emplace_back(Measurement(GPS, t, sensors.gps_));
-    if (sensors.new_mocap_meas_ && sensors.mocap_stamp_ > 0)
-      new_measurements_.emplace_back(Measurement(MOCAP, sensors.mocap_stamp_, sensors.mocap_));
-    if (sensors.new_camera_meas_ && sensors.cam_stamp_ > 0)
-      new_measurements_.emplace_back(Measurement(IMAGE, sensors.cam_stamp_, sensors.cam_));
+    if (new_measurements_.size() == 2)
+      second_imu_received_ = true;
   }
 
   // Update the filter at desired update rate
-  if (common::decRound(t - last_filter_update_, 1e6) >= 1.0 / update_rate_ && first_imu_received_)
+  if (common::round2dec(t - last_filter_update_, 6) >= 1.0 / update_rate_ && second_imu_received_)
   {
-    filterUpdate(sensors, x_true, lm);
+    filterUpdate();
     last_filter_update_ = t;
   }
 }
 
 
-void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd& lm)
+void EKF::cameraCallback(const double &t, const sensors::FeatVec &z)
+{
+  if (second_imu_received_)
+    new_measurements_.emplace_back(Measurement(IMAGE, t, z));
+}
+
+
+void EKF::gpsCallback(const double &t, const Vector6d &z)
+{
+  if (second_imu_received_)
+    new_measurements_.emplace_back(Measurement(GPS, t, z));
+}
+
+
+void EKF::mocapCallback(const double &t, const xform::Xformd &z)
+{
+  if (second_imu_received_)
+    new_measurements_.emplace_back(Measurement(IMAGE, t, z));
+}
+
+
+vehicle::Stated EKF::getState() const
+{
+  vehicle::Stated x;
+  x.p = x_.p;
+  x.v = x_.q.rotp(x_.v);
+  x.q = x_.q;
+  x.omega = xdot_.segment<3>(DQ);
+  return x;
+}
+
+
+void EKF::f(const Stated &x, const uVector &u, VectorXd &dx, const uVector &eta)
+{
+  Vector3d accel = u.segment<3>(UA) - x.ba - eta.segment<3>(UA);
+  Vector3d omega = u.segment<3>(UG) - x.bg - eta.segment<3>(UG);
+
+  Vector3d omega_c = q_uc_.rotp(omega);
+  Vector3d v_c = q_uc_.rotp(x.v + omega.cross(p_uc_));
+
+  dx.setZero();
+  dx.segment<3>(DP) = x.q.rota(x.v);
+  if (use_drag_)
+    dx.segment<3>(DV) = q_ub_.rota(common::e3 * common::e3.transpose() * q_ub_.rotp(accel)) + common::gravity * x.q.rotp(common::e3) -
+                        q_ub_.rota(x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * q_ub_.rotp(x.v)) - omega.cross(x.v);
+  else
+    dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
+  dx.segment<3>(DQ) = omega;
+  for (int i = 0; i < nfm_; ++i)
+  {
+    Vector2d pix = x.feats[i].pix;
+    double rho = x.feats[i].rho;
+    dx.segment<2>(nbd_+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
+    dx(nbd_+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
+  }
+}
+
+
+void EKF::filterUpdate()
 {
   // Dump new measurements into sorted container for all measurements, while getting oldest time stamp
   double t_oldest = INFINITY;
@@ -244,9 +311,8 @@ void EKF::filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x
   while (x_hist_.begin()->t > all_measurements_.begin()->stamp)
     all_measurements_.erase(all_measurements_.begin());
 
-  // Log data
-  logTruth(x_.t, sensors, x_true, lm);
-  logEst(x_.t);
+  // Log current estimates
+  logEst();
 }
 
 
@@ -268,6 +334,35 @@ void EKF::propagate(const double &t, const uVector& imu)
   x_ += xdot_ * dt;
   x_.t = t;
   x_.imu = imu;
+}
+
+
+void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
+{
+  // Collect measurement of each feature in the state and remove feature states that have lost tracking
+  getPixMatches(tracked_feats);
+
+  // Apply the update
+  if (x_.nfa > 0)
+  {
+    // Build measurement vector and model
+    z_cam_.setZero();
+    h_cam_.setZero();
+    for (int i = 0; i < x_.nfa; ++i)
+    {
+      z_cam_.segment<2>(2*i) = matched_feats_[i];
+      h_cam_.segment<2>(2*i) = x_.feats[i].pix;
+    }
+
+    measurementUpdate(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
+  }
+
+  // Fill state with new features if needed
+  if (x_.nfa < nfm_)
+    addFeatToState(tracked_feats);
+
+  if (use_keyframe_reset_)
+    keyframeReset(tracked_feats);
 }
 
 
@@ -313,32 +408,19 @@ void EKF::mocapUpdate(const xform::Xformd &z)
 }
 
 
-void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
+void EKF::measurementUpdate(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, MatrixXd &K)
 {
-  // Collect measurement of each feature in the state and remove feature states that have lost tracking
-  getPixMatches(tracked_feats);
-
-  // Apply the update
-  if (x_.nfa > 0)
+  K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
+  if (use_partial_update_)
   {
-    // Build measurement vector and model
-    z_cam_.setZero();
-    h_cam_.setZero();
-    for (int i = 0; i < x_.nfa; ++i)
-    {
-      z_cam_.segment<2>(2*i) = matched_feats_[i];
-      h_cam_.segment<2>(2*i) = x_.feats[i].pix;
-    }
-
-    measurementUpdate(z_cam_-h_cam_, R_cam_big_, H_cam_, K_cam_);
+    x_ += lambda_.cwiseProduct(K * err);
+    P_ += Lambda_.cwiseProduct((I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose() - P_);
   }
-
-  // Fill state with new features if needed
-  if (x_.nfa < nfm_)
-    addFeatToState(tracked_feats);
-
-  if (use_keyframe_reset_)
-    keyframeReset(tracked_feats);
+  else
+  {
+    x_ += K * err;
+    P_ = (I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose();
+  }
 }
 
 
@@ -478,69 +560,6 @@ void EKF::keyframeReset(const sensors::FeatVec &tracked_feats)
 }
 
 
-void EKF::numericalN(const Stated &x, MatrixXd &N)
-{
-  static const double eps(1e-5);
-  static Stated xp, xm, x_plusp, x_plusm;
-  for (int i = 0; i < N.cols(); ++i)
-  {
-    xp = x + I_DOF_.col(i) * eps;
-    x_plusp = xp;
-    x_plusp.p.setZero();
-    x_plusp.q = quat::Quatd(xp.q.roll(), xp.q.pitch(), 0);
-
-    xm = x + I_DOF_.col(i) * -eps;
-    x_plusm = xm;
-    x_plusm.p.setZero();
-    x_plusm.q = quat::Quatd(xm.q.roll(), xm.q.pitch(), 0);
-
-    N.col(i) = (x_plusp - x_plusm) / (2.0 * eps);
-  }
-}
-
-
-void EKF::measurementUpdate(const VectorXd &err, const MatrixXd& R, const MatrixXd &H, MatrixXd &K)
-{
-  K = P_ * H.transpose() * (R + H * P_ * H.transpose()).inverse();
-  if (use_partial_update_)
-  {
-    x_ += lambda_.cwiseProduct(K * err);
-    P_ += Lambda_.cwiseProduct((I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose() - P_);
-  }
-  else
-  {
-    x_ += K * err;
-    P_ = (I_DOF_ - K * H) * P_ * (I_DOF_ - K * H).transpose() + K * R * K.transpose();
-  }
-}
-
-
-void EKF::f(const Stated &x, const uVector &u, VectorXd &dx, const uVector &eta)
-{
-  Vector3d accel = u.segment<3>(UA) - x.ba - eta.segment<3>(UA);
-  Vector3d omega = u.segment<3>(UG) - x.bg - eta.segment<3>(UG);
-
-  Vector3d omega_c = q_uc_.rotp(omega);
-  Vector3d v_c = q_uc_.rotp(x.v + omega.cross(p_uc_));
-
-  dx.setZero();
-  dx.segment<3>(DP) = x.q.rota(x.v);
-  if (use_drag_)
-    dx.segment<3>(DV) = q_ub_.rota(common::e3 * common::e3.transpose() * q_ub_.rotp(accel)) + common::gravity * x.q.rotp(common::e3) -
-                        q_ub_.rota(x.mu * (common::I_3x3 - common::e3 * common::e3.transpose()) * q_ub_.rotp(x.v)) - omega.cross(x.v);
-  else
-    dx.segment<3>(DV) = accel + common::gravity * x.q.rotp(common::e3) - omega.cross(x.v);
-  dx.segment<3>(DQ) = omega;
-  for (int i = 0; i < nfm_; ++i)
-  {
-    Vector2d pix = x.feats[i].pix;
-    double rho = x.feats[i].rho;
-    dx.segment<2>(nbd_+3*i) = Omega(pix) * omega_c + rho * V(pix) * v_c;
-    dx(nbd_+3*i+2) = rho * M(pix) * omega_c + rho * rho * common::e3.dot(v_c);
-  }
-}
-
-
 void EKF::analyticalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &G)
 {
   F.setZero();
@@ -589,6 +608,27 @@ void EKF::numericalFG(const Stated &x, const uVector &u, MatrixXd &F, MatrixXd &
     f(x, u, dxm_, etam);
 
     G.col(i) = (dxp_ - dxm_) / (2.0 * eps);
+  }
+}
+
+
+void EKF::numericalN(const Stated &x, MatrixXd &N)
+{
+  static const double eps(1e-5);
+  static Stated xp, xm, x_plusp, x_plusm;
+  for (int i = 0; i < N.cols(); ++i)
+  {
+    xp = x + I_DOF_.col(i) * eps;
+    x_plusp = xp;
+    x_plusp.p.setZero();
+    x_plusp.q = quat::Quatd(xp.q.roll(), xp.q.pitch(), 0);
+
+    xm = x + I_DOF_.col(i) * -eps;
+    x_plusm = xm;
+    x_plusm.p.setZero();
+    x_plusm.q = quat::Quatd(xm.q.roll(), xm.q.pitch(), 0);
+
+    N.col(i) = (x_plusp - x_plusm) / (2.0 * eps);
   }
 }
 
@@ -650,7 +690,7 @@ void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const vehic
 }
 
 
-void EKF::logEst(const double &t)
+void EKF::logEst()
 {
   Vector3d p;
   quat::Quatd q;
@@ -665,7 +705,7 @@ void EKF::logEst(const double &t)
     q = x_.q;
   }
 
-  ekf_state_log_.write((char*)&t, sizeof(double));
+  ekf_state_log_.write((char*)&x_.t, sizeof(double));
   ekf_state_log_.write((char*)p.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)x_.v.data(), 3 * sizeof(double));
   ekf_state_log_.write((char*)q.euler().data(), 3 * sizeof(double));
@@ -690,19 +730,8 @@ void EKF::logEst(const double &t)
   }
 
   P_diag_ = P_.diagonal();
-  cov_log_.write((char*)&t, sizeof(double));
+  cov_log_.write((char*)&x_.t, sizeof(double));
   cov_log_.write((char*)P_diag_.data(), P_diag_.rows() * sizeof(double));
-}
-
-
-vehicle::Stated EKF::getState() const
-{
-  vehicle::Stated x;
-  x.p = x_.p;
-  x.v = x_.q.rotp(x_.v);
-  x.q = x_.q;
-  x.omega = xdot_.segment<3>(DQ);
-  return x;
 }
 
 

@@ -10,7 +10,7 @@ Matrix<double,R,C> roundMat(const Matrix<double,R,C>& m, int decimals)
   Matrix<double,R,C> n;
   for (int i = 0; i < R; ++i)
     for (int j = 0; j < C; ++j)
-      n(i,j) = common::decRound(m(i,j), decimals);
+      n(i,j) = common::round2dec(m(i,j), decimals);
   return n;
 }
 

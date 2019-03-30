@@ -31,32 +31,37 @@ public:
 
   void load(const string &filename, const string &name);
   void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true, const MatrixXd &lm);
+  void truthCallback(const double& t, vehicle::Stated& x);
+  void imuCallback(const double& t, const Vector6d& z);
+  void cameraCallback(const double& t, const sensors::FeatVec& z);
+  void gpsCallback(const double& t, const Vector6d& z);
+  void mocapCallback(const double& t, const xform::Xformd& z);
   vehicle::Stated getState() const;
 
 private:
-  void propagate(const double &t, const uVector &imu);
   void f(const Stated &x, const uVector& u, VectorXd &dx, const uVector& eta = uVector::Zero());
-  void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
-  void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
+  void filterUpdate();
+  void propagate(const double &t, const uVector &imu);
+  void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void gpsUpdate(const Vector6d& z);
   void mocapUpdate(const xform::Xformd& z);
-  void cameraUpdate(const sensors::FeatVec &tracked_feats);
   void measurementUpdate(const VectorXd& err, const MatrixXd &R, const MatrixXd& H, MatrixXd &K);
-  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& xb_true, const MatrixXd &lm);
-  void logEst(const double &t);
   void getPixMatches(const sensors::FeatVec& tracked_feats);
   void removeFeatFromState(const int& idx);
   void addFeatToState(const sensors::FeatVec &tracked_feats);
   void keyframeReset(const sensors::FeatVec &tracked_feats);
+  void analyticalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
+  void numericalFG(const Stated &x, const uVector& u, MatrixXd& F, MatrixXd& G);
   void numericalN(const Stated &x, MatrixXd& N);
-  void filterUpdate(const sensors::Sensors &sensors, const vehicle::Stated& x_true, const MatrixXd &lm);
+  void logTruth(const double &t, const sensors::Sensors &sensors, const vehicle::Stated& xb_true, const MatrixXd &lm);
+  void logEst();
 
   Matrix<double,2,3> Omega(const Vector2d& nu);
   Matrix<double,2,3> V(const Vector2d& nu);
   RowVector3d M(const Vector2d& nu);
 
   // Primary variables
-  bool first_imu_received_;
+  bool second_imu_received_;
   double update_rate_, last_filter_update_;
   bool use_drag_, use_partial_update_, use_keyframe_reset_;
   int nfm_; // maximum number of features in the state
