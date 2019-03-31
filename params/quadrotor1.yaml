@@ -113,6 +113,7 @@ use_gps_truth: false
 imu_update_rate: 250
 p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame
 q_ub: [0.9991, -0.0078, 0.0416, 0.0003] # rotation from IMU to body frame
+# NOTE: do not include any yaw rotation
 
 accel_noise_stdev: 0.5
 accel_bias_init_bound: 0.5
@@ -223,8 +224,8 @@ ekf_Qx_feat: [0, 0, 0]
 
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
-ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
-            0.05, 0.05, 0.15] # VELOCITY
+ekf_R_gps: [25.0, 25.0, 81.0, # POSITION
+            0.01, 0.01, 0.09] # VELOCITY
 ekf_R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
               1e-2, 1e-2, 1e-2] # ATTITUDE
 ekf_R_cam: [0.1, 0.1]

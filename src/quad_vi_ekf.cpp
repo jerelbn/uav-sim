@@ -371,12 +371,24 @@ void EKF::cameraUpdate(const common::FeatVecd &tracked_feats)
 void EKF::gpsUpdate(const Vector6d& z)
 {
   // Measurement model and matrix
-  h_gps_.head<3>() = x_.p;
+  h_gps_.head<3>() = x_.p + x_.q.rota(q_ub_.rotp(-p_ub_));
   h_gps_.tail<3>() = x_.q.rota(x_.v);
 
-  H_gps_.block<3,3>(0,DP).setIdentity();
-  H_gps_.block<3,3>(3,DV) = x_.q.inverse().R();
-  H_gps_.block<3,3>(3,DQ) = -x_.q.inverse().R() * common::skew(x_.v);
+  static Vector6d hp, hm;
+  static Stated xp, xm;
+  static double eps = 1e-5;
+  for (int i = 0; i < H_gps_.cols(); ++i)
+  {
+    xp = x_ + I_DOF_.col(i) * eps;
+    xm = x_ + I_DOF_.col(i) * -eps;
+
+    hp.head<3>() = xp.p + xp.q.rota(q_ub_.rotp(-p_ub_));
+    hp.tail<3>() = xp.q.rota(xp.v);
+    hm.head<3>() = xm.p + xm.q.rota(q_ub_.rotp(-p_ub_));
+    hm.tail<3>() = xm.q.rota(xm.v);
+
+    H_gps_.col(i) = (hp - hm) / (2.0 * eps);
+  }
 
   // Apply the update
   measurementUpdate(z-h_gps_, R_gps_, H_gps_, K_gps_);
