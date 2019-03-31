@@ -148,13 +148,13 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
 
   // Run all sensor callbacks
   if (sensors.new_imu_meas_)
-    imuCallback(sensors.imu_stamp_, sensors.imu_);
+    imuCallback(sensors.imu_);
   if (sensors.new_camera_meas_)
-    cameraCallback(sensors.cam_stamp_, sensors.cam_);
+    cameraCallback(sensors.image_);
   if (sensors.new_gps_meas_)
-    gpsCallback(sensors.gps_stamp_, sensors.gps_);
+    gpsCallback(sensors.gps_);
   if (sensors.new_mocap_meas_)
-    mocapCallback(sensors.mocap_stamp_, sensors.mocap_);
+    mocapCallback(sensors.mocap_);
 
   // Truth logging
   if (common::round2dec(t - last_filter_update_, 6) == 0 && second_imu_received_)
@@ -162,18 +162,18 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
 }
 
 
-void EKF::imuCallback(const double &t, const Vector6d &z)
+void EKF::imuCallback(const common::Imud& z)
 {
   // Store the new measurement
-  new_measurements_.emplace_back(Measurement(IMU, t, z));
+  new_measurements_.emplace_back(common::Measurementd(common::IMU, z.t, z));
 
   // Filter initialization
   if (!second_imu_received_)
   {
     if (new_measurements_.size() == 1)
     {
-      x_.t = t;
-      x_.imu = z;
+      x_.t = z.t;
+      x_.imu = z.vec();
       x_hist_.push_back(x_);
       P_hist_.push_back(P_);
     }
@@ -182,32 +182,32 @@ void EKF::imuCallback(const double &t, const Vector6d &z)
   }
 
   // Update the filter at desired update rate
-  if (common::round2dec(t - last_filter_update_, 6) >= 1.0 / update_rate_ && second_imu_received_)
+  if (common::round2dec(z.t - last_filter_update_, 6) >= 1.0 / update_rate_ && second_imu_received_)
   {
     filterUpdate();
-    last_filter_update_ = t;
+    last_filter_update_ = z.t;
   }
 }
 
 
-void EKF::cameraCallback(const double &t, const sensors::FeatVec &z)
+void EKF::cameraCallback(const common::Imaged &z)
 {
   if (second_imu_received_)
-    new_measurements_.emplace_back(Measurement(IMAGE, t, z));
+    new_measurements_.emplace_back(common::Measurementd(common::IMAGE, z.t, z));
 }
 
 
-void EKF::gpsCallback(const double &t, const Vector6d &z)
+void EKF::gpsCallback(const common::Gpsd &z)
 {
   if (second_imu_received_)
-    new_measurements_.emplace_back(Measurement(GPS, t, z));
+    new_measurements_.emplace_back(common::Measurementd(common::GPS, z.t, z));
 }
 
 
-void EKF::mocapCallback(const double &t, const xform::Xformd &z)
+void EKF::mocapCallback(const common::Mocapd &z)
 {
   if (second_imu_received_)
-    new_measurements_.emplace_back(Measurement(IMAGE, t, z));
+    new_measurements_.emplace_back(common::Measurementd(common::MOCAP, z.t, z));
 }
 
 
@@ -254,8 +254,8 @@ void EKF::filterUpdate()
   double t_oldest = INFINITY;
   for (auto& nm : new_measurements_)
   {
-    if (t_oldest > nm.stamp)
-      t_oldest = nm.stamp;
+    if (t_oldest > nm.t)
+      t_oldest = nm.t;
     all_measurements_.emplace(nm);
   }
   new_measurements_.clear();
@@ -271,31 +271,31 @@ void EKF::filterUpdate()
 
   // Get iterator to oldest measurement from new set
   auto nmit = --all_measurements_.end();
-  while (nmit->stamp > t_oldest)
+  while (nmit->t > t_oldest)
     --nmit;
 
   // Run the filter up throuth the latest measurements
   while (nmit != all_measurements_.end())
   {
-    if (nmit->type == IMU)
-      propagate(nmit->stamp, nmit->imu);
-    if (nmit->type == GPS)
+    if (nmit->type == common::IMU)
+      propagate(nmit->t, nmit->imu.vec());
+    if (nmit->type == common::GPS)
     {
-      if (fabs(nmit->stamp - x_.t) > 1e-5)
-        propagate(nmit->stamp, x_.imu);
-      gpsUpdate(nmit->gps);
+      if (fabs(nmit->t - x_.t) > 1e-5)
+        propagate(nmit->t, x_.imu);
+      gpsUpdate(nmit->gps.vec());
     }
-    if (nmit->type == MOCAP)
+    if (nmit->type == common::MOCAP)
     {
-      if (fabs(nmit->stamp - x_.t) > 1e-5)
-        propagate(nmit->stamp, x_.imu);
-      mocapUpdate(nmit->mocap);
+      if (fabs(nmit->t - x_.t) > 1e-5)
+        propagate(nmit->t, x_.imu);
+      mocapUpdate(nmit->mocap.transform);
     }
-    if (nmit->type == IMAGE)
+    if (nmit->type == common::IMAGE)
     {
-      if (fabs(nmit->stamp - x_.t) > 1e-5)
-        propagate(nmit->stamp, x_.imu);
-      cameraUpdate(nmit->image);
+      if (fabs(nmit->t - x_.t) > 1e-5)
+        propagate(nmit->t, x_.imu);
+      cameraUpdate(nmit->image.feats);
     }
     x_hist_.push_back(x_);
     P_hist_.push_back(P_);
@@ -310,7 +310,7 @@ void EKF::filterUpdate()
   }
 
   // Drop any measurements older than the state history
-  while (x_hist_.begin()->t > all_measurements_.begin()->stamp)
+  while (x_hist_.begin()->t > all_measurements_.begin()->t)
     all_measurements_.erase(all_measurements_.begin());
 
   // Log current estimates
@@ -339,7 +339,7 @@ void EKF::propagate(const double &t, const uVector& imu)
 }
 
 
-void EKF::cameraUpdate(const sensors::FeatVec &tracked_feats)
+void EKF::cameraUpdate(const common::FeatVecd &tracked_feats)
 {
   // Collect measurement of each feature in the state and remove feature states that have lost tracking
   getPixMatches(tracked_feats);
@@ -386,8 +386,8 @@ void EKF::gpsUpdate(const Vector6d& z)
 void EKF::mocapUpdate(const xform::Xformd &z)
 {
   // Measurement model and matrix
-  h_mocap_.t_ = x_.p + x_.q.rota(q_ub_.rotp(p_um_ - p_ub_));
-  h_mocap_.q_ = x_.q * q_ub_.inverse() * q_um_;
+  h_mocap_.t_ = x_.p + x_.q.rota(p_um_);
+  h_mocap_.q_ = x_.q * q_um_;
 
   static xform::Xformd hp, hm;
   static Stated xp, xm;
@@ -397,10 +397,10 @@ void EKF::mocapUpdate(const xform::Xformd &z)
     xp = x_ + I_DOF_.col(i) * eps;
     xm = x_ + I_DOF_.col(i) * -eps;
 
-    hp.t_ = xp.p + xp.q.rota(q_ub_.rotp(p_um_ - p_ub_));
-    hp.q_ = xp.q * q_ub_.inverse() * q_um_;
-    hm.t_ = xm.p + xm.q.rota(q_ub_.rotp(p_um_ - p_ub_));
-    hm.q_ = xm.q * q_ub_.inverse() * q_um_;
+    hp.t_ = xp.p + xp.q.rota(p_um_);
+    hp.q_ = xp.q * q_um_;
+    hm.t_ = xm.p + xm.q.rota(p_um_);
+    hm.q_ = xm.q * q_um_;
 
     H_mocap_.col(i) = (hp - hm) / (2.0 * eps);
   }
@@ -426,7 +426,7 @@ void EKF::measurementUpdate(const VectorXd &err, const MatrixXd& R, const Matrix
 }
 
 
-void EKF::getPixMatches(const sensors::FeatVec &tracked_feats)
+void EKF::getPixMatches(const common::FeatVecd &tracked_feats)
 {
   int i = 0;
   matched_feats_.clear();
@@ -470,7 +470,7 @@ void EKF::removeFeatFromState(const int &idx)
     P_.col(nbd_+3*j+1) = P_.col(nbd_+3*(j+1)+1);
     P_.col(nbd_+3*j+2) = P_.col(nbd_+3*(j+1)+2);
   }
-  x_.feats[j] = sensors::Feat();
+  x_.feats[j] = common::Featd();
   P_.row(nbd_+3*j).setZero();
   P_.row(nbd_+3*j+1).setZero();
   P_.row(nbd_+3*j+2).setZero();
@@ -483,12 +483,12 @@ void EKF::removeFeatFromState(const int &idx)
 }
 
 
-void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
+void EKF::addFeatToState(const common::FeatVecd &tracked_feats)
 {
   // Sort features by proximity to image center
   auto sorted_feats = tracked_feats;
   sort(sorted_feats.begin(), sorted_feats.end(),
-       [this](const sensors::Feat& f1, const sensors::Feat& f2)
+       [this](const common::Featd& f1, const common::Featd& f2)
        {return (f1.pix - image_center_).norm() < (f2.pix - image_center_).norm();});
 
   // Loop through features, adding the best ones to the state
@@ -508,7 +508,9 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
     if (!id_used)
     {
       // Initialize feature state and corresponding covariance block
-      x_.feats[x_.nfa] = sensors::Feat(f.pix,rho0_,f.id);
+      x_.feats[x_.nfa].id = f.id;
+      x_.feats[x_.nfa].pix = f.pix;
+      x_.feats[x_.nfa].rho = rho0_;
       P_.block<3,3>(nbd_+3*x_.nfa,nbd_+3*x_.nfa) = P0_feat_;
 
       // Increment number of active features
@@ -521,7 +523,7 @@ void EKF::addFeatToState(const sensors::FeatVec &tracked_feats)
 }
 
 
-void EKF::keyframeReset(const sensors::FeatVec &tracked_feats)
+void EKF::keyframeReset(const common::FeatVecd &tracked_feats)
 {
   // Calculate mean pixel disparity between current features and keyframe
   double pix_disparity = 0;

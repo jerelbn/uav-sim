@@ -63,17 +63,17 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
 {
   // Propagate the state and covariance to the current time step
   if (sensors.new_imu_meas_)
-    propagate(t, sensors.imu_);
+    propagate(t, sensors.imu_.vec());
 
   // Apply updates
   if (sensors.new_gps_meas_)
-    updateGPS(sensors.gps_);
+    updateGPS(sensors.gps_.vec());
   if (sensors.new_baro_meas_)
-    updateBaro(sensors.baro_);
+    updateBaro(sensors.baro_.pres);
   if (sensors.new_pitot_meas_)
-    updatePitot(sensors.pitot_);
+    updatePitot(sensors.pitot_.pres);
   if (sensors.new_wvane_meas_)
-    updateWVane(sensors.wvane_);
+    updateWVane(sensors.wvane_.angle);
 
   // Log data
   logTruth(t, sensors, vw, x_true);

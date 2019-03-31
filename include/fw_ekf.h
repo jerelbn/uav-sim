@@ -1,9 +1,9 @@
 #pragma once
 
 #include <Eigen/Dense>
-//#include <ceres/ceres.h>
 #include <chrono>
 #include "common_cpp/common.h"
+#include "common_cpp/measurement.h"
 #include "geometry/quat.h"
 #include "geometry/support.h"
 #include "sensors.h"

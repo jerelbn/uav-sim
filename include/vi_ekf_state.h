@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 #include "geometry/quat.h"
-#include "sensors.h"
+#include "common_cpp/measurement.h"
 
 using namespace std;
 using namespace Eigen;
@@ -62,7 +62,7 @@ struct State
     nbs = _nbs;
     nbd = nbs - 1;
     for (int i = 0; i < nfm; ++i)
-      feats.push_back(sensors::Feat());
+      feats.push_back(common::Feat<T>());
   }
 
   State(const double& _t, const Vector6d& _imu, const int& _nbs, const int& _nfm, const int& _nfa, const VectorXd &x)
@@ -81,7 +81,7 @@ struct State
     if (nbs == 17)
       mu = x(MU);
     for (int i = 0; i < nfm; ++i)
-      feats.push_back(sensors::Feat());
+      feats.push_back(common::Feat<T>());
   }
 
   State<T> operator+(const VectorXd &delta) const
@@ -96,7 +96,7 @@ struct State
       x.mu = mu + delta(DMU);
     for (int i = 0; i < nfm; ++i)
     {
-      sensors::Feat f;
+      common::Feat<T> f;
       f.pix = feats[i].pix + delta.template segment<2>(nbd+3*i);
       f.rho = feats[i].rho + delta(nbd+3*i+2);
       f.id = feats[i].id;
@@ -158,7 +158,7 @@ struct State
   Matrix<T,3,1> ba;
   Matrix<T,3,1> bg;
   T mu;
-  sensors::FeatVec feats;
+  common::FeatVec<T> feats;
 
 };
 typedef State<double> Stated;

@@ -3,6 +3,7 @@
 #include <random>
 #include "common_cpp/common.h"
 #include "common_cpp/logger.h"
+#include "common_cpp/measurement.h"
 #include "geometry/xform.h"
 #include "vehicle.h"
 
@@ -12,38 +13,6 @@ using namespace Eigen;
 
 namespace sensors
 {
-
-
-struct Feat
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  Feat()
-  {
-    pix.setZero();
-    rho = 0;
-    id = -1;
-  }
-
-  Feat(const Vector2d& _pix, const double& _rho, const int& _id)
-  {
-    pix = _pix;
-    rho = _rho;
-    id = _id;
-  }
-
-  Vector4d vec()
-  {
-    Vector4d v;
-    v << pix(0), pix(1), rho, id;
-    return v;
-  }
-
-  Vector2d pix; // pixel position in image
-  double rho; // inverse of Z component of landmark vector in camera frame
-  int id; // feature id or label
-};
-typedef vector<Feat, aligned_allocator<Feat>> FeatVec;
 
 
 class Sensors
@@ -60,40 +29,33 @@ public:
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getGyroBias() const { return gyro_bias_; }
   const double& getBaroBias() const { return baro_bias_; }
+  const double& getPitotBias() const { return pitot_bias_; }
 
-  double imu_stamp_;
-  Vector3d gyro_, accel_;
-  Matrix<double, 6, 1> imu_;
-  double mocap_stamp_;
-  xform::Xformd mocap_;
-  double cam_stamp_;
-  FeatVec cam_;
-  double baro_stamp_;
-  double baro_;
-  double pitot_stamp_;
-  double pitot_;
-  double wvane_stamp_;
-  double wvane_;
-  double gps_stamp_;
-  Matrix<double, 6, 1> gps_;
+  common::Imud imu_;
+  common::Mocapd mocap_;
+  common::Imaged image_;
+  common::Gpsd gps_;
+  common::Barod baro_;
+  common::Pitotd pitot_;
+  common::Wvaned wvane_;
 
   bool new_imu_meas_;
-  bool new_camera_meas_;
   bool new_mocap_meas_;
+  bool new_camera_meas_;
+  bool new_gps_meas_;
   bool new_baro_meas_;
   bool new_pitot_meas_;
   bool new_wvane_meas_;
-  bool new_gps_meas_;
 
 private:
 
   void imu(const double t, const vehicle::Stated &x);
-  void camera(const double t, const vehicle::Stated& x, const MatrixXd& lm);
   void mocap(const double t, const vehicle::Stated& x);
+  void camera(const double t, const vehicle::Stated& x, const MatrixXd& lm);
+  void gps(const double t, const vehicle::Stated& x);
   void baro(const double t, const vehicle::Stated& x);
   void pitot(const double t, const vehicle::Stated& x, const Vector3d& vw);
   void wvane(const double t, const vehicle::Stated& x, const Vector3d& vw);
-  void gps(const double t, const vehicle::Stated& x);
 
   default_random_engine rng_;
   double t_round_off_; // number of decimals to round off for time stamps
@@ -104,6 +66,7 @@ private:
 
   // IMU
   bool use_accel_truth_, use_gyro_truth_, imu_enabled_;
+  int imu_id_;
   double last_imu_update_;
   double imu_update_rate_;
   Vector3d accel_bias_, accel_noise_, accel_walk_;
@@ -116,11 +79,11 @@ private:
 
   // Camera
   bool use_camera_truth_, save_pixel_measurements_, camera_enabled_;
-  int cam_max_feat_;
+  int image_id_, cam_max_feat_;
   double last_camera_update_;
   double camera_update_rate_;
   double camera_time_delay_;
-  vector<pair<double,FeatVec>> cam_buffer_;
+  vector<common::Imaged> cam_buffer_;
   normal_distribution<double> pixel_noise_dist_;
   Vector2d pixel_noise_;
   Matrix3d K_, K_inv_;
@@ -131,10 +94,11 @@ private:
 
   // Motion Capture
   bool use_mocap_truth_, mocap_enabled_;
+  int mocap_id_;
   double last_mocap_update_;
   double mocap_update_rate_;
   double mocap_time_delay_;
-  vector<pair<double,xform::Xformd>> mocap_buffer_;
+  vector<common::Mocapd> mocap_buffer_;
   normal_distribution<double> mocap_noise_dist_;
   Matrix<double, 6, 1> mocap_noise_;
   xform::Xformd mocap_truth_;
@@ -144,6 +108,7 @@ private:
 
   // Barometer
   bool use_baro_truth_, baro_enabled_;
+  int baro_id_;
   double last_baro_update_;
   double baro_update_rate_;
   normal_distribution<double> baro_walk_dist_;
@@ -153,6 +118,7 @@ private:
 
   // Pitot Tube (for air speed along some axis)
   bool use_pitot_truth_, pitot_enabled_;
+  int pitot_id_;
   double last_pitot_update_;
   double pitot_update_rate_;
   normal_distribution<double> pitot_walk_dist_;
@@ -163,6 +129,7 @@ private:
 
   // Weather vane (for sideslip angle)
   bool use_wvane_truth_, wvane_enabled_;
+  int wvane_id_;
   double last_wvane_update_;
   double wvane_update_rate_;
   normal_distribution<double> wvane_noise_dist_;
@@ -173,6 +140,7 @@ private:
 
   // GPS
   bool use_gps_truth_, gps_enabled_;
+  int gps_id_;
   double last_gps_update_;
   double gps_update_rate_;
   double gps_time_constant_;

@@ -111,8 +111,6 @@ use_gps_truth: false
 
 ## IMU
 imu_update_rate: 250
-# p_ub: [0, 0, 0] # translation from IMU to body in IMU frame
-# q_ub: [1, 0, 0, 0] # rotation from IMU to body frame
 p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame
 q_ub: [0.9991, -0.0078, 0.0416, 0.0003] # rotation from IMU to body frame
 
@@ -127,7 +125,7 @@ gyro_walk_stdev: 0.01
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 30
-camera_time_delay: 0.045
+camera_time_delay: 0.0
 pixel_noise_stdev: 0.1
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
@@ -234,7 +232,7 @@ ekf_R_cam: [0.1, 0.1]
 ekf_lambda: [1.0, 1.0, 1.0, # POS
              1.0, 1.0, 1.0, # VEL
              1.0, 1.0, 1.0, # ATT
-             0.1, 0.1, 0.1, # ACCEL BIAS
-             0.2, 0.2, 0.2, # GYRO BIAS
-             0.01]           # DRAG COEFFICIENT
+             0.2, 0.2, 0.2, # ACCEL BIAS
+             0.3, 0.3, 0.3, # GYRO BIAS
+             0.1]           # DRAG COEFFICIENT
 ekf_lambda_feat: [1.0, 1.0, 1.0]

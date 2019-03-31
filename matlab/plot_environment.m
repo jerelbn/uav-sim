@@ -23,12 +23,13 @@ plot3([0, 1], [0, 0], [0, 0], 'r','HandleVisibility','off')
 plot3([0, 0], [0, 1], [0, 0], 'b','HandleVisibility','off')
 plot3([0, 0], [0, 0], [0, 1], 'g','HandleVisibility','off')
 plot3(env(1,:), env(2,:), env(3,:), 'k.', 'MarkerSize', 0.1,'HandleVisibility','off')
-plot3(ekf_truth(2,:), ekf_truth(3,:), ekf_truth(4,:), 'b', 'linewidth', 1.5)
 if name(1:4) == 'wing'
     est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;euler;acc_bias;gyro_bias;wind_inertial;baro_bias]
+    plot3(true_state(2,:), true_state(3,:), true_state(4,:), 'b', 'linewidth', 1.5)
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 elseif name(1:4) == 'quad'
     est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + nbd + 3 * quad_params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+    plot3(ekf_truth(2,:), ekf_truth(3,:), ekf_truth(4,:), 'b', 'linewidth', 1.5)
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 end
 plot3([true_state(2,1),cmd_state(2,1)], [true_state(3,1),cmd_state(3,1)], [true_state(4,1),cmd_state(4,1)], 'g--','HandleVisibility','off')
