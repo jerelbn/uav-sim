@@ -7,7 +7,6 @@
 #include "quad_control.h"
 #include "sensors.h"
 #include "environment.h"
-#include "quad_vi_ekf.h"
 
 using namespace Eigen;
 
