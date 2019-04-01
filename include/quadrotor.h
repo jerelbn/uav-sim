@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "common_cpp/common.h"
+#include "pb_vi_ekf/ekf.h"
 #include "quad_control.h"
 #include "sensors.h"
 #include "environment.h"
@@ -41,10 +42,12 @@ private:
   void getOtherVehicles(const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
+  void runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_t, const MatrixXd &lm);
+  vehicle::Stated getControlStateFromEstimator() const;
 
   Controller controller_;
   sensors::Sensors sensors_;
-  qviekf::EKF ekf_;
+  pbviekf::EKF estimator_;
 
   vehicle::Stated x_;
   vehicle::dxVector dx_;

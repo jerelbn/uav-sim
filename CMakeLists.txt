@@ -15,10 +15,12 @@ find_package(Ceres REQUIRED)
 add_subdirectory(lib/common_cpp)
 add_subdirectory(lib/geometry)
 add_subdirectory(lib/lin_alg_tools)
+add_subdirectory(lib/pb-vi-ekf)
 
 include_directories(include
   lib/common_cpp/include
   lib/geometry/include
+  lib/pb-vi-ekf/include
   ${EIGEN3_INCLUDE_DIRS}
   ${OPENCV_INCLUDE_DIRS}
   ${YAML_CPP_INCLUDE_DIR}
@@ -38,12 +40,12 @@ add_executable(uav_sim
   src/fixed_wing_control.cpp
   src/fw_lqr.cpp
   src/fw_ekf.cpp
-  src/quad_vi_ekf.cpp
   )
 target_link_libraries(uav_sim
   common_cpp
   geometry
   lin_alg_tools
+  pb_vi_ekf
   ${YAML_CPP_LIBRARIES}
   ${CERES_LIBRARIES}
   )

@@ -28,7 +28,7 @@ if name(1:4) == 'wing'
     plot3(true_state(2,:), true_state(3,:), true_state(4,:), 'b', 'linewidth', 1.5)
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 elseif name(1:4) == 'quad'
-    est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_est.log']), 'r'), 'double'), 1 + nbd + 3 * quad_params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
+    est_state = reshape(fread(fopen(strcat(['/tmp/',name,'_ekf_state.log']), 'r'), 'double'), 1 + nbd + 3 * quad_params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;pix;rho]
     plot3(ekf_truth(2,:), ekf_truth(3,:), ekf_truth(4,:), 'b', 'linewidth', 1.5)
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 end

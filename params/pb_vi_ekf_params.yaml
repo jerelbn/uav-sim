@@ -1,0 +1,66 @@
+## EKF Parameters
+update_rate: 100 # Hz
+max_history_size: 200
+
+use_drag: true
+use_partial_update: true
+use_keyframe_reset: true
+
+num_features: 10
+rho0: 0.001
+init_imu_bias: false
+
+kfr_mean_pix_disparity_thresh: 60
+kfr_min_matches: 1
+
+x0: [0, 0, -1,    # POS
+     0, 0, 0,    # VEL
+     1, 0, 0, 0, # ATT
+     0, 0, 0,    # ACCEL BIAS
+     0, 0, 0,    # GYRO BIAS
+     0.05]      # DRAG COEFFICIENT
+
+P0: [0, 0, 0, # POS
+     1e-8, 1e-8, 1e-8, # VEL
+     1e-2, 1e-2, 1e-2, # ATT
+     5e-2, 5e-2, 5e-2, # ACCEL BIAS
+     2e-3, 2e-3, 2e-3, # GYRO BIAS
+     1e-3]             # DRAG COEFFICIENT
+P0_feat: [4.0, 4.0, 0.25]
+
+Qx: [0, 0, 0, # POS
+     0, 0, 0, # VEL
+     0, 0, 0, # ATT
+     1e-7, 1e-7, 1e-7, # ACCEL BIAS
+     1e-9, 1e-9, 1e-9, # GYRO BIAS
+     0]             # DRAG COEFFICIENT
+Qx_feat: [0, 0, 0]
+
+Qu: [0.25, 0.25, 0.25, # ACCEL
+     0.01, 0.01, 0.01] # GYRO
+R_gps: [25.0, 25.0, 81.0, # POSITION
+        0.01, 0.01, 0.09] # VELOCITY
+R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
+          1e-2, 1e-2, 1e-2] # ATTITUDE
+R_cam: [0.1, 0.1]
+
+lambda: [1.0, 1.0, 1.0, # POS
+         1.0, 1.0, 1.0, # VEL
+         1.0, 1.0, 1.0, # ATT
+         0.2, 0.2, 0.2, # ACCEL BIAS
+         0.3, 0.3, 0.3, # GYRO BIAS
+         0.1]           # DRAG COEFFICIENT
+lambda_feat: [1.0, 1.0, 1.0]
+
+p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame
+q_ub: [0.9991, -0.0078, 0.0416, 0.0003] # rotation from IMU to body frame !!NOTE: do not include any yaw rotation
+camera_matrix: [480,   0, 320,
+                  0, 480, 240,
+                  0,   0,   1]
+p_uc: [0.1, 0.05, 0.03] # translation from IMU to camera in IMU frame
+q_uc: [0.7071, 0.0, 0.0, 0.7071] # rotation from IMU to camera
+p_um: [0.0930, -0.0685, 0.0941] # translation from IMU to mocap_body in body frame
+q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from IMU to mocap_body
+pitot_azimuth: 0 # relative angle about body z axis to pitot tube direction
+pitot_elevation: 0 # relative angle about body y axis to pitot tube direction
+wvane_roll: 0 # relative angle about body z axis to weather vane vertical direction

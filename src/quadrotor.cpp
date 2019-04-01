@@ -27,7 +27,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   common::get_yaml_node("name", filename, name_);
   controller_.load(filename, use_random_seed, name_);
   sensors_.load(filename, use_random_seed, name_);
-  ekf_.load(filename, name_);
+  estimator_.load("../params/pb_vi_ekf_params.yaml", name_);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -48,7 +48,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw());
   sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
-  ekf_.run(0, sensors_, env.get_vw(), getState(), env.get_points());
+  runEstimator(0, sensors_, env.get_vw(), getState(), env.get_points());
 
   // Initialize loggers and log initial data
   std::stringstream ss_s, ss_e;
@@ -57,6 +57,21 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   state_log_.open(ss_s.str());
   euler_log_.open(ss_e.str());
   log(0);
+}
+
+
+void Quadrotor::run(const double &t, const environment::Environment& env)
+{
+  getOtherVehicles(env.getVehiclePositions());
+  propagate(t, u_, env.get_vw()); // Propagate truth to current time step
+  if (control_using_estimates_)
+    controller_.computeControl(getControlStateFromEstimator(), t, u_, other_vehicle_positions_[0]);
+  else
+    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
+  updateAccels(u_, env.get_vw()); // Update true acceleration
+  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
+  runEstimator(t, sensors_, env.get_vw(), getState(), env.get_points());
+  log(t); // Log current data
 }
 
 
@@ -98,21 +113,6 @@ void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
 }
 
 
-void Quadrotor::run(const double &t, const environment::Environment& env)
-{
-  getOtherVehicles(env.getVehiclePositions());
-  propagate(t, u_, env.get_vw()); // Propagate truth to current time step
-  if (control_using_estimates_)
-    controller_.computeControl(ekf_.getState(), t, u_, other_vehicle_positions_[0]);
-  else
-    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
-  updateAccels(u_, env.get_vw()); // Update true acceleration
-  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
-  ekf_.run(t, sensors_, env.get_vw(), getState(), env.get_points());
-  log(t); // Log current data
-}
-
-
 void Quadrotor::updateAccels(const uVector &u, const Vector3d &vw)
 {
   static vehicle::dxVector dx;
@@ -139,6 +139,33 @@ void Quadrotor::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<V
   for (int i = 0; i < all_vehicle_positions.size(); ++i)
     if (i != id_)
       other_vehicle_positions_.push_back(all_vehicle_positions[i]);
+}
+
+
+void Quadrotor::runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& xt, const MatrixXd& lm)
+{
+  // Run all sensor callbacks
+  if (sensors.new_imu_meas_)
+    estimator_.imuCallback(sensors.imu_);
+  if (sensors.new_camera_meas_)
+    estimator_.cameraCallback(sensors.image_);
+  if (sensors.new_gps_meas_)
+    estimator_.gpsCallback(sensors.gps_);
+  if (sensors.new_mocap_meas_)
+    estimator_.mocapCallback(sensors.mocap_);
+
+  // Truth logging
+  estimator_.logTruth(t, xt.p, xt.v, xt.q, sensors.getAccelBias(), sensors.getGyroBias(), xt.drag, xt.omega, lm);
+}
+
+
+vehicle::Stated Quadrotor::getControlStateFromEstimator() const
+{
+  vehicle::Stated state;
+  state.p = estimator_.getGlobalPosition();
+  state.q = estimator_.getGlobalAttitude();
+  state.v = estimator_.getState().v;
+  return state;
 }
 
 
