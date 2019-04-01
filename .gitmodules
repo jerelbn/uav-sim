@@ -10,3 +10,6 @@
 [submodule "matlab/yamlmatlab"]
 	path = matlab/yamlmatlab
 	url = git@magiccvs.byu.edu:Jerel/yamlmatlab.git
+[submodule "lib/pb-vi-ekf"]
+	path = lib/pb-vi-ekf
+	url = git@magiccvs.byu.edu:Jerel/pb-vi-ekf.git
