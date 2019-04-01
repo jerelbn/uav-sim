@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "common_cpp/common.h"
+#include "common_cpp/logger.h"
 #include "pb_vi_ekf/ekf.h"
 #include "quad_control.h"
 #include "sensors.h"
@@ -60,8 +61,8 @@ private:
   Eigen::Vector3d v_rel_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions_;
 
-  std::ofstream state_log_;
-  std::ofstream euler_log_;
+  common::Logger state_log_;
+  common::Logger euler_log_;
 
 };
 

@@ -14,11 +14,7 @@ Quadrotor::Quadrotor(const std::string &filename, const environment::Environment
 }
 
 
-Quadrotor::~Quadrotor()
-{
-  state_log_.close();
-  euler_log_.close();
-}
+Quadrotor::~Quadrotor() {}
 
 
 void Quadrotor::load(const std::string &filename, const environment::Environment& env, const bool& use_random_seed)
@@ -125,11 +121,10 @@ void Quadrotor::updateAccels(const uVector &u, const Vector3d &vw)
 void Quadrotor::log(const double &t)
 {
   // Write data to binary files and plot in another program
-  vehicle::xVector x = x_.toEigen();
-  state_log_.write((char*)&t, sizeof(double));
-  state_log_.write((char*)x.data(), x.rows() * sizeof(double));
-  euler_log_.write((char*)&t, sizeof(double));
-  euler_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
+  state_log_.log(t);
+  state_log_.logMatrix(x_.toEigen());
+  euler_log_.log(t);
+  euler_log_.logMatrix(x_.q.euler());
 }
 
 
