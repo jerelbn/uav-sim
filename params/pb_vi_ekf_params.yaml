@@ -3,12 +3,12 @@ name: quad1
 update_rate: 100 # Hz
 max_history_size: 200
 
-use_drag: true
-use_partial_update: true
-use_keyframe_reset: true
+use_drag: false
+use_partial_update: false
+use_keyframe_reset: false
 
 num_features: 10
-rho0: 0.001
+rho0: -3
 init_imu_bias: false
 image_size: [640, 480]
 
@@ -28,7 +28,7 @@ P0: [0, 0, 0, # POS
      5e-2, 5e-2, 5e-2, # ACCEL BIAS
      2e-3, 2e-3, 2e-3, # GYRO BIAS
      1e-3]             # DRAG COEFFICIENT
-P0_feat: [4.0, 4.0, 0.25]
+P0_feat: [4.0, 4.0, 1.0]
 
 Qx: [0, 0, 0, # POS
      0, 0, 0, # VEL

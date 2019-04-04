@@ -16,7 +16,7 @@ quad1_params = ReadYaml('../params/pb_vi_ekf_params.yaml');
 plot_environment('quad1', sim_params, quad1_params)
 % plot_vehicle(quad1_params)
 % plot_sensors(quad1_params)
-plot_quad_ekf(quad1_params, true, false, false)
+plot_quad_ekf(quad1_params, true, true, false)
 % animate_3d(50, 'quad1')
 % animate_img(1,quad1_params)
 
