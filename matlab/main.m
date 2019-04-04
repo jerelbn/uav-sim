@@ -5,7 +5,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 addpath('yamlmatlab')
 sim_params = ReadYaml('../params/sim.yaml');
 wing1_params = ReadYaml('../params/fixed_wing1.yaml');
-quad1_params = ReadYaml('../params/quadrotor1.yaml');
+quad1_params = ReadYaml('../params/pb_vi_ekf_params.yaml');
 
 % plot_environment('wing1', sim_params, quad1_params)
 % plot_vehicle(wing1_params)

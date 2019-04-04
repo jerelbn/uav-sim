@@ -1,4 +1,5 @@
 ## EKF Parameters
+name: quad1
 update_rate: 100 # Hz
 max_history_size: 200
 
@@ -9,6 +10,7 @@ use_keyframe_reset: true
 num_features: 10
 rho0: 0.001
 init_imu_bias: false
+image_size: [640, 480]
 
 kfr_mean_pix_disparity_thresh: 60
 kfr_min_matches: 1

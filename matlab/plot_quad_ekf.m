@@ -1,14 +1,14 @@
 function plot_quad_ekf(params, plot_cov, plot_pix_components, plot_2d_pix)
 
 % Load data
-if params.ekf_use_drag
+if params.use_drag
     nbd = 16; % number of base degrees of freedom
 else
     nbd = 15;
 end
-true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + nbd + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
-ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_state.log']), 'r'), 'double'), 1 + nbd + 3 * params.ekf_num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
-ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r'), 'double'), 1 + nbd + 3 * params.ekf_num_features, []); % [time;pos;vel;att;acc_bias;gyro_bias;drag;pix;rho]
+true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
+ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_state.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
+ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;att;acc_bias;gyro_bias;drag;pix;rho]
 
 figure()
 set(gcf, 'name', 'EKF Position', 'NumberTitle', 'off');
@@ -125,7 +125,7 @@ for i=1:3
 end
 
 
-if params.ekf_use_drag
+if params.use_drag
     figure(), hold on, grid on
     set(gcf, 'name', 'EKF Drag', 'NumberTitle', 'off');
     title("Drag")
@@ -141,7 +141,7 @@ end
 
 if plot_pix_components
     idx = nbd+1;
-    for j = 1:params.ekf_num_features
+    for j = 1:params.num_features
         figure()
         set(gcf, 'name', strcat(['EKF Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
         titles = ["pix_x","pix_y","depth"];
@@ -169,7 +169,7 @@ end
 
 if plot_2d_pix
     idx = 16;
-    for j = 1:params.ekf_num_features
+    for j = 1:params.num_features
         figure(), hold on, grid on
         set(gcf, 'name', strcat(['EKF 2D Pixel/Depth ',int2str(j)]), 'NumberTitle', 'off');
         set(gca, 'YDir', 'Reverse')
