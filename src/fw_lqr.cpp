@@ -42,8 +42,6 @@ void LQR::init(const std::string& filename)
   Q_ = Q_diag.asDiagonal();
   R_ = R_diag.asDiagonal();
   R_inv_ = R_.inverse();
-
-  u_prev_ = u_ref_;
 }
 
 
@@ -80,9 +78,7 @@ void LQR::computeControl(const vehicle::Stated& x, const Vector3d& vw, const Vec
   {
     // Update Jacobians
 //    analyticAB(xhat, vw);
-//    std::cout << "\nAa = \n" << A_ << "\n\nBa = \n" << B_ << std::endl;
     numericalAB(x_lqr, xc_, u_ref_, x.p, vw, wp_prev, wp);
-//    std::cout << "\nAn = \n" << A_ << "\n\nBn = \n" << B_ << std::endl;
 
     // Update gain matrix
     care_solver.solve(P_, A_, B_, Q_, R_);
@@ -95,14 +91,10 @@ void LQR::computeControl(const vehicle::Stated& x, const Vector3d& vw, const Vec
 
   // Compute control vector
   u = -K_ * x_tilde;
-//  uVector u_tilde = -K_ * x_tilde;
-//  u = u_ref_ - u_tilde;
   u(AIL) = common::saturate(u(AIL), 1.0, -1.0);
   u(ELE) = common::saturate(u(ELE), 1.0, -1.0);
   u(THR) = common::saturate(u(THR), 1.0,  0.0);
   u(RUD) = common::saturate(u(RUD), 1.0, -1.0);
-
-  u_prev_ = u;
 }
 
 

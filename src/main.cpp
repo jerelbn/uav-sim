@@ -41,7 +41,7 @@ int main()
     prog_bar.print(t/dt);
 
     // Run each vehicle
-    quad1.run(t, env);
+//    quad1.run(t, env);
     wing1.run(t, env);
     bike1.run(t, env);
 

@@ -130,7 +130,7 @@ private:
   Vector3d v_ref_;
   quat::Quatd q_ref_;
   Vector3d omega_ref_;
-  uVector u_ref_, u_prev_;
+  uVector u_ref_;
   int update_count_;
   int gain_matrix_update_iters_;
 

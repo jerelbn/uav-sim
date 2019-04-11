@@ -5,8 +5,8 @@ control_using_estimates: true
 controller_update_rate: 50
 
 # Physical parameters
-x0: [0, 0, 0,    # POS
-     20, 0, 0,    # VEL
+x0: [1, 0, 0,    # POS
+     16, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
      0, 0, 0,    # OMEGA
@@ -165,7 +165,7 @@ camera_enabled: false
 mocap_enabled: false
 baro_enabled: true
 pitot_enabled: true
-wvane_enabled: true
+wvane_enabled: false
 gps_enabled: true
 
 use_accel_truth: false
