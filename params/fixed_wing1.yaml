@@ -231,13 +231,13 @@ wvane_resolution: 1024 # number of rotary encoder ticks
 wvane_roll: 0 # relative angle about body z axis to weather vane vertical direction
 
 ## GPS
-gps_update_rate: 10
+gps_update_rate: 5
 gps_time_constant: 0.009
 gps_horizontal_position_noise_stdev: 0.21
-gps_horizontal_position_bias_init_bound: 4.7
+gps_horizontal_position_bias_init_bound: 3.0
 gps_horizontal_velocity_noise_stdev: 0.05
 gps_vertical_position_noise_stdev: 0.40
-gps_vertical_position_bias_init_bound: 9.2
+gps_vertical_position_bias_init_bound: 5.0
 gps_vertical_velocity_noise_stdev: 0.15
 
 ## EKF Parameters
@@ -255,13 +255,13 @@ ekf_P0: [1e-1, 1e-1, 1e-1, # POS
          5e-2, 5e-2, 5e-2, # GYRO BIAS
          25e0, 25e0, 25e0, # WIND
          25e0]             # BARO BIAS
-ekf_Qx: [1e-6, 1e-6, 1e-6, # POS
-         1e-8, 1e-8, 1e-8, # VEL
-         1e-8, 1e-8, 1e-8, # ATT
-         1e-7, 1e-7, 1e-7, # ACCEL BIAS
-         1e-8, 1e-8, 1e-8, # GYRO BIAS
-         1e-6, 1e-6, 1e-6, # WIND
-         1e-8]             # BARO BIAS
+ekf_Qx: [0, 0, 0, # POS
+         0, 0, 0, # VEL
+         0, 0, 0, # ATT
+         1e-6, 1e-6, 1e-6, # ACCEL BIAS
+         1e-7, 1e-7, 1e-7, # GYRO BIAS
+         1e-5, 1e-5, 1e-5, # WIND
+         0]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
 ekf_R_gps: [25.0, 25.0, 100.0, # POSITION
