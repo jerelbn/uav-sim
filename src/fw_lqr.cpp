@@ -127,12 +127,8 @@ void LQR::computeCommandState(const State &x, const Vector3d& pos, const Vector3
   xc.q = quat::Quatd(phi_ref, theta_ref, psi_ref);
 
   // Velocity
-  Vector3d v_aI_b = x.v - x.q.rotp(vw); // velocity w.r.t. air in body frame
   double Va_ref = v_ref_.norm();
-  double alpha = atan(v_aI_b(2) / v_aI_b(0));
-  double gamma_a = x.q.pitch() - alpha;
-//  xc.v = x.q.rotp(Va_ref * Vector3d(cos(x.q.yaw()) * cos(gamma_a), sin(x.q.yaw()) * cos(gamma_a), -sin(gamma_a)) + vw);
-  xc.v = Va_ref * common::e1 + x.q.rotp(vw);
+  xc.v = v_ref_.norm() * common::e1 + x.q.rotp(vw);
 
   // Angular rate
   double phi_dot_ref = 0.0;
