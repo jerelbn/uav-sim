@@ -63,7 +63,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   traj_alt_freq_ = 2.0 * M_PI / traj_alt_period;
 
   // Initialize controllers
-  lqr_.init(filename);
+  lqr_.init(filename, rng_);
 
   // Initialize loggers
   std::stringstream ss_cs, ss_c, ss_ec;

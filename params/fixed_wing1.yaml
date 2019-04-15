@@ -129,6 +129,8 @@ lqr_Q: [1e3, 1e0, 1e0, # velocity
         1e2, 1e2, 1e0, # attitude
         1e0, 1e0, 1e2] # angular rate
 lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
+lqr_perturb_aircraft_parameters: false
+lqr_perturbation_percentage: 0.5
 
 
 # Trajectory

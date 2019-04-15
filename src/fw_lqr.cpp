@@ -11,7 +11,7 @@ LQR::LQR() : update_count_(0)
 }
 
 
-void LQR::init(const std::string& filename)
+void LQR::init(const std::string& filename, std::default_random_engine& rng)
 {
   load_base(filename);
 
@@ -42,6 +42,13 @@ void LQR::init(const std::string& filename)
   Q_ = Q_diag.asDiagonal();
   R_ = R_diag.asDiagonal();
   R_inv_ = R_.inverse();
+
+  bool perturb_aircraft_parameters;
+  double perturbation_percentage;
+  common::get_yaml_node("lqr_perturb_aircraft_parameters", filename, perturb_aircraft_parameters);
+  common::get_yaml_node("lqr_perturbation_percentage", filename, perturbation_percentage);
+  if (perturb_aircraft_parameters)
+    perturbAircraftParameters(perturbation_percentage, rng);
 }
 
 
@@ -239,6 +246,88 @@ void LQR::f_tilde(const State &x_ref, const dxVector &x_tilde, const uVector& u,
 
   // Error state derivative
   x_tilde_dot = (x_tildep - x_tildem) / (2.0 * dt);
+}
+
+
+void LQR::perturbAircraftParameters(const double& max_percent_err, std::default_random_engine& rng)
+{
+  double low = 1.0 - max_percent_err;
+  double high = 1.0 + max_percent_err;
+  std::uniform_real_distribution<double> dist(low,high);
+
+  rho_ *= dist(rng);
+//  mass_ *= dist(rng);
+  J_ *= dist(rng);
+  J_inv_ = J_.inverse();
+  wing_S_ *= dist(rng);
+  wing_b_ *= dist(rng);
+  wing_c_ *= dist(rng);
+  wing_M_ *= dist(rng);
+  wing_epsilon_ *= dist(rng);
+  wing_alpha0_ *= dist(rng);
+  k_motor_ *= dist(rng);
+  k_T_p_ *= dist(rng);
+  k_Omega_ *= dist(rng);
+  prop_e_ *= dist(rng);
+  prop_S_ *= dist(rng);
+  prop_C_ *= dist(rng);
+  C_L_0_ *= dist(rng);
+  C_L_alpha_ *= dist(rng);
+  C_L_beta_ *= dist(rng);
+  C_L_p_ *= dist(rng);
+  C_L_q_ *= dist(rng);
+  C_L_r_ *= dist(rng);
+  C_L_delta_a_ *= dist(rng);
+  C_L_delta_e_ *= dist(rng);
+  C_L_delta_r_ *= dist(rng);
+  C_D_0_ *= dist(rng);
+  C_D_alpha_ *= dist(rng);
+  C_D_beta_ *= dist(rng);
+  C_D_p_ *= dist(rng);
+  C_D_q_ *= dist(rng);
+  C_D_r_ *= dist(rng);
+  C_D_delta_a_ *= dist(rng);
+  C_D_delta_e_ *= dist(rng);
+  C_D_delta_r_ *= dist(rng);
+  C_el_0_ *= dist(rng);
+  C_el_alpha_ *= dist(rng);
+  C_el_beta_ *= dist(rng);
+  C_el_p_ *= dist(rng);
+  C_el_q_ *= dist(rng);
+  C_el_r_ *= dist(rng);
+  C_el_delta_a_ *= dist(rng);
+  C_el_delta_e_ *= dist(rng);
+  C_el_delta_r_ *= dist(rng);
+  C_m_0_ *= dist(rng);
+  C_m_alpha_ *= dist(rng);
+  C_m_beta_ *= dist(rng);
+  C_m_p_ *= dist(rng);
+  C_m_q_ *= dist(rng);
+  C_m_r_ *= dist(rng);
+  C_m_delta_a_ *= dist(rng);
+  C_m_delta_e_ *= dist(rng);
+  C_m_delta_r_ *= dist(rng);
+  C_n_0_ *= dist(rng);
+  C_n_alpha_ *= dist(rng);
+  C_n_beta_ *= dist(rng);
+  C_n_p_ *= dist(rng);
+  C_n_q_ *= dist(rng);
+  C_n_r_ *= dist(rng);
+  C_n_delta_a_ *= dist(rng);
+  C_n_delta_e_ *= dist(rng);
+  C_n_delta_r_ *= dist(rng);
+  C_Y_0_ *= dist(rng);
+  C_Y_alpha_ *= dist(rng);
+  C_Y_beta_ *= dist(rng);
+  C_Y_p_ *= dist(rng);
+  C_Y_q_ *= dist(rng);
+  C_Y_r_ *= dist(rng);
+  C_Y_delta_a_ *= dist(rng);
+  C_Y_delta_e_ *= dist(rng);
+  C_Y_delta_r_ *= dist(rng);
+//  delta_a_max_ *= dist(rng);
+//  delta_e_max_ *= dist(rng);
+//  delta_r_max_ *= dist(rng);
 }
 
 

@@ -100,7 +100,7 @@ public:
   };
 
   LQR();
-  void init(const std::string &filename);
+  void init(const std::string &filename, std::default_random_engine &rng);
   void computeControl(const vehicle::Stated& xhat, const Vector3d &vw, const Vector3d &wp_prev,
                       const Vector3d &wp, vehicle::Stated &xc, uVector &u);
 
@@ -143,6 +143,7 @@ private:
   void f_tilde(const State &x_ref, const dxVector &x_tilde, const uVector& u,
                const Vector3d &pos, const Vector3d& vw, const Vector3d& wp_prev,
                const Vector3d &wp, const double& dt, dxVector &x_tilde_dot) const;
+  void perturbAircraftParameters(const double &max_percent_err, std::default_random_engine &rng);
 };
 
 
