@@ -229,8 +229,7 @@ void LQR::f_tilde(const State &x_ref, const dxVector &x_tilde, const uVector& u,
   State xm = x + -dx * dt;
 
   // Future and previous reference states
-  State x_refp = x_ref;
-  State x_refm = x_ref;
+  State x_refp, x_refm;
   computeCommandState(xp, pos, vw, wp_prev, wp, x_refp);
   computeCommandState(xm, pos, vw, wp_prev, wp, x_refm);
 
