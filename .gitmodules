@@ -7,9 +7,6 @@
 [submodule "lib/lin_alg_tools"]
 	path = lib/lin_alg_tools
 	url = git@github.com:jerelbn/lin_alg_tools.git
-[submodule "matlab/yamlmatlab"]
-	path = matlab/yamlmatlab
-	url = git@magiccvs.byu.edu:Jerel/yamlmatlab.git
 [submodule "lib/pb-vi-ekf"]
 	path = lib/pb-vi-ekf
 	url = git@magiccvs.byu.edu:Jerel/pb-vi-ekf.git
