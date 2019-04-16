@@ -36,19 +36,24 @@ void Environment::load(const std::string filename)
   double vw_north_init_var, vw_east_init_var, vw_down_init_var;
   double vw_north_walk_stdev, vw_east_walk_stdev, vw_down_walk_stdev;
   common::get_yaml_node("enable_wind", filename, enable_wind_);
+  common::get_yaml_node("random_initial_wind", filename, random_init_wind_);
   common::get_yaml_node("wind_north_init_stdev", filename, vw_north_init_var);
   common::get_yaml_node("wind_east_init_stdev", filename, vw_east_init_var);
   common::get_yaml_node("wind_down_init_stdev", filename, vw_down_init_var);
   common::get_yaml_node("wind_north_walk_stdev", filename, vw_north_walk_stdev);
   common::get_yaml_node("wind_east_walk_stdev", filename, vw_east_walk_stdev);
   common::get_yaml_node("wind_down_walk_stdev", filename, vw_down_walk_stdev);
-  vw_ = Eigen::Vector3d::Random();
-  vw_(0) *= vw_north_init_var;
-  vw_(1) *= vw_east_init_var;
-  vw_(2) *= vw_down_init_var;
+  common::get_yaml_eigen("wind_init_vector", filename, vw_);
   vw_north_walk_dist_ = std::normal_distribution<double>(0.0,vw_north_walk_stdev);
   vw_east_walk_dist_ = std::normal_distribution<double>(0.0,vw_east_walk_stdev);
   vw_down_walk_dist_ = std::normal_distribution<double>(0.0,vw_down_walk_stdev);
+  if (random_init_wind_)
+  {
+    vw_ = Eigen::Vector3d::Random();
+    vw_(0) *= vw_north_init_var;
+    vw_(1) *= vw_east_init_var;
+    vw_(2) *= vw_down_init_var;
+  }
   if (!enable_wind_)
     vw_.setZero();
 

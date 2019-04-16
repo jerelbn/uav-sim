@@ -46,7 +46,7 @@ private:
   double outdoor_north_dim_, outdoor_east_dim_, outdoor_height_, hill_freq_;
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > vehicle_positions_;
 
-  bool enable_wind_;
+  bool enable_wind_, random_init_wind_;
   Eigen::Vector3d vw_, vw_walk_;
   std::normal_distribution<double> vw_north_walk_dist_;
   std::normal_distribution<double> vw_east_walk_dist_;
