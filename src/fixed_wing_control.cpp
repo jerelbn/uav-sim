@@ -82,7 +82,9 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, uVecto
 {
   double dt = t - prev_time_;
   if (t == 0)
-    wp_prev_ = x.p;
+    wp_prev_ = Vector3d(waypoints_(0,waypoints_.cols()-1),
+                        waypoints_(1,waypoints_.cols()-1),
+                        waypoints_(2,waypoints_.cols()-1));
 
   if (t == 0 || dt >= 1.0 / controller_update_rate_)
   {

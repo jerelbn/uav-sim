@@ -140,11 +140,10 @@ lqr_perturbation_percentage: 0.5
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [200, 0, -40,
-            200, 200, -30,
-            -200, 200, -20,
-            -200, -200, -10,
-            200, -200, -20]
+waypoints: [400, 0, -30,
+            400, -400, -40,
+            0, -400, -30,
+            0, 0, -20]
 waypoint_threshold: 20.0
 
 traj_delta_north: 50
