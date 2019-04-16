@@ -2,7 +2,7 @@
 clear, close all
 format compact
 set(0,'DefaultFigureWindowStyle','docked')
-addpath('yamlmatlab')
+addpath('../lib/yamlmatlab')
 sim_params = ReadYaml('../params/sim.yaml');
 wing1_params = ReadYaml('../params/fixed_wing1.yaml');
 quad1_params = ReadYaml('../params/pb_vi_ekf_params.yaml');
