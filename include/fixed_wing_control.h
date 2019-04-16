@@ -45,6 +45,7 @@ private:
   std::ofstream command_state_log_;
   std::ofstream command_log_;
   std::ofstream euler_command_log_;
+  std::vector<long long> lqr_timings_;
 
   // Waypoint Parameters
   MatrixXd waypoints_;

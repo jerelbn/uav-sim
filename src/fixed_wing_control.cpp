@@ -1,4 +1,5 @@
 #include "fixed_wing_control.h"
+#include <chrono>
 
 
 namespace fixedwing
@@ -16,6 +17,13 @@ Controller::~Controller()
   command_state_log_.close();
   command_log_.close();
   euler_command_log_.close();
+
+  // Compute LQR mean control timing and standard deviation
+  double mean = std::accumulate(lqr_timings_.begin(), lqr_timings_.end(), 0.0) / lqr_timings_.size();
+  double var = 0;
+  for (const auto& t : lqr_timings_)
+    var += (t - mean) * (t - mean) / (lqr_timings_.size() - 1);
+  std::cout << "FW-LQR Timing - mean: " << mean << ", stdev: " << sqrt(var) << std::endl;
 }
 
 
@@ -73,6 +81,7 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   command_state_log_.open(ss_cs.str());
   command_log_.open(ss_c.str());
   euler_command_log_.open(ss_ec.str());
+  lqr_timings_.reserve(1e6);
 }
 
 
@@ -99,7 +108,10 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, uVecto
         updateTrajectoryManager(t);
 
       // Compute control
+      auto start = std::chrono::high_resolution_clock::now();
       lqr_.computeControl(xhat_, vw, wp_prev_, wp_, xc_, u);
+      auto elapsed = std::chrono::high_resolution_clock::now() - start;
+      lqr_timings_.push_back(std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count());
     }
     else
       throw std::runtime_error("Undefined path type in fixed wing controller.");
