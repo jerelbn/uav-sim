@@ -1,7 +1,7 @@
 # Fixed Wing 1 configuration
 name: wing1
 accurate_integration: true
-control_using_estimates: false
+control_using_estimates: true
 controller_update_rate: 50
 
 # Physical parameters
@@ -125,12 +125,12 @@ lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
 lqr_k_gamma: 1.0 # gain on transition from gamma_inf to gamma_desired
 lqr_max_roll: 0.7854
 lqr_max_pitch: 0.5236
-lqr_Q: [1e3, 1e0, 1e0, # velocity
-        1e2, 1e2, 1e0, # attitude
-        1e0, 1e0, 1e2] # angular rate
-lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
+lqr_Q: [1e1, 1e0, 1e0, # velocity
+        1e1, 1e1, 1e0, # attitude
+        1e1, 1e1, 1e1] # angular rate
+lqr_R: [1e3, 1e3, 1e0, 1e3] # [aileron, elevator, throttle, rudder]
 lqr_perturb_aircraft_parameters: true
-lqr_perturbation_percentage: 0.5
+lqr_perturbation_percentage: 0.3
 
 
 # Trajectory
@@ -243,15 +243,15 @@ gps_vertical_velocity_noise_stdev: 0.15
 
 ## EKF Parameters
 ekf_x0: [-20, 20, 0,    # POS
-         20, 0, 0,    # VEL
+         16, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS
          0, 0, 0,    # GYRO BIAS
          0, 0, 0,    # WIND
          0]    # BARO BIAS
-ekf_P0: [1e-1, 1e-1, 1e-1, # POS
-         1e-1, 1e-1, 1e-1, # VEL
-         1e-1, 1e-1, 1e-1, # ATT
+ekf_P0: [1e-2, 1e-2, 1e-2, # POS
+         1e-2, 1e-2, 1e-2, # VEL
+         1e-2, 1e-2, 1e-2, # ATT
          1e-1, 1e-1, 1e-1, # ACCEL BIAS
          5e-2, 5e-2, 5e-2, # GYRO BIAS
          25e0, 25e0, 25e0, # WIND

@@ -4,7 +4,7 @@ format compact
 set(0,'DefaultFigureWindowStyle','normal')
 addpath('../lib/yamlmatlab')
 params = ReadYaml('../params/fixed_wing1.yaml');
-skip = 300;
+skip = 500;
 fig_width = 600;
 fig_x_scale = 1;
 fig_y_scale = 1;

@@ -85,7 +85,7 @@ void LQR::computeControl(const vehicle::Stated& x, const Vector3d& vw, const Vec
   {
     // Update Jacobians
 //    analyticAB(xhat, vw);
-    numericalAB(x_lqr, xc_, u_ref_, x.p, vw, wp_prev, wp);
+    numericalAB(x_lqr, xc_, u, x.p, vw, wp_prev, wp);
 
     // Update gain matrix
     care_solver.solve(P_, A_, B_, Q_, R_);
@@ -325,11 +325,11 @@ void LQR::perturbAircraftParameters(const double& max_percent_err, std::default_
   C_Y_delta_r_ *= dist(rng);
 
   // Perturb these less
-  mass_ *= common::saturate(dist(rng), 1.1, 0.9);
-  k_motor_ *= common::saturate(dist(rng), 1.2, 0.8);
-  delta_a_max_ *= common::saturate(dist(rng), 1.2, 0.8);
-  delta_e_max_ *= common::saturate(dist(rng), 1.2, 0.8);
-  delta_r_max_ *= common::saturate(dist(rng), 1.2, 0.8);
+  mass_ *= dist(rng);
+  k_motor_ *= dist(rng);
+  delta_a_max_ *= dist(rng);
+  delta_e_max_ *= dist(rng);
+  delta_r_max_ *= dist(rng);
 }
 
 
