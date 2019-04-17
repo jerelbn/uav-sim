@@ -124,10 +124,12 @@ void Controller::updateWaypointManager()
   }
 
   // Find the distance to the desired waypoint
-  Vector3d current_waypoint = waypoints_.block<3,1>(0, current_waypoint_id_);
-  Vector3d error = current_waypoint - xhat_.p;
+  Vector3d radial_error = wp_ - xhat_.p;
+  Vector3d line_dir = (wp_ - wp_prev_).normalized();
+  Vector3d plane_origin = wp_ - waypoint_threshold_ * line_dir;
+  Vector3d p_rel = xhat_.p - plane_origin;
 
-  if (error.norm() < waypoint_threshold_)
+  if (radial_error.norm() < waypoint_threshold_ || p_rel.dot(line_dir) >= 0)
   {
     // increment waypoint
     current_waypoint_id_ = (current_waypoint_id_ + 1) % waypoints_.cols();

@@ -32,7 +32,6 @@ elseif name(1:4) == 'quad'
     plot3(ekf_truth(2,:), ekf_truth(3,:), ekf_truth(4,:), 'b', 'linewidth', 1.5)
     plot3(est_state(2,:), est_state(3,:), est_state(4,:), 'r', 'linewidth', 1.5)
 end
-plot3([true_state(2,1),cmd_state(2,1)], [true_state(3,1),cmd_state(3,1)], [true_state(4,1),cmd_state(4,1)], 'g--','HandleVisibility','off')
 plot3(cmd_state(2,:), cmd_state(3,:), cmd_state(4,:), 'g--')
 plot3(bike_state(2,:), bike_state(3,:), bike_state(4,:), 'm', 'linewidth', 1.5)
 view(-50, 20)

@@ -1,11 +1,11 @@
 # Fixed Wing 1 configuration
 name: wing1
 accurate_integration: true
-control_using_estimates: true
+control_using_estimates: false
 controller_update_rate: 50
 
 # Physical parameters
-x0: [1, 0, 0,    # POS
+x0: [-20, 20, 0,    # POS
      16, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
@@ -129,7 +129,7 @@ lqr_Q: [1e3, 1e0, 1e0, # velocity
         1e2, 1e2, 1e0, # attitude
         1e0, 1e0, 1e2] # angular rate
 lqr_R: [1e4, 1e4, 1e2, 1e4] # [aileron, elevator, throttle, rudder]
-lqr_perturb_aircraft_parameters: false
+lqr_perturb_aircraft_parameters: true
 lqr_perturbation_percentage: 0.5
 
 
@@ -140,11 +140,11 @@ lqr_perturbation_percentage: 0.5
 # 2: circumnavigation
 path_type: 0
 
-waypoints: [400, 0, -30,
+waypoints: [400, 0, -40,
             400, -400, -40,
-            0, -400, -30,
-            0, 0, -20]
-waypoint_threshold: 20.0
+            0, -400, -40,
+            0, 0, -40]
+waypoint_threshold: 1.0
 
 traj_delta_north: 50
 traj_delta_east: 50
@@ -242,7 +242,7 @@ gps_vertical_position_bias_init_bound: 5.0
 gps_vertical_velocity_noise_stdev: 0.15
 
 ## EKF Parameters
-ekf_x0: [0, 0, 0,    # POS
+ekf_x0: [-20, 20, 0,    # POS
          20, 0, 0,    # VEL
          1, 0, 0, 0, # ATT
          0, 0, 0,    # ACCEL BIAS

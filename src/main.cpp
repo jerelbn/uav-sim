@@ -43,7 +43,7 @@ int main()
     // Run each vehicle
 //    quad1.run(t, env);
     wing1.run(t, env);
-    bike1.run(t, env);
+//    bike1.run(t, env);
 
     // Update wind and stored vehicle positions in environment
     env.updateWind(t);

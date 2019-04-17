@@ -256,7 +256,6 @@ void LQR::perturbAircraftParameters(const double& max_percent_err, std::default_
   std::uniform_real_distribution<double> dist(low,high);
 
   rho_ *= dist(rng);
-//  mass_ *= dist(rng);
   J_ *= dist(rng);
   J_inv_ = J_.inverse();
   wing_S_ *= dist(rng);
@@ -265,7 +264,6 @@ void LQR::perturbAircraftParameters(const double& max_percent_err, std::default_
   wing_M_ *= dist(rng);
   wing_epsilon_ *= dist(rng);
   wing_alpha0_ *= dist(rng);
-  k_motor_ *= dist(rng);
   k_T_p_ *= dist(rng);
   k_Omega_ *= dist(rng);
   prop_e_ *= dist(rng);
@@ -325,9 +323,13 @@ void LQR::perturbAircraftParameters(const double& max_percent_err, std::default_
   C_Y_delta_a_ *= dist(rng);
   C_Y_delta_e_ *= dist(rng);
   C_Y_delta_r_ *= dist(rng);
-//  delta_a_max_ *= dist(rng);
-//  delta_e_max_ *= dist(rng);
-//  delta_r_max_ *= dist(rng);
+
+  // Perturb these less
+  mass_ *= common::saturate(dist(rng), 1.1, 0.9);
+  k_motor_ *= common::saturate(dist(rng), 1.2, 0.8);
+  delta_a_max_ *= common::saturate(dist(rng), 1.2, 0.8);
+  delta_e_max_ *= common::saturate(dist(rng), 1.2, 0.8);
+  delta_r_max_ *= common::saturate(dist(rng), 1.2, 0.8);
 }
 
 
