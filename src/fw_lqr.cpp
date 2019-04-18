@@ -325,11 +325,11 @@ void LQR::perturbAircraftParameters(const double& max_percent_err, std::default_
   C_Y_delta_r_ *= dist(rng);
 
   // Perturb these less
-  mass_ *= dist(rng);
+  mass_ *= common::saturate(dist(rng), 1.1, 0.9);
   k_motor_ *= dist(rng);
-  delta_a_max_ *= dist(rng);
-  delta_e_max_ *= dist(rng);
-  delta_r_max_ *= dist(rng);
+  delta_a_max_ *= common::saturate(dist(rng), 1.1, 0.9);
+  delta_e_max_ *= common::saturate(dist(rng), 1.1, 0.9);
+  delta_r_max_ *= common::saturate(dist(rng), 1.1, 0.9);
 }
 
 

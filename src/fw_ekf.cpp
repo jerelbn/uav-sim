@@ -48,6 +48,22 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2pt_ = quat::Quatd(0, pitot_el, pitot_az);
   q_u2wv_ = quat::Quatd(wv_roll, 0, 0);
 
+  // Randomly initialize pos/vel/att
+  bool random_init;
+  double p0_err, v0_err, q0_err;
+  common::get_yaml_node("ekf_random_init", filename, random_init);
+  common::get_yaml_node("ekf_p0_err", filename, p0_err);
+  common::get_yaml_node("ekf_v0_err", filename, v0_err);
+  common::get_yaml_node("ekf_q0_err", filename, q0_err);
+  if (random_init)
+  {
+    x_.p += p0_err * Vector3d::Random();
+    x_.v += v0_err * Vector3d::Random();
+    Vector3d q0_err3 = q0_err * Vector3d::Random();
+    q0_err3(2) *= 2.0;
+    x_.q += q0_err3;
+  }
+
   // Logging
   std::stringstream ss_t, ss_e, ss_c;
   ss_t << "/tmp/" << name << "_ekf_truth.log";
@@ -66,13 +82,13 @@ void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& 
     propagate(t, sensors.imu_.vec());
 
   // Apply updates
-  if (sensors.new_gps_meas_)
+  if (sensors.new_gps_meas_ && t > 0)
     updateGPS(sensors.gps_.vec());
-  if (sensors.new_baro_meas_)
+  if (sensors.new_baro_meas_ && t > 0)
     updateBaro(sensors.baro_.pres);
-  if (sensors.new_pitot_meas_)
+  if (sensors.new_pitot_meas_ && t > 0)
     updatePitot(sensors.pitot_.pres);
-  if (sensors.new_wvane_meas_)
+  if (sensors.new_wvane_meas_ && t > 0)
     updateWVane(sensors.wvane_.angle);
 
   // Log data
