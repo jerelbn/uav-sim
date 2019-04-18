@@ -213,6 +213,10 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   ss_gps << "/tmp/" << name << "_gps.log";
   gps_log_.open(ss_gps.str());
 
+  // Calculate ECEF to NED transform
+  Vector3d origin_ecef = WGS84::lla2ecef(Vector3d(origin_lat_,origin_lon_,origin_alt_));
+  X_ecef2ned_ = WGS84::x_ecef2ned(origin_ecef);
+
 }
 
 
@@ -488,17 +492,21 @@ void Sensors::gps(const double t, const vehicle::Stated& x)
       gps_vpos_bias_ = exp(-gps_time_constant_ * dt) * gps_vpos_bias_ + gps_vpos_noise_;
     }
 
-    // Populate GPS measurement
+    // Calculate NED measurement
     gps_.t = t;
     gps_.id = gps_id_++;
     Vector3d gps_pos = x.p;
     Vector3d gps_vel = x.q.rota(x.v);
 
-    // Populate GPS measurement
+    // Add bias and noise to NED measurement
     gps_.pos.head<2>() = gps_pos.head<2>() + gps_hpos_bias_ + gps_hpos_noise_;
     gps_.pos(2) = gps_pos(2) + gps_vpos_bias_ + gps_vpos_noise_;
     gps_.vel.head<2>() = gps_vel.head<2>() + gps_hvel_noise_;
     gps_.vel(2) = gps_vel(2) + gps_vvel_noise_;
+
+    // Convert measurement to ECEF
+    gps_.pos = X_ecef2ned_.transforma(gps_.pos);
+    gps_.vel = X_ecef2ned_.q_.rota(gps_.vel);
 
     // Log data
     gps_log_.log(t);

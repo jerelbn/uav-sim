@@ -6,6 +6,7 @@
 #include "common_cpp/measurement.h"
 #include "geometry/xform.h"
 #include "vehicle.h"
+#include "wgs84.h"
 
 using namespace std;
 using namespace Eigen;
@@ -152,6 +153,7 @@ private:
   double gps_vpos_bias_;
   Vector2d gps_hpos_noise_, gps_hvel_noise_;
   double gps_vpos_noise_, gps_vvel_noise_;
+  xform::Xformd X_ecef2ned_;
   common::Logger gps_log_;
 
 };

@@ -8,6 +8,7 @@
 #include "geometry/support.h"
 #include "sensors.h"
 #include "vehicle.h"
+#include "wgs84.h"
 
 
 using namespace std;
@@ -201,6 +202,7 @@ private:
   double R_baro_, R_pitot_, R_wv_;
   Vector3d p_ub_;
   quat::Quatd q_u2b_, q_u2pt_, q_u2wv_;
+  xform::Xformd X_ecef2ned_;
 
   // Logging
   ofstream true_state_log_;

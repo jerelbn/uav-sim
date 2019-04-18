@@ -28,10 +28,13 @@ void EKF::load(const string &filename, const std::string& name)
   I_NUM_DOF_.setIdentity();
 
   // Load sensor parameters
-  double origin_alt, origin_temp;
+  double origin_lat, origin_lon, origin_alt, origin_temp;
+  common::get_yaml_node("origin_latitude", filename, origin_lat);
+  common::get_yaml_node("origin_longitude", filename, origin_lon);
   common::get_yaml_node("origin_altitude", filename, origin_alt);
   common::get_yaml_node("origin_temperature", filename, origin_temp);
   rho_ = common::airDense(origin_alt, origin_temp);
+  X_ecef2ned_ = WGS84::x_ecef2ned(WGS84::lla2ecef(Vector3d(origin_lat,origin_lon,origin_alt)));
 
   double pitot_az, pitot_el, wv_roll;
   Vector4d q_ub;
@@ -128,12 +131,12 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
 {
   // Measurement model and matrix
   Matrix<double,6,1> h;
-  h.head<3>() = x_.p;
-  h.tail<3>() = x_.v;
+  h.head<3>() = X_ecef2ned_.transforma(x_.p);
+  h.tail<3>() = X_ecef2ned_.q_.rota(x_.v);
 
   Matrix<double,6,NUM_DOF> H = Matrix<double,6,NUM_DOF>::Zero();
-  H.block<3,3>(0,DP).setIdentity();
-  H.block<3,3>(3,DV).setIdentity();
+  H.block<3,3>(0,DP) = X_ecef2ned_.q_.R();
+  H.block<3,3>(3,DV) = X_ecef2ned_.q_.R();
 
   // Kalman gain and update
   Matrix<double,NUM_DOF,6> K = P_ * H.transpose() * (R_gps_ + H * P_ * H.transpose()).inverse();
