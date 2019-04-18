@@ -116,14 +116,14 @@ lqr_v_ref: [16.351, 0, 0.974303]
 lqr_q_ref: [0.999557, 0, 0.0297538, 0]
 lqr_omega_ref: [0, 0, 0]
 lqr_u_ref: [0, 0.0211299, 0.248797, 0]
-lqr_max_v_error: 5.0
-lqr_max_q_error: 1.5708
-lqr_max_omega_error: 10.0
-lqr_chi_inf: 0.6981 # relative course angle command far from line
+lqr_max_v_error: 1.0
+lqr_max_q_error: 0.5236
+lqr_max_omega_error: 1.0
+lqr_chi_inf: 0.7854 # relative course angle command far from line
 lqr_gamma_inf: 0.5236 # relative flight path angle command far from line
-lqr_k_chi: 0.05 # gain on transition from chi_inf to chi_desired
+lqr_k_chi: 0.04 # gain on transition from chi_inf to chi_desired
 lqr_k_gamma: 1.0 # gain on transition from gamma_inf to gamma_desired
-lqr_max_roll: 0.6981
+lqr_max_roll: 0.5236
 lqr_max_pitch: 0.5236
 lqr_Q: [1e1, 1e0, 1e0, # velocity
         1e1, 1e1, 1e0, # attitude
@@ -260,17 +260,17 @@ ekf_P0: [100, 100, 100, # POS
          0.04, 0.04, 0.04, # GYRO BIAS
          36, 36, 1, # WIND
          2500]             # BARO BIAS
-ekf_Qx: [1e-7, 1e-7, 1e-2, # POS
+ekf_Qx: [0, 0, 0, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT
          1e-6, 1e-6, 1e-6, # ACCEL BIAS
          1e-7, 1e-7, 1e-7, # GYRO BIAS
-         1e-3, 1e-3, 1e-6, # WIND
-         1e-1]             # BARO BIAS
+         1e-3, 1e-3, 1e-3, # WIND
+         1e-7]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
-ekf_R_gps: [900, 900, 1600, # POSITION
-            0.2, 0.2, 0.6] # VELOCITY
+ekf_R_gps: [400, 400, 1600, # POSITION
+            1.0, 1.0, 4.0] # VELOCITY
 ekf_R_baro: 2500
-ekf_R_pitot: 900
+ekf_R_pitot: 2500
 ekf_R_wvane: 100
