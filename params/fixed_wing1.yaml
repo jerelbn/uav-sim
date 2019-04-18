@@ -260,17 +260,17 @@ ekf_P0: [100, 100, 100, # POS
          0.04, 0.04, 0.04, # GYRO BIAS
          36, 36, 1, # WIND
          2500]             # BARO BIAS
-ekf_Qx: [0, 0, 0, # POS
+ekf_Qx: [1e-7, 1e-7, 1e-2, # POS
          0, 0, 0, # VEL
          0, 0, 0, # ATT
          1e-6, 1e-6, 1e-6, # ACCEL BIAS
          1e-7, 1e-7, 1e-7, # GYRO BIAS
-         1e-4, 1e-4, 1e-5, # WIND
-         1e-8]             # BARO BIAS
+         1e-3, 1e-3, 1e-6, # WIND
+         1e-1]             # BARO BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
          0.01, 0.01, 0.01] # GYRO
-ekf_R_gps: [400, 400, 900, # POSITION
-            0.05, 0.05, 0.15] # VELOCITY
+ekf_R_gps: [900, 900, 1600, # POSITION
+            0.2, 0.2, 0.6] # VELOCITY
 ekf_R_baro: 2500
-ekf_R_pitot: 400
+ekf_R_pitot: 900
 ekf_R_wvane: 100

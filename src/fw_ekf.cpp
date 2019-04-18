@@ -51,6 +51,10 @@ void EKF::load(const string &filename, const std::string& name)
   q_u2pt_ = quat::Quatd(0, pitot_el, pitot_az);
   q_u2wv_ = quat::Quatd(wv_roll, 0, 0);
 
+  // GPS covariance is defined in local NED frame, transform it to ECEF
+  R_gps_.topLeftCorner<3,3>() = X_ecef2ned_.q_.inverse().R() * R_gps_.topLeftCorner<3,3>() * X_ecef2ned_.q_.R();
+  R_gps_.bottomRightCorner<3,3>() = X_ecef2ned_.q_.inverse().R() * R_gps_.bottomRightCorner<3,3>() * X_ecef2ned_.q_.R();
+
   // Randomly initialize pos/vel/att
   bool random_init;
   double p0_err, v0_err, q0_err;
