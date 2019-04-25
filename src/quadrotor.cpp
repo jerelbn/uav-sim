@@ -141,16 +141,17 @@ void Quadrotor::runEstimator(const double &t, const sensors::Sensors &sensors, c
 {
   // Run all sensor callbacks
   if (sensors.new_imu_meas_)
+  {
     estimator_.imuCallback(sensors.imu_);
+    if (estimator_.getFilterUpdateStatus())
+      estimator_.logTruth(t, xt.p, xt.v, xt.q, sensors.getAccelBias(), sensors.getGyroBias(), xt.drag, xt.omega, lm);
+  }
   if (sensors.new_camera_meas_)
     estimator_.cameraCallback(sensors.image_);
   if (sensors.new_gps_meas_)
     estimator_.gpsCallback(sensors.gps_);
   if (sensors.new_mocap_meas_)
     estimator_.mocapCallback(sensors.mocap_);
-
-  // Truth logging
-  estimator_.logTruth(t, xt.p, xt.v, xt.q, sensors.getAccelBias(), sensors.getGyroBias(), xt.drag, xt.omega, lm);
 }
 
 

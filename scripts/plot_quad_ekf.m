@@ -7,7 +7,7 @@ else
     nbd = 15;
 end
 true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_truth.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
-ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_state.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
+ekf_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_est.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;euler;acc_bias;gyro_bias;drag;pix;rho]
 ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r'), 'double'), 1 + nbd + 3 * params.num_features, []); % [time;pos;vel;att;acc_bias;gyro_bias;drag;pix;rho]
 
 figure()
