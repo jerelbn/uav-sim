@@ -5,10 +5,10 @@ control_using_estimates: false
 
 # Monte Carlo Parameters
 ekf_random_init: true
-ekf_v0_err: 2
+ekf_v0_err: 0.1
 ekf_roll0_err: 0.52
 ekf_pitch0_err: 0.52
-ekf_drag0_err: 0.2
+ekf_drag0_err: 0.1
 
 # Physical parameters
 x0: [0, 0, -1,    # POS
@@ -122,12 +122,12 @@ p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame
 q_ub: [0.9991, -0.0078, 0.0416, 0.0003] # rotation from IMU to body frame
 # NOTE: do not include any yaw rotation
 
-accel_noise_stdev: 0.5
-accel_bias_init_bound: 0.5
+accel_noise_stdev: 1.0
+accel_bias_init_bound: 1.0
 accel_walk_stdev: 0.1
 
 gyro_noise_stdev: 0.1
-gyro_bias_init_bound: 0.1
+gyro_bias_init_bound: 0.2
 gyro_walk_stdev: 0.01
 
 ## Camera

@@ -25,6 +25,21 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   sensors_.load(filename, use_random_seed, name_);
   estimator_.load("../params/pb_vi_ekf_params.yaml", name_);
 
+  // Load all Quadrotor parameters
+  common::get_yaml_node("accurate_integration", filename, accurate_integration_);
+  common::get_yaml_node("mass", filename, mass_);
+  common::get_yaml_node("max_thrust", filename, max_thrust_);
+  common::get_yaml_node("control_using_estimates", filename, control_using_estimates_);
+
+  vehicle::xVector x0;
+  common::get_yaml_eigen("x0", filename, x0);
+  common::get_yaml_eigen_diag("inertia", filename, inertia_matrix_);
+  common::get_yaml_eigen_diag("linear_drag", filename, linear_drag_matrix_);
+  common::get_yaml_eigen_diag("angular_drag", filename, angular_drag_matrix_);
+  x_ = vehicle::Stated(x0);
+  x_.drag = linear_drag_matrix_(0,0);
+  inertia_inv_ = inertia_matrix_.inverse();
+
   // Randomly initialize estimator vel/roll/pitch/drag
   bool random_init;
   double v0_err, roll0_err, pitch0_err, drag0_err;
@@ -41,21 +56,6 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
     estimator_.setAttitude(quat::Quatd(roll_new,pitch_new,x_.q.yaw()).elements());
     estimator_.setDrag(x_.drag + drag0_err * Vector1d::Random()(0));
   }
-
-  // Load all Quadrotor parameters
-  common::get_yaml_node("accurate_integration", filename, accurate_integration_);
-  common::get_yaml_node("mass", filename, mass_);
-  common::get_yaml_node("max_thrust", filename, max_thrust_);
-  common::get_yaml_node("control_using_estimates", filename, control_using_estimates_);
-
-  vehicle::xVector x0;
-  common::get_yaml_eigen("x0", filename, x0);
-  common::get_yaml_eigen_diag("inertia", filename, inertia_matrix_);
-  common::get_yaml_eigen_diag("linear_drag", filename, linear_drag_matrix_);
-  common::get_yaml_eigen_diag("angular_drag", filename, angular_drag_matrix_);
-  x_ = vehicle::Stated(x0);
-  x_.drag = linear_drag_matrix_(0,0);
-  inertia_inv_ = inertia_matrix_.inverse();
 
   // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);

@@ -48,7 +48,7 @@ for j = 1:num_runs
     axis tight
     
     subplot(4, 1, 4), hold on, grid on
-    plot(truth(1, 1:skip:end), error(10, 1:skip:end), 'linewidth', 1.0)
+    plot(truth(1, 1:skip:end), abs(error(10, 1:skip:end)), 'linewidth', 1.0)
     ylabel('Heading (rad)')
     xlabel('Time (sec)')
     axis tight
@@ -74,8 +74,8 @@ for j = 1:num_runs
     error = truth - est;
     
     subplot(3, 1, 1), hold on, grid on
-    plot(truth(1, 1:skip:end), vecnorm(error(11:13, 1:skip:end)), 'linewidth', 1.0)
-    ylabel('Accel Bias (m/s^2)')
+    plot(truth(1, 1:skip:end), abs(error(13, 1:skip:end)), 'linewidth', 1.0)
+    ylabel('Accel Z Bias (m/s^2)')
     axis tight
     
     subplot(3, 1, 2), hold on, grid on
@@ -84,7 +84,7 @@ for j = 1:num_runs
     axis tight
     
     subplot(3, 1, 3), hold on, grid on
-    plot(truth(1, 1:skip:end), error(17, 1:skip:end), 'linewidth', 1.0)
+    plot(truth(1, 1:skip:end), abs(error(17, 1:skip:end)), 'linewidth', 1.0)
     ylabel('Drag Coefficient')
     xlabel('Time (sec)')
     axis tight
