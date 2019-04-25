@@ -4,7 +4,7 @@ format compact
 set(0,'DefaultFigureWindowStyle','normal')
 addpath('../lib/yamlmatlab')
 params = ReadYaml('../params/pb_vi_ekf_params.yaml');
-skip = 500;
+skip = 1;
 fig_width = 650;
 fig_x_scale = 1;
 fig_y_scale = 1;
@@ -83,15 +83,15 @@ for j = 1:num_runs
     ylabel('Gyro Bias (rad/s)')
     axis tight
     
-%     subplot(3, 1, 3), hold on, grid on
-%     plot(truth(1, 1:skip:end), vecnorm(error(17:19, 1:skip:end)), 'linewidth', 1.0)
-%     ylabel('Wind Velocity (m/s)')
-%     xlabel('Time (sec)')
-%     axis tight
+    subplot(3, 1, 3), hold on, grid on
+    plot(truth(1, 1:skip:end), error(17, 1:skip:end), 'linewidth', 1.0)
+    ylabel('Drag Coefficient')
+    xlabel('Time (sec)')
+    axis tight
 end
-set(gcf, 'name', 'Accel/Gyro/Wind Error', 'NumberTitle', 'off')
+set(gcf, 'name', 'Accel/Gyro/Drag Error', 'NumberTitle', 'off')
 set(gcf, 'color', 'w')
 if save_plots == true
-    print(gcf, '~/Dropbox/dev/vi_ekf_paper/figures/ekf_acc_gyro_lm','-dpdf')
-    !pdfcrop ~/Dropbox/dev/vi_ekf_paper/figures/ekf_acc_gyro_lm.pdf ~/Dropbox/dev/vi_ekf_paper/figures/ekf_acc_gyro_lm.pdf
+    print(gcf, '~/Dropbox/dev/vi_ekf_paper/figures/ekf_acc_gyro_drag','-dpdf')
+    !pdfcrop ~/Dropbox/dev/vi_ekf_paper/figures/ekf_acc_gyro_drag.pdf ~/Dropbox/dev/vi_ekf_paper/figures/ekf_acc_gyro_drag.pdf
 end

@@ -23,12 +23,12 @@ x0: [0, 0, -1,    # POS
      0.05]      # DRAG COEFFICIENT
 
 P0: [0, 0, 0, # POS
-     1e-8, 1e-8, 1e-8, # VEL
-     1e-2, 1e-2, 1e-2, # ATT
-     5e-2, 5e-2, 5e-2, # ACCEL BIAS
-     2e-3, 2e-3, 2e-3, # GYRO BIAS
-     1e-3]             # DRAG COEFFICIENT
-P0_feat: [4.0, 4.0, 0.25]
+     4, 4, 4, # VEL
+     0.27, 0.27, 0, # ATT
+     0.25, 0.25, 0.25, # ACCEL BIAS
+     0.01, 0.01, 0.01, # GYRO BIAS
+     0.04]             # DRAG COEFFICIENT
+P0_feat: [0.25, 0.25, 4.0]
 
 Qx: [0, 0, 0, # POS
      0, 0, 0, # VEL
@@ -44,7 +44,7 @@ R_gps: [25.0, 25.0, 81.0, # POSITION
         0.01, 0.01, 0.09] # VELOCITY
 R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
           1e-2, 1e-2, 1e-2] # ATTITUDE
-R_cam: [0.1, 0.1]
+R_cam: [10000, 10000]
 
 lambda: [1.0, 1.0, 1.0, # POS
          1.0, 1.0, 1.0, # VEL
