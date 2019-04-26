@@ -4,11 +4,11 @@ format compact
 set(0,'DefaultFigureWindowStyle','normal')
 addpath('../lib/yamlmatlab')
 params = ReadYaml('../params/pb_vi_ekf_params.yaml');
-skip = 1;
+skip = 20;
 fig_width = 650;
 fig_x_scale = 1;
 fig_y_scale = 1;
-num_runs = 10;
+num_runs = 100;
 save_plots = false;
 
 if params.use_drag

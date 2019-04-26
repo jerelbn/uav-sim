@@ -2,7 +2,7 @@
 
 start_time=$(date +%s)
 run_count=0
-until [ $run_count -eq 10 ]
+until [ $run_count -eq 100 ]
 do
   # Increment run counter
   let "run_count++"

@@ -86,6 +86,7 @@ private:
   double camera_time_delay_;
   vector<common::Imaged> cam_buffer_;
   normal_distribution<double> pixel_noise_dist_;
+  normal_distribution<double> depth_noise_dist_;
   Vector2d pixel_noise_;
   Matrix3d K_, K_inv_;
   Vector2d image_size_;

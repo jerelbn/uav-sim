@@ -72,7 +72,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
 
   // Camera
   stringstream ss_cam;
-  double pixel_noise_stdev;
+  double pixel_noise_stdev, depth_noise_stdev;
   Vector4d q_uc;
   common::get_yaml_node("camera_enabled", filename, camera_enabled_);
   common::get_yaml_node("camera_max_features", filename, cam_max_feat_);
@@ -81,11 +81,13 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("camera_update_rate", filename, camera_update_rate_);
   common::get_yaml_node("camera_time_delay", filename, camera_time_delay_);
   common::get_yaml_node("pixel_noise_stdev", filename, pixel_noise_stdev);
+  common::get_yaml_node("depth_noise_stdev", filename, depth_noise_stdev);
   common::get_yaml_eigen("image_size", filename, image_size_);
   common::get_yaml_eigen("camera_matrix", filename, K_);
   common::get_yaml_eigen("q_uc", filename, q_uc);
   common::get_yaml_eigen("p_uc", filename, p_uc_);
   pixel_noise_dist_ = normal_distribution<double>(0.0, pixel_noise_stdev);
+  depth_noise_dist_ = normal_distribution<double>(0.0, depth_noise_stdev);
   K_inv_ = K_.inverse();
   q_uc_ = quat::Quatd(q_uc.normalized());
   pixel_noise_.setZero();

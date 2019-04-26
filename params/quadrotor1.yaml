@@ -5,10 +5,10 @@ control_using_estimates: false
 
 # Monte Carlo Parameters
 ekf_random_init: true
-ekf_v0_err: 0.2
-ekf_roll0_err: 0.18
-ekf_pitch0_err: 0.18
-ekf_drag0_err: 0.09
+ekf_v0_err: 5
+ekf_roll0_err: 0.78
+ekf_pitch0_err: 0.78
+ekf_drag0_err: 0.3
 
 # Physical parameters
 x0: [0, 0, -1,    # POS
@@ -132,6 +132,7 @@ camera_max_features: 10000 # maximum number of features to project into image
 camera_update_rate: 30
 camera_time_delay: 0.0
 pixel_noise_stdev: 0.5
+depth_noise_stdev: 1.0
 image_size: [640, 480]
 camera_matrix: [480,   0, 320,
                   0, 480, 240,
