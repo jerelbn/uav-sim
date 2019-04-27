@@ -5,10 +5,10 @@ control_using_estimates: false
 
 # Monte Carlo Parameters
 ekf_random_init: true
-ekf_v0_err: 5
-ekf_roll0_err: 0.78
-ekf_pitch0_err: 0.78
-ekf_drag0_err: 0.3
+ekf_v0_err: 0.1
+ekf_roll0_err: 0.0873
+ekf_pitch0_err: 0.0873
+ekf_drag0_err: 0.01
 
 # Physical parameters
 x0: [0, 0, -1,    # POS
