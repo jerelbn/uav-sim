@@ -5,13 +5,13 @@ control_using_estimates: false
 
 # Monte Carlo Parameters
 ekf_random_init: true
-ekf_v0_err: 0.1
-ekf_roll0_err: 0.0873
-ekf_pitch0_err: 0.0873
+ekf_v0_err: 0.05
+ekf_roll0_err: 0.0524
+ekf_pitch0_err: 0.0524
 ekf_drag0_err: 0.01
 
 # Physical parameters
-x0: [0, 0, -1,    # POS
+x0: [0, 0, -4,    # POS
      0, 0, 0,    # VEL
      0, 0, 0,    # LIN ACC
      1, 0, 0, 0, # ATT
@@ -68,12 +68,12 @@ circ_kh: 5.0
 path_type: 0
 
 waypoints: [
-            0, 0, -4, 0,
             5, 0, -4, 0,
             -5, 0, -4, 0,
             0, 0, -4, 0,
             0, 5, -4, 0,
-            0, -5, -4, 0
+            0, -5, -4, 0,
+            0, 0, -4, 0,
            ]
 waypoint_threshold: 0.1
 waypoint_velocity_threshold: 0.5

@@ -10,14 +10,14 @@ use_partial_update: true
 use_keyframe_reset: true
 
 num_features: 10
-rho0: 0.01
+rho0: 0.1
 init_imu_bias: false
 image_size: [640, 480]
 
 kfr_mean_pix_disparity_thresh: 120
 kfr_min_matches: 1
 
-x0: [0, 0, -1,    # POS
+x0: [0, 0, -4,    # POS
      0, 0, 0,    # VEL
      1, 0, 0, 0, # ATT
      0, 0, 0,    # ACCEL BIAS
@@ -25,12 +25,12 @@ x0: [0, 0, -1,    # POS
      0.1]      # DRAG COEFFICIENT
 
 P0: [0, 0, 0, # POS
-     0.01, 0.01, 0.01, # VEL
-     0.008, 0.008, 0, # ATT
+     0.0025, 0.0025, 0.0025, # VEL
+     0.0027, 0.0027, 0, # ATT
      2.0, 2.0, 2.0, # ACCEL BIAS
      0.08, 0.08, 0.08, # GYRO BIAS
      0.0001]             # DRAG COEFFICIENT
-P0_feat: [0.25, 0.25, 0.2]
+P0_feat: [0.25, 0.25, 0.5]
 
 Qx: [0, 0, 0, # POS
      0, 0, 0, # VEL
@@ -47,7 +47,7 @@ R_gps: [25.0, 25.0, 81.0, # POSITION
         0.01, 0.01, 0.09] # VELOCITY
 R_mocap: [1e-2, 1e-2, 1e-2, # POSITION
           1e-2, 1e-2, 1e-2] # ATTITUDE
-R_cam: [25, 25]
+R_cam: [100, 100]
 R_cam_depth: 100
 
 lambda: [1.0, 1.0, 1.0, # POS
@@ -55,7 +55,7 @@ lambda: [1.0, 1.0, 1.0, # POS
          1.0, 1.0, 1.0, # ATT
          0.2, 0.2, 0.2, # ACCEL BIAS
          0.3, 0.3, 0.3, # GYRO BIAS
-         0.1]           # DRAG COEFFICIENT
+         0.01]           # DRAG COEFFICIENT
 lambda_feat: [1.0, 1.0, 1.0]
 
 p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame

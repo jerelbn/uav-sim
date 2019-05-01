@@ -42,7 +42,7 @@ for j = 1:num_runs
     
     subplot(3, 1, 3), hold on, grid on
     plot(truth(1, 1:skip:end), abs(error(20, 1:skip:end)), 'linewidth', 1.0)
-    ylabel('Feature 1 Depth')
+    ylabel('Inverse z-depth (m^{-1})')
     xlabel('Time (sec)')
     axis tight
 end
