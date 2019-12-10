@@ -1,15 +1,15 @@
 [submodule "lib/common_cpp"]
 	path = lib/common_cpp
-	url = git@magiccvs.byu.edu:Jerel/common_cpp.git
+	url = https://github.com/jerelbn/common_cpp.git
 [submodule "lib/geometry"]
 	path = lib/geometry
-	url = git@github.com:superjax/geometry.git
+	url = https://github.com/superjax/geometry.git
 [submodule "lib/lin_alg_tools"]
 	path = lib/lin_alg_tools
-	url = git@github.com:jerelbn/lin_alg_tools.git
+	url = https://github.com/jerelbn/lin_alg_tools.git
 [submodule "lib/pb-vi-ekf"]
 	path = lib/pb-vi-ekf
-	url = git@magiccvs.byu.edu:Jerel/pb-vi-ekf.git
+	url = https://github.com/jerelbn/pb-vi-ekf.git
 [submodule "lib/yamlmatlab"]
 	path = lib/yamlmatlab
-	url = git@magiccvs.byu.edu:Jerel/yamlmatlab.git
+	url = https://github.com/jerelbn/yamlmatlab.git
