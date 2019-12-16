@@ -24,6 +24,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   controller_.load(filename, use_random_seed, name_);
   sensors_.load(filename, use_random_seed, name_);
   estimator_.load("../params/pb_vi_ekf_params.yaml", name_);
+  gimbal_.load("../params/gimbal.yaml");
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
@@ -60,6 +61,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw());
+  gimbal_.update(0, x_, env);
   sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
   runEstimator(0, sensors_, env.get_vw(), getState(), env.get_points());
 
@@ -82,6 +84,7 @@ void Quadrotor::run(const double &t, const environment::Environment& env)
   else
     controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.get_vw()); // Update true acceleration
+  gimbal_.update(t, x_, env);
   sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
   runEstimator(t, sensors_, env.get_vw(), getState(), env.get_points());
   log(t); // Log current data

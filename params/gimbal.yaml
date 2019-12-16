@@ -1,50 +1,32 @@
-# Quadrotor 1 configuration
-name: quad1
+# Gimbal configuration
+name: gimbal
 accurate_integration: true
 control_using_estimates: false
 
-# Monte Carlo Parameters
-ekf_random_init: true
-ekf_v0_err: 0.05
-ekf_roll0_err: 0.0524
-ekf_pitch0_err: 0.0524
-ekf_drag0_err: 0.01
-
 # Physical parameters
-x0: [0, 0, -4,    # POS
-     0, 0, 0,    # VEL
-     0, 0, 0,    # LIN ACC
-     1, 0, 0, 0, # ATT
-     0, 0, 0,    # OMEGA
-     0, 0, 0]    # ANG ACC
+p_bg: [0, 0, 0.1] # body to gimbal translation in body frame
+rpy: [0, -0.7, 0] # initial roll, pitch, yaw
+omega: [0, 0, 0] # initial angular rate
 
 origin_latitude: 0.702443501891 # (radians) latitude at flight location
 origin_longitude: -1.9486196478 # (radians) longitude at flight location
 origin_altitude: 1387.998309 # (meters) altitude above sea level at flight location
 origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
 
-mass: 5.0
+mass: 0.2
 inertia: [0.6271, 0.6271, 1.25]
-linear_drag: [0.1, 0.1, 0.001]
-angular_drag: [0.001, 0.001, 0.001]
+p_gcg: [0, 0, 0] # center of gravity offsets
+omega_f: 0.1 # relative angular rate threshold for friction to apply
+K_friction: [0.1, 0.1, 0.1] # friction coefficient drop-off for each axis
 
-max_thrust: 98.0665
 max_roll: 1.0
 max_pitch: 1.0
 max_yaw_rate: 1.5
-max_throttle: 1.0
-max_vel: 5.0
 max_tau_x: 200.0
 max_tau_y: 200.0
 max_tau_z: 50.0
 
 # Controller
-throttle_eq: 0.5
-
-Kp: [0.75, 0.75, 0.75]
-Kd: [0, 0, 0]
-Kv: [1.5, 1.5, 1.5]
-
 roll_kp: 10.0
 roll_ki: 0.0
 roll_kd: 5.0
@@ -54,46 +36,6 @@ pitch_kd: 5.0
 yaw_rate_kp: 2.0
 yaw_rate_ki: 0.0
 yaw_rate_kd: 0.0
-
-circ_kr: 5.0
-circ_kp: 5.0
-circ_kh: 5.0
-
-
-# Trajectory
-
-# 0: waypoints
-# 1: trajectory
-# 2: circumnavigation
-path_type: 1
-
-waypoints: [
-            5, 0, -4, 0,
-            -5, 0, -4, 0,
-            0, 0, -4, 0,
-            0, 5, -4, 0,
-            0, -5, -4, 0,
-            0, 0, -4, 0,
-           ]
-waypoint_threshold: 0.1
-waypoint_velocity_threshold: 0.5
-
-traj_delta_north: 10
-traj_delta_east: 10
-traj_delta_alt: 2
-traj_delta_yaw: 0
-traj_nom_north: 0
-traj_nom_east: 0
-traj_nom_alt: 5
-traj_nom_yaw: 0
-traj_north_period: 20
-traj_east_period: 10
-traj_alt_period: 20
-traj_yaw_period: 20
-
-circ_rd: 5.0
-circ_hd: 5.0
-
 
 # Sensors
 imu_enabled: true
@@ -177,13 +119,3 @@ gps_horizontal_velocity_noise_stdev: 0.05
 gps_vertical_position_noise_stdev: 0.40
 gps_vertical_position_bias_init_bound: 9.2
 gps_vertical_velocity_noise_stdev: 0.15
-
-
-## Target estimator parameters
-bearing_only: true
-use_target_truth: false
-target_z0: [5, 0, 0]
-target_vz0: [0, 0, 0]
-target_gain: 1.0
-target_velocity_gain: 1.0
-target_noise_stdev: 1.0

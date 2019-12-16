@@ -1,4 +1,12 @@
-function plot_environment(name, params, quad_params)
+% Prepare Variables for Plotting
+clear, close all
+format compact
+set(0,'DefaultFigureWindowStyle','docked')
+addpath('../lib/yamlmatlab')
+sim_params = ReadYaml('../params/sim.yaml');
+wing1_params = ReadYaml('../params/fixed_wing1.yaml');
+quad1_params = ReadYaml('../params/quadrotor1.yaml');
+pbviekf_params = ReadYaml('../params/pb_vi_ekf_params.yaml');
 
 % Load data
 env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []);

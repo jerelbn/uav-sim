@@ -8,6 +8,7 @@
 #include "quad_control.h"
 #include "sensors.h"
 #include "environment.h"
+#include "gimbal.h"
 
 using namespace Eigen;
 
@@ -48,6 +49,7 @@ private:
   Controller controller_;
   sensors::Sensors sensors_;
   pbviekf::EKF estimator_;
+  gimbal::Gimbal gimbal_;
 
   vehicle::Stated x_;
   vehicle::dxVector dx_;

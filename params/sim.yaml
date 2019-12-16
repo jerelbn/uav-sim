@@ -1,5 +1,5 @@
 # Parameters for time, randomness, environment, etc.
-tf: 10.0
+tf: 60.0
 dt: 0.001
 use_random_seed: true
 
