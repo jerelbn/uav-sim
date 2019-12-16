@@ -21,10 +21,10 @@ class Gimbal
 public:
 
   Gimbal();
-  Gimbal(const std::string &filename);
+  Gimbal(const std::string &filename, const bool& use_random_seed);
   ~Gimbal();
 
-  void load(const std::string &filename);
+  void load(const std::string &filename, const bool& use_random_seed);
   void update(const double &t, const vehicle::Stated& aircraft_state, const environment::Environment& env);
 
   std::string name_;
@@ -35,7 +35,7 @@ private:
   void f(const vehicle::Stated& x, const Vector3d& u, const Vector3d& vw, vehicle::dxVector& dx);
 
   // controller here
-  // sensors here
+  sensors::Sensors sensors_;
   // estimator here
 
   // State members description:

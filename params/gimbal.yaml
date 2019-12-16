@@ -8,8 +8,8 @@ p_bg: [0, 0, 0.1] # body to gimbal translation in body frame
 rpy: [0, -0.7, 0] # initial roll, pitch, yaw
 omega: [0, 0, 0] # initial angular rate
 
-origin_latitude: 0.702443501891 # (radians) latitude at flight location
-origin_longitude: -1.9486196478 # (radians) longitude at flight location
+origin_latitude: 0.7016 # (radians) latitude at flight location
+origin_longitude: -1.9495 # (radians) longitude at flight location
 origin_altitude: 1387.998309 # (meters) altitude above sea level at flight location
 origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
 
@@ -42,15 +42,17 @@ imu_enabled: true
 camera_enabled: true
 mocap_enabled: false
 baro_enabled: false
+mag_enabled: true
 pitot_enabled: false
 wvane_enabled: false
-gps_enabled: false
+gps_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
 use_camera_truth: false
 use_mocap_truth: false
 use_baro_truth: false
+use_mag_truth: false
 use_pitot_truth: false
 use_wvane_truth: false
 use_gps_truth: false
@@ -95,6 +97,12 @@ baro_update_rate: 50
 baro_noise_stdev: 0.5
 baro_bias_init_bound: 1.0
 baro_walk_stdev: 0.01
+
+## Magnetometer
+mag_update_rate: 50
+mag_noise_stdev: 1.0
+mag_bias_init_bound: 50
+mag_walk_stdev: 1.0
 
 ## Pitot Tube
 pitot_update_rate: 50

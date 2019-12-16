@@ -24,7 +24,7 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
   controller_.load(filename, use_random_seed, name_);
   sensors_.load(filename, use_random_seed, name_);
   estimator_.load("../params/pb_vi_ekf_params.yaml", name_);
-  gimbal_.load("../params/gimbal.yaml");
+  gimbal_.load("../params/gimbal.yaml", use_random_seed);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);

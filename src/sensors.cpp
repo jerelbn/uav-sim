@@ -30,6 +30,11 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("origin_altitude", filename, origin_alt_);
   common::get_yaml_node("origin_temperature", filename, origin_temp);
   rho_ = common::airDense(origin_alt_, origin_temp);
+  mnp_ecef_ = (WGS84::lla2ecef(Vector3d(common::MNP_lat*M_PI/180.0, common::MNP_lon*M_PI/180.0, 0.0))).normalized();
+
+  Vector3d axis = (common::e3.cross(mnp_ecef_)).normalized();
+  double angle = common::angDiffBetweenVecs(common::e3, mnp_ecef_);
+  q_ecef_to_mnp_.from_axis_angle(axis, angle);
 
   // IMU
   stringstream ss_accel;
@@ -138,6 +143,26 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   ss_baro << "/tmp/" << name << "_baro.log";
   baro_log_.open(ss_baro.str());
 
+  // Magnetometer
+  stringstream ss_mag;
+  double mag_bias_init_bound, mag_noise_stdev, mag_walk_stdev;
+  common::get_yaml_node("mag_enabled", filename, mag_enabled_);
+  common::get_yaml_node("mag_update_rate", filename, mag_update_rate_);
+  common::get_yaml_node("use_mag_truth", filename, use_mag_truth_);
+  common::get_yaml_node("mag_noise_stdev", filename, mag_noise_stdev);
+  common::get_yaml_node("mag_walk_stdev", filename, mag_walk_stdev);
+  common::get_yaml_node("mag_bias_init_bound", filename, mag_bias_init_bound);
+  mag_noise_dist_ = normal_distribution<double>(0.0, mag_noise_stdev);
+  mag_walk_dist_ = normal_distribution<double>(0.0, mag_walk_stdev);
+  mag_bias_ = mag_bias_init_bound * Vector3d::Random();
+  mag_noise_.setZero();
+  if (use_mag_truth_)
+    mag_bias_.setZero();
+  new_mag_meas_ = false;
+  last_mag_update_ = 0.0;
+  ss_mag << "/tmp/" << name << "_mag.log";
+  mag_log_.open(ss_mag.str());
+
   // Pitot Tube
   stringstream ss_pitot;
   double pitot_noise_stdev, pitot_walk_stdev, pitot_bias_init_bound;
@@ -233,6 +258,8 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const
     mocap(t, x);
   if (baro_enabled_)
     baro(t, x);
+  if (mag_enabled_)
+    mag(t, x);
   if (pitot_enabled_)
     pitot(t, x, vw);
   if (wvane_enabled_)
@@ -415,6 +442,46 @@ void Sensors::baro(const double t, const vehicle::Stated& x)
 }
 
 
+void Sensors::mag(const double t, const vehicle::Stated& x)
+{
+  double dt = common::round2dec(t - last_mag_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / mag_update_rate_)
+  {
+    new_mag_meas_ = true;
+    last_mag_update_ = t;
+    if (!use_mag_truth_)
+    {
+      common::randomNormal(mag_noise_,mag_noise_dist_,rng_);
+      common::randomNormal(mag_walk_,mag_walk_dist_,rng_);
+      mag_bias_ += mag_walk_ * dt;
+    }
+
+    // Calculate magnetic field vector at current location
+    // NOTE: MNP coordinates are rotated by the shortest rotation between ECEF Z-axis and the magnetic north pole
+    Vector3d ecef_pos = X_ecef2ned_.transforma(x.p);
+    double theta = common::angDiffBetweenVecs(ecef_pos, mnp_ecef_);
+    double Re_r = common::R_earth / ecef_pos.norm();
+    double Re_r3 = Re_r * Re_r * Re_r;
+    double Br = -2.0 * common::B0 * Re_r3 * cos(theta);
+    double Btheta = -common::B0 * Re_r3 * sin(theta);
+    Vector3d B_mnp(-Btheta, 0.0, -Br);
+
+    // Populate magnetic field measurement (currently uses simple dipole model)
+    mag_.field = q_ecef_to_mnp_.rota(B_mnp) + mag_bias_ + mag_noise_;
+    mag_.t = t;
+    mag_.id = mag_id_++;
+
+    // Log data
+    mag_log_.log(t);
+    mag_log_.logMatrix(mag_.field, mag_bias_, mag_noise_);
+  }
+  else
+  {
+    new_mag_meas_ = false;
+  }
+}
+
+
 void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw)
 {
   double dt = common::round2dec(t - last_pitot_update_, t_round_off_);
@@ -497,14 +564,14 @@ void Sensors::gps(const double t, const vehicle::Stated& x)
     // Calculate NED measurement
     gps_.t = t;
     gps_.id = gps_id_++;
-    Vector3d gps_pos = x.p;
-    Vector3d gps_vel = x.q.rota(x.v);
+    Vector3d ned_pos = x.p;
+    Vector3d ned_vel = x.q.rota(x.v);
 
     // Add bias and noise to NED measurement
-    gps_.pos.head<2>() = gps_pos.head<2>() + gps_hpos_bias_ + gps_hpos_noise_;
-    gps_.pos(2) = gps_pos(2) + gps_vpos_bias_ + gps_vpos_noise_;
-    gps_.vel.head<2>() = gps_vel.head<2>() + gps_hvel_noise_;
-    gps_.vel(2) = gps_vel(2) + gps_vvel_noise_;
+    gps_.pos.head<2>() = ned_pos.head<2>() + gps_hpos_bias_ + gps_hpos_noise_;
+    gps_.pos(2) = ned_pos(2) + gps_vpos_bias_ + gps_vpos_noise_;
+    gps_.vel.head<2>() = ned_vel.head<2>() + gps_hvel_noise_;
+    gps_.vel(2) = ned_vel(2) + gps_vvel_noise_;
 
     // Convert measurement to ECEF
     gps_.pos = X_ecef2ned_.transforma(gps_.pos);
@@ -512,12 +579,7 @@ void Sensors::gps(const double t, const vehicle::Stated& x)
 
     // Log data
     gps_log_.log(t);
-    gps_log_.logMatrix(gps_.pos, gps_.vel, gps_hpos_bias_);
-    gps_log_.log(gps_vpos_bias_);
-    gps_log_.logMatrix(gps_hpos_noise_);
-    gps_log_.log(gps_vpos_noise_);
-    gps_log_.logMatrix(gps_hvel_noise_);
-    gps_log_.log(gps_vvel_noise_);
+    gps_log_.logMatrix(gps_.pos, gps_.vel, X_ecef2ned_.transforma(ned_pos), X_ecef2ned_.q_.rota(ned_vel));
   }
   else
   {

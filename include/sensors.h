@@ -30,6 +30,7 @@ public:
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getGyroBias() const { return gyro_bias_; }
   const double& getBaroBias() const { return baro_bias_; }
+  const Vector3d& getMagBias() const { return mag_bias_; }
   const double& getPitotBias() const { return pitot_bias_; }
 
   common::Imud imu_;
@@ -37,6 +38,7 @@ public:
   common::Imaged image_;
   common::Gpsd gps_;
   common::Barod baro_;
+  common::Magd mag_;
   common::Pitotd pitot_;
   common::Wvaned wvane_;
 
@@ -45,6 +47,7 @@ public:
   bool new_camera_meas_;
   bool new_gps_meas_;
   bool new_baro_meas_;
+  bool new_mag_meas_;
   bool new_pitot_meas_;
   bool new_wvane_meas_;
 
@@ -55,6 +58,7 @@ private:
   void camera(const double t, const vehicle::Stated& x, const MatrixXd& lm);
   void gps(const double t, const vehicle::Stated& x);
   void baro(const double t, const vehicle::Stated& x);
+  void mag(const double t, const vehicle::Stated& x);
   void pitot(const double t, const vehicle::Stated& x, const Vector3d& vw);
   void wvane(const double t, const vehicle::Stated& x, const Vector3d& vw);
 
@@ -64,6 +68,8 @@ private:
   double origin_lon_; // longitude at flight location (radians)
   double origin_alt_; // altitude above sea level at flight location (meters)
   double rho_; // air density at flight location
+  Vector3d mnp_ecef_; // magnetic north pole direction in ECEF coordinates
+  quat::Quatd q_ecef_to_mnp_; // rotation from ECEF to MNP (magnetic north pole) coordinates
 
   // IMU
   bool use_accel_truth_, use_gyro_truth_, imu_enabled_;
@@ -117,6 +123,16 @@ private:
   normal_distribution<double> baro_noise_dist_;
   double baro_bias_, baro_walk_, baro_noise_;
   common::Logger baro_log_;
+
+  // Magnetometer
+  bool use_mag_truth_, mag_enabled_;
+  int mag_id_;
+  double last_mag_update_;
+  double mag_update_rate_;
+  normal_distribution<double> mag_walk_dist_;
+  normal_distribution<double> mag_noise_dist_;
+  Vector3d mag_bias_, mag_walk_, mag_noise_;
+  common::Logger mag_log_;
 
   // Pitot Tube (for air speed along some axis)
   bool use_pitot_truth_, pitot_enabled_;

@@ -8,10 +8,10 @@ if params.imu_enabled
     for i=1:3
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
-        plot(accel(1,:), accel(i+1,:)-accel(i+4,:)-accel(i+7,:), 'b-', 'linewidth', 2.0)
         plot(accel(1,:), accel(i+1,:), 'r-', 'linewidth', 1.5)
+        plot(accel(1,:), accel(i+1,:)-accel(i+4,:)-accel(i+7,:), 'b-', 'linewidth', 2.0)
         if i == 1
-            legend('True', 'Measured')
+            legend('Measured','True')
         end
     end
 
@@ -23,10 +23,10 @@ if params.imu_enabled
     for i=1:3
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
-        plot(gyro(1,:), gyro(i+1,:)-gyro(i+4,:)-gyro(i+7,:), 'b-', 'linewidth', 2.0)
         plot(gyro(1,:), gyro(i+1,:), 'r-', 'linewidth', 1.5)
+        plot(gyro(1,:), gyro(i+1,:)-gyro(i+4,:)-gyro(i+7,:), 'b-', 'linewidth', 2.0)
         if i == 1
-            legend('True', 'Measured')
+            legend('Measured','True')
         end
     end
 end
@@ -38,9 +38,26 @@ if params.baro_enabled
     set(gcf, 'name', strcat([params.name,' barometer']), 'NumberTitle', 'off');
     title("Barometer")
     grid on, hold on
-    plot(baro(1,:), baro(2,:)-baro(3,:)-baro(4,:), 'b-', 'linewidth', 2.0)
     plot(baro(1,:), baro(2,:), 'r-', 'linewidth', 1.5)
-    legend('True', 'Measured')
+    plot(baro(1,:), baro(2,:)-baro(3,:)-baro(4,:), 'b-', 'linewidth', 2.0)
+    legend('Measured','True')
+end
+
+
+if params.mag_enabled
+    mag = reshape(fread(fopen(strcat(['/tmp/',params.name,'_mag.log']), 'r'), 'double'), 10, []); % [time;mag;bias;noise]
+    figure()
+    set(gcf, 'name', strcat([params.name,' magnetometer']), 'NumberTitle', 'off');
+    titles = ["x","y","z"];
+    for i=1:3
+        subplot(3, 1, i), hold on, grid on
+        title(titles(i))
+        plot(mag(1,:), mag(i+1,:), 'r-', 'linewidth', 1.5)
+        plot(mag(1,:), mag(i+1,:)-mag(i+4,:)-mag(i+7,:), 'b-', 'linewidth', 2.0)
+        if i == 1
+            legend('Measured','True')
+        end
+    end
 end
 
 
@@ -50,9 +67,9 @@ if params.pitot_enabled
     set(gcf, 'name', strcat([params.name,' pitot tube']), 'NumberTitle', 'off');
     title("Pitot Tube")
     grid on, hold on
-    plot(pitot(1,:), pitot(2,:)-pitot(3,:)-pitot(4,:), 'b-', 'linewidth', 2.0)
     plot(pitot(1,:), pitot(2,:), 'r-', 'linewidth', 1.5)
-    legend('True', 'Measured')
+    plot(pitot(1,:), pitot(2,:)-pitot(3,:)-pitot(4,:), 'b-', 'linewidth', 2.0)
+    legend('Measured','True')
 end
 
 
@@ -62,14 +79,14 @@ if params.wvane_enabled
     set(gcf, 'name', strcat([params.name,' weather vane']), 'NumberTitle', 'off');
     title("Weather Vane")
     grid on, hold on
-    plot(wvane(1,:), wvane(3,:), 'b-', 'linewidth', 2.0)
     plot(wvane(1,:), wvane(2,:), 'r-', 'linewidth', 1.5)
-    legend('True', 'Measured')
+    plot(wvane(1,:), wvane(3,:), 'b-', 'linewidth', 2.0)
+    legend('Measured','True')
 end
 
 
 if params.gps_enabled
-    gps = reshape(fread(fopen(strcat(['/tmp/',params.name,'_gps.log']), 'r'), 'double'), 16, []); % [time;pos;vel;pos_bias;pos_noise;vel_noise]
+    gps = reshape(fread(fopen(strcat(['/tmp/',params.name,'_gps.log']), 'r'), 'double'), 13, []); % [time;pos_meas;vel_meas;pos_true;vel_true]
     figure()
     set(gcf, 'name', strcat([params.name,' GPS position']), 'NumberTitle', 'off');
     titles = ["North","East","Altitude"];
@@ -77,14 +94,14 @@ if params.gps_enabled
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
         if i < 3
-            plot(gps(1,:), gps(i+1,:)-gps(i+7,:)-gps(i+10,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), gps(i+1,:), 'r-', 'linewidth', 1.5)
+            plot(gps(1,:), gps(i+7,:), 'b-', 'linewidth', 2.0)
         else
-            plot(gps(1,:), -gps(i+1,:)+gps(i+7,:)+gps(i+10,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), -gps(i+1,:), 'r-', 'linewidth', 1.5)
+            plot(gps(1,:), -gps(i+7,:), 'b-', 'linewidth', 2.0)
         end
         if i == 1
-            legend('True', 'Measured')
+            legend('Measured','True')
         end
     end
 
@@ -96,14 +113,14 @@ if params.gps_enabled
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
         if i < 3
-            plot(gps(1,:), gps(i+4,:)-gps(i+13,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), gps(i+4,:), 'r-', 'linewidth', 1.5)
+            plot(gps(1,:), gps(i+10,:), 'b-', 'linewidth', 2.0)
         else
-            plot(gps(1,:), -gps(i+4,:)+gps(i+13,:), 'b-', 'linewidth', 2.0)
             plot(gps(1,:), -gps(i+4,:), 'r-', 'linewidth', 1.5)
+            plot(gps(1,:), -gps(i+10,:), 'b-', 'linewidth', 2.0)
         end
         if i == 1
-            legend('True', 'Measured')
+            legend('Measured','True')
         end
     end
 end
@@ -117,10 +134,10 @@ if params.mocap_enabled
     for i=1:3
         subplot(3, 1, i), hold on, grid on
         title(titles(i))
-        plot(mocap(1,:), mocap(i+8,:), 'b-', 'linewidth', 2.0)
         plot(mocap(1,:), mocap(i+1,:), 'r-', 'linewidth', 1.5)
+        plot(mocap(1,:), mocap(i+8,:), 'b-', 'linewidth', 2.0)
         if i == 1
-            legend('True', 'Measured')
+            legend('Measured','True')
         end
     end
     
@@ -130,10 +147,10 @@ if params.mocap_enabled
     for i=1:4
         subplot(4, 1, i), hold on, grid on
         title(titles(i))
-        plot(mocap(1,:), mocap(i + 11, :), 'linewidth', 2.0)
         plot(mocap(1,:), mocap(i + 4, :), 'r-', 'linewidth', 1.5)
+        plot(mocap(1,:), mocap(i + 11, :), 'linewidth', 2.0)
         if i == 1
-            legend('True', 'Measured')
+            legend('Measured','True')
         end
     end
 end

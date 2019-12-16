@@ -7,17 +7,17 @@ namespace gimbal
 Gimbal::Gimbal()  : t_prev_(0.0) {}
 
 
-Gimbal::Gimbal(const std::string &filename)
+Gimbal::Gimbal(const std::string &filename, const bool& use_random_seed)
   : t_prev_(0.0)
 {
-  load(filename);
+  load(filename, use_random_seed);
 }
 
 
 Gimbal::~Gimbal() {}
 
 
-void Gimbal::load(const std::string &filename)
+void Gimbal::load(const std::string &filename, const bool& use_random_seed)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   common::get_yaml_node("name", filename, name_);
@@ -25,6 +25,9 @@ void Gimbal::load(const std::string &filename)
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("omega_f", filename, omega_f_);
   u_.setZero();
+
+  // Load other modules (e.g. controller, estimator, sensors)
+  sensors_.load(filename, use_random_seed, name_);
 
   // Load all Gimbal parameters
   double roll, pitch, yaw;
@@ -85,6 +88,9 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
     dx_ *= dt;
   }
   x_ += dx_;
+
+  // Collect new sensor measurements
+  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
 
   // Log all of that juicy data
   log(t);
