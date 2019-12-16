@@ -467,7 +467,7 @@ void Sensors::mag(const double t, const vehicle::Stated& x)
     Vector3d B_mnp(-Btheta, 0.0, -Br);
 
     // Populate magnetic field measurement (currently uses simple dipole model)
-    mag_.field = q_ecef_to_mnp_.rota(B_mnp) + mag_bias_ + mag_noise_;
+    mag_.field = x.q.rotp(X_ecef2ned_.q_.rotp(q_ecef_to_mnp_.rota(B_mnp))) + mag_bias_ + mag_noise_;
     mag_.t = t;
     mag_.id = mag_id_++;
 
