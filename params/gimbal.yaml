@@ -42,10 +42,10 @@ imu_enabled: true
 camera_enabled: true
 mocap_enabled: false
 baro_enabled: false
-mag_enabled: true
+mag_enabled: false
 pitot_enabled: false
 wvane_enabled: false
-gps_enabled: true
+gps_enabled: false
 
 use_accel_truth: false
 use_gyro_truth: false

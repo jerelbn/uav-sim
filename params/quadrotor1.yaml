@@ -97,13 +97,13 @@ circ_hd: 5.0
 
 # Sensors
 imu_enabled: true
-camera_enabled: true
+camera_enabled: false
 mocap_enabled: false
 baro_enabled: false
 mag_enabled: true
 pitot_enabled: false
 wvane_enabled: false
-gps_enabled: false
+gps_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
