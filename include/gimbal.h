@@ -25,7 +25,7 @@ public:
   ~Gimbal();
 
   void load(const std::string &filename, const bool& use_random_seed);
-  void update(const double &t, const vehicle::Stated& aircraft_state, const environment::Environment& env);
+  void update(const double &t, const vehicle::Stated& aircraft_state, environment::Environment& env);
 
   std::string name_;
 

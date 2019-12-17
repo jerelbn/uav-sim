@@ -7,19 +7,23 @@ namespace environment
 Environment::Environment()
 {
   t_prev_ = 0;
+  landmarks_.reserve(1e6);
 }
 
 
 Environment::Environment(const std::string filename)
 {
   t_prev_ = 0;
+  landmarks_.reserve(1e6);
   load(filename);
 }
 
 
 Environment::~Environment()
 {
-  environment_log_.close();
+  for (auto& lm : landmarks_)
+    landmark_log_.write((char*)lm.data(), lm.rows() * sizeof(double));
+  landmark_log_.close();
   wind_log_.close();
 }
 
@@ -57,134 +61,50 @@ void Environment::load(const std::string filename)
   if (!enable_wind_)
     vw_.setZero();
 
-  // Build the room or ground
-  common::get_yaml_node("fly_indoors", filename, fly_indoors_);
-  common::get_yaml_node("landmark_density", filename, lm_density_);
-  common::get_yaml_node("landmark_deviation", filename, lm_deviation_);
-  if (fly_indoors_)
-  {
-    common::get_yaml_node("indoor_north_dim", filename, indoor_north_dim_);
-    common::get_yaml_node("indoor_east_dim", filename, indoor_east_dim_);
-    common::get_yaml_node("indoor_height", filename, indoor_height_);
-    buildRoom();
-  }
-  else
-  {
-    common::get_yaml_node("outdoor_north_dim", filename, outdoor_north_dim_);
-    common::get_yaml_node("outdoor_east_dim", filename, outdoor_east_dim_);
-    common::get_yaml_node("outdoor_height", filename, outdoor_height_);
-    common::get_yaml_node("outdoor_hill_freq", filename, hill_freq_);
-    buildGround();
-  }
+  // Load and define information for landmark generation
+  double north_dim, east_dim, height_dim;
+  common::get_yaml_node("grid_cell_fraction", filename, grid_cell_frac_);
+  common::get_yaml_node("landmark_depth_variation", filename, lm_depth_variation_);
+  common::get_yaml_node("north_dim", filename, north_dim);
+  common::get_yaml_node("east_dim", filename, east_dim);
+  common::get_yaml_node("height_dim", filename, height_dim);
+
+  plane_ground_.r.setZero();
+  plane_ground_.n << 0, 0, -1;
+  planes_.push_back(plane_ground_);
+
+  plane_sky_.r << 0, 0, -height_dim;
+  plane_sky_.n << 0, 0, 1;
+  planes_.push_back(plane_sky_);
+
+  plane_north_.r << north_dim/2.0, 0, 0;
+  plane_north_.n << -1, 0, 0;
+  planes_.push_back(plane_north_);
+
+  plane_south_.r << -north_dim/2.0, 0, 0;
+  plane_south_.n << 1, 0, 0;
+  planes_.push_back(plane_south_);
+
+  plane_east_.r << 0, east_dim/2.0, 0;
+  plane_east_.n << 0, -1, 0;
+  planes_.push_back(plane_east_);
+
+  plane_west_.r << 0, -east_dim/2.0, 0;
+  plane_west_.n << 0, 1, 0;
+  planes_.push_back(plane_west_);
 
   // Initialize loggers
-  environment_log_.open("/tmp/environment.log");
+  landmark_log_.open("/tmp/landmarks.log");
   wind_log_.open("/tmp/wind.log");
 
   // Log environment initial wind data
-  environment_log_.write((char*)points_.data(), points_.rows() * points_.cols() * sizeof(double));
   logWind(0);
 }
 
 
-void Environment::buildRoom()
+void Environment::addLandmark(const Eigen::Vector3d& p)
 {
-  // Origin is at the center of the room on the floor
-  int num_pts_floor = indoor_north_dim_ * indoor_east_dim_ * lm_density_;
-  int num_pts_ceil = indoor_north_dim_ * indoor_east_dim_ * lm_density_;
-  int num_pts_north = indoor_height_ * indoor_east_dim_ * lm_density_;
-  int num_pts_south = indoor_height_ * indoor_east_dim_ * lm_density_;
-  int num_pts_east = indoor_height_ * indoor_north_dim_ * lm_density_;
-  int num_pts_west = indoor_height_ * indoor_north_dim_ * lm_density_;
-  int num_pts_total = num_pts_floor + num_pts_ceil + num_pts_north + num_pts_south + num_pts_east + num_pts_west;
-
-  // Allocate space for all points
-  points_.resize(3,num_pts_total);
-
-  // Floor
-  Eigen::ArrayXXd pts_floor(3,num_pts_floor);
-  pts_floor.setRandom();
-  pts_floor.row(0) *= indoor_north_dim_ / 2.0;
-  pts_floor.row(1) *= indoor_east_dim_ / 2.0;
-  pts_floor.row(2) *= lm_deviation_;
-
-  // Ceiling
-  Eigen::ArrayXXd pts_ceil(3,num_pts_ceil);
-  pts_ceil.setRandom();
-  pts_ceil.row(0) *= indoor_north_dim_ / 2.0;
-  pts_ceil.row(1) *= indoor_east_dim_ / 2.0;
-  pts_ceil.row(2) *= lm_deviation_;
-  pts_ceil.row(2) -= indoor_height_; // Offset from origin
-
-  // North wall
-  Eigen::ArrayXXd pts_north(3,num_pts_north);
-  pts_north.setRandom();
-  pts_north.row(0) *= lm_deviation_;
-  pts_north.row(1) *= indoor_east_dim_ / 2.0;
-  pts_north.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_north.row(2) *= indoor_height_ / 2.0;
-  pts_north.row(0) += indoor_north_dim_ / 2.0; // Offset from origin
-
-  // South wall
-  Eigen::ArrayXXd pts_south(3,num_pts_south);
-  pts_south.setRandom();
-  pts_south.row(0) *= lm_deviation_;
-  pts_south.row(1) *= indoor_east_dim_ / 2.0;
-  pts_south.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_south.row(2) *= indoor_height_ / 2.0;
-  pts_south.row(0) -= indoor_north_dim_ / 2.0; // Offset from origin
-
-  // East wall
-  Eigen::ArrayXXd pts_east(3,num_pts_east);
-  pts_east.setRandom();
-  pts_east.row(0) *= indoor_north_dim_ / 2.0;
-  pts_east.row(1) *= lm_deviation_;
-  pts_east.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_east.row(2) *= indoor_height_ / 2.0;
-  pts_east.row(1) += indoor_east_dim_ / 2.0; // Offset from origin
-
-  // West wall
-  Eigen::ArrayXXd pts_west(3,num_pts_west);
-  pts_west.setRandom();
-  pts_west.row(0) *= indoor_north_dim_ / 2.0;
-  pts_west.row(1) *= lm_deviation_;
-  pts_west.row(2) -= 1; // Shift random values to between 0 and -2
-  pts_west.row(2) *= indoor_height_ / 2.0;
-  pts_west.row(1) -= indoor_east_dim_ / 2.0; // Offset from origin
-
-  // Concatenate all points
-  points_ << pts_floor.matrix(), pts_ceil.matrix(), pts_north.matrix(),
-             pts_south.matrix(), pts_east.matrix(), pts_west.matrix();
-}
-
-
-void Environment::buildGround()
-{
-  // Origin is at the center of the room on the floor
-  int num_pts = outdoor_north_dim_ * outdoor_east_dim_ * lm_density_;
-
-  // Allocate space for all points
-  points_.resize(3,num_pts);
-
-  // Create flat ground points
-  Eigen::ArrayXXd pts_ground(3,num_pts);
-  pts_ground.setRandom();
-  pts_ground.row(0) *= outdoor_north_dim_ / 2.0;
-  pts_ground.row(1) *= outdoor_east_dim_ / 2.0;
-  pts_ground.row(2) *= lm_deviation_;
-
-  // Add hills
-  for (int i = 0; i < pts_ground.cols(); ++i)
-    pts_ground.col(i).z() = getElevation(pts_ground.col(i).x(), pts_ground.col(i).y());
-
-  // Concatenate all points
-  points_ << pts_ground.matrix();
-}
-
-
-const double Environment::getElevation(const double &x, const double &y) const
-{
-  return outdoor_height_ * sin(hill_freq_ * x) + outdoor_height_ * sin(hill_freq_ * y);
+  landmarks_.push_back(p);
 }
 
 

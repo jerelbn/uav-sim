@@ -7,7 +7,7 @@ namespace fixedwing
 FixedWing::FixedWing()  : t_prev_(0.0) {}
 
 
-FixedWing::FixedWing(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
+FixedWing::FixedWing(const std::string &filename, environment::Environment& env, const bool& use_random_seed, const int& id)
   : t_prev_(0.0), id_(id)
 {
   load_base(filename);
@@ -22,7 +22,7 @@ FixedWing::~FixedWing()
 }
 
 
-void FixedWing::load(const std::string &filename, const environment::Environment& env, const bool& use_random_seed)
+void FixedWing::load(const std::string &filename, environment::Environment& env, const bool& use_random_seed)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   common::get_yaml_node("name", filename, name_);
@@ -39,10 +39,10 @@ void FixedWing::load(const std::string &filename, const environment::Environment
   x_ = vehicle::Stated(x0);
 
   // Initialize other classes
-  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.get_vw());
-  updateAccels(u_, env.get_vw());
-  sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
-  ekf_.run(0, sensors_, env.get_vw(), getState());
+  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.getWindVel());
+  updateAccels(u_, env.getWindVel());
+  sensors_.updateMeasurements(0, x_, env);
+  ekf_.run(0, sensors_, env.getWindVel(), getState());
 
   // Compute trim
   bool compute_trim;
@@ -85,17 +85,17 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
 }
 
 
-void FixedWing::run(const double &t, const environment::Environment& env)
+void FixedWing::run(const double &t, environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
-  propagate(t, u_, env.get_vw()); // Propagate truth to current time step
+  propagate(t, u_, env.getWindVel()); // Propagate truth to current time step
   if (control_using_estimates_)
     controller_.computeControl(ekf_.getState(), t, u_, other_vehicle_positions_[0], ekf_.getWind());
   else
-    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.get_vw());
-  updateAccels(u_, env.get_vw()); // Update true acceleration
-  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
-  ekf_.run(t, sensors_, env.get_vw(), getState());
+    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.getWindVel());
+  updateAccels(u_, env.getWindVel()); // Update true acceleration
+  sensors_.updateMeasurements(t, x_, env);
+  ekf_.run(t, sensors_, env.getWindVel(), getState());
   log(t); // Log current data
 }
 

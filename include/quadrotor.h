@@ -23,11 +23,11 @@ class Quadrotor
 public:
 
   Quadrotor();
-  Quadrotor(const std::string &filename, const environment::Environment& env, const bool &use_random_seed, const int& id);
+  Quadrotor(const std::string &filename, environment::Environment& env, const bool &use_random_seed, const int& id);
   ~Quadrotor();
 
-  void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
-  void run(const double &t, const environment::Environment& env);
+  void load(const std::string &filename, environment::Environment &env, const bool &use_random_seed);
+  void run(const double &t, environment::Environment& env);
 
   const vehicle::Stated& getState() const { return x_; }
 
@@ -43,7 +43,7 @@ private:
   void getOtherVehicles(const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
   void log(const double &t);
-  void runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_t, const MatrixXd &lm);
+  void runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_t, const environment::vectorVec3 &lm);
   vehicle::Stated getControlStateFromEstimator() const;
 
   Controller controller_;

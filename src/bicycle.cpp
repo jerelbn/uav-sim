@@ -109,7 +109,7 @@ void Bicycle::propagate(const double &t, const uVector& u, const Vector3d& vw)
 
 void Bicycle::run(const double &t, const environment::Environment& env)
 {
-  propagate(t, u_, env.get_vw()); // Propagate truth to next time step
+  propagate(t, u_, env.getWindVel()); // Propagate truth to next time step
   computeControl(); // Update control input with truth
   updateElevation(env); // Update vehicle z component
   log(t); // Log current data
@@ -162,7 +162,7 @@ void Bicycle::updateWaypoint()
 
 void Bicycle::updateElevation(const environment::Environment& env)
 {
-  x_.p(PZ) = env.getElevation(x_.p(PX), x_.p(PY));
+  x_.p(PZ) = 0;
 }
 
 

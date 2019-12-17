@@ -24,11 +24,11 @@ class FixedWing : public FixedWingBase
 public:
 
   FixedWing();
-  FixedWing(const std::string &filename, const environment::Environment& env, const bool &use_random_seed, const int& id);
+  FixedWing(const std::string &filename, environment::Environment& env, const bool &use_random_seed, const int& id);
   ~FixedWing();
 
-  void load(const std::string &filename, const environment::Environment &env, const bool &use_random_seed);
-  void run(const double &t, const environment::Environment& env);
+  void load(const std::string &filename, environment::Environment &env, const bool &use_random_seed);
+  void run(const double &t, environment::Environment& env);
   void computeTrim(const std::string& filename) const;
 
   const vehicle::Stated& getState() const { return x_; }

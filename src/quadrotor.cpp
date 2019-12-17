@@ -7,7 +7,7 @@ namespace quadrotor
 Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
+Quadrotor::Quadrotor(const std::string &filename, environment::Environment& env, const bool& use_random_seed, const int& id)
   : t_prev_(0.0), id_(id)
 {
   load(filename, env, use_random_seed);
@@ -17,7 +17,7 @@ Quadrotor::Quadrotor(const std::string &filename, const environment::Environment
 Quadrotor::~Quadrotor() {}
 
 
-void Quadrotor::load(const std::string &filename, const environment::Environment& env, const bool& use_random_seed)
+void Quadrotor::load(const std::string &filename, environment::Environment& env, const bool& use_random_seed)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   common::get_yaml_node("name", filename, name_);
@@ -60,10 +60,10 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
 
   // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
-  updateAccels(u_, env.get_vw());
+  updateAccels(u_, env.getWindVel());
   gimbal_.update(0, x_, env);
-  sensors_.updateMeasurements(0, x_, env.get_vw(), env.get_points());
-  runEstimator(0, sensors_, env.get_vw(), getState(), env.get_points());
+  sensors_.updateMeasurements(0, x_, env);
+  runEstimator(0, sensors_, env.getWindVel(), getState(), env.getLandmarks());
 
   // Initialize loggers and log initial data
   std::stringstream ss_s, ss_e;
@@ -75,18 +75,18 @@ void Quadrotor::load(const std::string &filename, const environment::Environment
 }
 
 
-void Quadrotor::run(const double &t, const environment::Environment& env)
+void Quadrotor::run(const double &t, environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
-  propagate(t, u_, env.get_vw()); // Propagate truth to current time step
+  propagate(t, u_, env.getWindVel()); // Propagate truth to current time step
   if (control_using_estimates_)
     controller_.computeControl(getControlStateFromEstimator(), t, u_, other_vehicle_positions_[0]);
   else
     controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
-  updateAccels(u_, env.get_vw()); // Update true acceleration
+  updateAccels(u_, env.getWindVel()); // Update true acceleration
   gimbal_.update(t, x_, env);
-  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
-  runEstimator(t, sensors_, env.get_vw(), getState(), env.get_points());
+  sensors_.updateMeasurements(t, x_, env);
+  runEstimator(t, sensors_, env.getWindVel(), getState(), env.getLandmarks());
   log(t); // Log current data
 }
 
@@ -157,7 +157,7 @@ void Quadrotor::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<V
 }
 
 
-void Quadrotor::runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& xt, const MatrixXd& lm)
+void Quadrotor::runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& xt, const environment::vectorVec3& lm)
 {
   // Run all sensor callbacks
   if (sensors.new_imu_meas_)

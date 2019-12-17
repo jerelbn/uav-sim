@@ -13,13 +13,8 @@ wind_north_walk_stdev: 5.0 # Amount of random walk in north wind component
 wind_east_walk_stdev: 5.0 # Amount of random walk in east wind component
 wind_down_walk_stdev: 1.0 # Amount of random walk in down wind component
 
-fly_indoors: true
-landmark_density: 1 # Average points per square meter of wall
-landmark_deviation: 0.2 # Maximum deviation of random points
-outdoor_north_dim: 600 # Total ground length in north dimension
-outdoor_east_dim: 600 # Total ground length in east dimension
-outdoor_height: 2.0 # Max height of hills from ground zero
-outdoor_hill_freq: 0.1 # frequency of hills
-indoor_north_dim: 30 # Total room length in north dimension
-indoor_east_dim: 30 # Total room length in east dimension
-indoor_height: 20 # Total room height
+grid_cell_fraction: 0.1 # Grid cell fraction of image size (smaller fraction = more image features)
+landmark_depth_variation: 1.0 # Maximum variation in depth of generated landmarks (m)
+north_dim: 30 # Total box length in north dimension (m)
+east_dim: 30 # Total box length in east dimension (m)
+height_dim: 20 # Total box height dimension (m)

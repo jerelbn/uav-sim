@@ -6,6 +6,7 @@
 #include "common_cpp/measurement.h"
 #include "geometry/xform.h"
 #include "vehicle.h"
+#include "environment.h"
 #include "wgs84.h"
 
 using namespace std;
@@ -26,7 +27,7 @@ public:
   ~Sensors();
 
   void load(const string &filename, const bool &use_random_seed, const string &name);
-  void updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d& vw, const MatrixXd &lm);
+  void updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env);
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getGyroBias() const { return gyro_bias_; }
   const double& getBaroBias() const { return baro_bias_; }
@@ -55,7 +56,7 @@ private:
 
   void imu(const double t, const vehicle::Stated &x);
   void mocap(const double t, const vehicle::Stated& x);
-  void camera(const double t, const vehicle::Stated& x, const MatrixXd& lm);
+  void camera(const double t, const vehicle::Stated& x, environment::Environment &env);
   void gps(const double t, const vehicle::Stated& x);
   void baro(const double t, const vehicle::Stated& x);
   void mag(const double t, const vehicle::Stated& x);
@@ -80,8 +81,8 @@ private:
   Vector3d gyro_bias_, gyro_noise_, gyro_walk_;
   normal_distribution<double> accel_noise_dist_, accel_walk_dist_;
   normal_distribution<double> gyro_noise_dist_, gyro_walk_dist_;
-  quat::Quatd q_ub_; // rotations body-to-IMU
-  Vector3d p_ub_; // translations body-to-IMU in body frame
+  quat::Quatd q_ub_; // rotations IMU-to-body
+  Vector3d p_ub_; // translations IMU-to-body in IMU frame
   common::Logger accel_log_, gyro_log_;
 
   // Camera
@@ -96,8 +97,8 @@ private:
   Vector2d pixel_noise_;
   Matrix3d K_, K_inv_;
   Vector2d image_size_;
-  quat::Quatd q_uc_; // rotations body-to-camera
-  Vector3d p_uc_; // translations body-to-camera in body frame
+  quat::Quatd q_uc_; // rotations IMU-to-camera
+  Vector3d p_uc_; // translations IMU-to-camera in IMU frame
   common::Logger cam_log_;
 
   // Motion Capture
@@ -110,8 +111,8 @@ private:
   normal_distribution<double> mocap_noise_dist_;
   Matrix<double, 6, 1> mocap_noise_;
   xform::Xformd mocap_truth_;
-  Vector3d p_um_; // translation body-to-mocap-body in body frame
-  quat::Quatd q_um_; // rotation body-to-mocap-body
+  Vector3d p_um_; // translation IMU-to-mocap-body in IMU frame
+  quat::Quatd q_um_; // rotation IMU-to-mocap-body
   common::Logger mocap_log_;
 
   // Barometer

@@ -52,7 +52,7 @@ void Gimbal::load(const std::string &filename, const bool& use_random_seed)
 }
 
 
-void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, const environment::Environment& env)
+void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, environment::Environment& env)
 {
   // Time step for controller later
   double dt = t - t_prev_;
@@ -90,7 +90,7 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
   x_ += dx_;
 
   // Collect new sensor measurements
-  sensors_.updateMeasurements(t, x_, env.get_vw(), env.get_points());
+  sensors_.updateMeasurements(t, x_, env);
 
   // Log all of that juicy data
   log(t);

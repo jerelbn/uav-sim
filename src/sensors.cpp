@@ -247,13 +247,13 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const Vector3d &vw, const MatrixXd& lm)
+void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env)
 {
   // Update enabled sensor measurements
   if (imu_enabled_)
     imu(t, x);
   if (camera_enabled_)
-    camera(t, x, lm);
+    camera(t, x, env);
   if (mocap_enabled_)
     mocap(t, x);
   if (baro_enabled_)
@@ -261,9 +261,9 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, const
   if (mag_enabled_)
     mag(t, x);
   if (pitot_enabled_)
-    pitot(t, x, vw);
+    pitot(t, x, env.getWindVel());
   if (wvane_enabled_)
-    wvane(t, x, vw);
+    wvane(t, x, env.getWindVel());
   if (gps_enabled_)
     gps(t, x);
 }
@@ -309,7 +309,7 @@ void Sensors::imu(const double t, const vehicle::Stated& x)
 }
 
 
-void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &lm)
+void Sensors::camera(const double t, const vehicle::Stated &x, environment::Environment &env)
 {
   double dt = common::round2dec(t - last_camera_update_, t_round_off_);
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
@@ -320,10 +320,10 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
 
     // Project landmarks into image
     image_.feats.clear();
-    for (int i = 0; i < lm.cols(); ++i)
+    for (int i = 0; i < env.getLandmarks().size(); ++i)
     {
       // Landmark vector in camera frame
-      Vector3d p_cl = q_uc_.rotp(q_ub_.rota(x.q.rotp(lm.col(i) - x.p)) - p_uc_ + p_ub_);
+      Vector3d p_cl = q_uc_.rotp(q_ub_.rota(x.q.rotp(env.getLandmarks()[i] - x.p)) - p_uc_ + p_ub_);
 
       // Check if landmark is in front of camera
       if (p_cl(2) < 0)
@@ -334,12 +334,79 @@ void Sensors::camera(const double t, const vehicle::Stated &x, const MatrixXd &l
       common::projToImg(pix, p_cl, K_);
       pix += pixel_noise_;
       if (pix(0) >= 1 && pix(1) >= 1 && pix(0) <= image_size_(0) && pix(1) <= image_size_(1))
-        image_.feats.push_back(common::Featd(i,pix,p_cl)); // feature labels correspond to its column in the inertial points matrix
+        image_.feats.push_back(common::Featd(i,pix,p_cl));
 
       if (image_.feats.size() == cam_max_feat_) break;
     }
     image_.t = t;
     image_.id = image_id_++;
+
+    // Add features to image grid
+
+    // Partition image into a grid
+    const int cell_size = env.getGridCellFrac() * image_size_(1);
+    const int grid_width = (image_size_(0) + cell_size - 1) / cell_size;
+    const int grid_height = (image_size_(1) + cell_size - 1) / cell_size;
+    std::vector<bool> grid(grid_width*grid_height, 0);
+
+    // Add each existing image feature to the grid
+    for(int i = 0; i < image_.feats.size(); ++i)
+    {
+      // Get feature point components
+      double pix_x = image_.feats[i].pix(0);
+      double pix_y = image_.feats[i].pix(1);
+
+      // Determine points position in the grid
+      int x_cell = (int)pix_x / cell_size;
+      int y_cell = (int)pix_y / cell_size;
+
+      // Indicate that this cell is populated
+      grid[y_cell*grid_width+x_cell] = 1;
+    }
+
+    // Create new image feature in empty grid cells
+    for (int i = 0; i < grid.size(); ++i)
+    {
+      if (grid[i] == 0)
+      {
+        // Unpack image coordinates
+        int y_cell = i / grid_width;
+        int x_cell = i - y_cell*grid_width;
+
+        // Randomly choose pixel position within the cell
+        double pix_x = x_cell*cell_size + double(std::rand()/RAND_MAX*cell_size);
+        double pix_y = y_cell*cell_size + double(std::rand()/RAND_MAX*cell_size);
+        Vector2d new_pix(pix_x, pix_y);
+
+        // Get direction vector from pixel points and rotate it to inertial frame
+        Vector3d new_dir_c;
+        common::dirFromPix(new_dir_c, new_pix, K_inv_);
+        Vector3d new_dir_I = x.q.rota(q_ub_.rotp(q_uc_.rota(new_dir_c)));
+
+        // Find intersection between direction vector and the environment box (assuming we're inside the box)
+        Vector3d p_cam = x.p + x.q.rota(q_ub_.rotp(p_uc_ - p_ub_));
+        Vector3d new_lm;
+        double d = 1e9;
+        for (auto& plane : env.getPlanes())
+        {
+          double dir_dot_n = new_dir_I.dot(plane.n);
+          if (dir_dot_n >= 0)
+            continue;
+          double d_new = (plane.r - p_cam).dot(plane.n) / dir_dot_n;
+          if (d_new < d)
+            new_lm = d_new*new_dir_I;
+          d = d_new;
+        }
+
+        // Add some variance to depth of new landmark and add noise to pixel measurement
+        new_pix += pixel_noise_;
+        d += env.getDepthVariation() * 2.0*(std::rand()/RAND_MAX - 0.5);
+
+        // Store new landmark in environment and in the image
+        env.addLandmark(new_lm);
+        image_.feats.push_back(common::Featd(i, new_pix, d*new_dir_c));
+      }
+    }
 
     // Save camera measurement
     if (image_.feats.size() > 0 && save_pixel_measurements_)

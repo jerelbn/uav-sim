@@ -1,7 +1,7 @@
 function animate_3d(speed, name, s_pts)
 
     % Load data
-    env = reshape(fread(fopen(strcat('/tmp/environment.log'), 'r'), 'double'), 3, []);
+    env = reshape(fread(fopen(strcat('/tmp/landmarks.log'), 'r'), 'double'), 3, []);
     air_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
     gmbl_state = reshape(fread(fopen(strcat(['/tmp/','gimbal','_true_state.log']), 'r'), 'double'), 1 + 19, []);
     air_command = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []);
