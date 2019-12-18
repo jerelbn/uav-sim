@@ -42,10 +42,10 @@ imu_enabled: true
 camera_enabled: true
 mocap_enabled: false
 baro_enabled: false
-mag_enabled: false
+mag_enabled: true
 pitot_enabled: false
 wvane_enabled: false
-gps_enabled: false
+gps_enabled: true
 
 use_accel_truth: false
 use_gyro_truth: false
@@ -59,9 +59,8 @@ use_gps_truth: false
 
 ## IMU
 imu_update_rate: 250
-p_ub: [0.0930, -0.0685, 0.0941] # translation from IMU to body in IMU frame
-q_ub: [0.9991, -0.0078, 0.0416, 0.0003] # rotation from IMU to body frame
-# NOTE: do not include any yaw rotation
+p_bu: [0, 0, 0] # translation from body to IMU in body frame
+q_bu: [1, 0, 0, 0] # rotation from body to IMU frame
 
 accel_noise_stdev: 1.0
 accel_bias_init_bound: 1.0
@@ -81,16 +80,16 @@ image_size: [640, 480]
 camera_matrix: [480,   0, 320,
                   0, 480, 240,
                   0,   0,   1]
-p_uc: [0.1, 0.05, 0.03] # translation from IMU to camera in IMU frame
-q_uc: [0.7071, 0.0, 0.0, 0.7071] # rotation from IMU to camera
+p_bcb: [0, 0, 0] # translation from body to camera-body in body frame
+q_bcb: [1, 0, 0, 0] # rotation from body to camera-body
 save_pixel_measurements: false
 
 ## Motion Capture
 mocap_update_rate: 50
 mocap_time_delay: 0.0
 mocap_noise_stdev: 0.001
-p_um: [0.0930, -0.0685, 0.0941] # translation from IMU to mocap_body in body frame
-q_um: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from IMU to mocap_body
+p_bm: [0, 0, 0] # translation from body to mocap in body frame
+q_bm: [1, 0, 0, 0] # rotation from body to mocap
 
 ## Barometer
 baro_update_rate: 50
@@ -103,6 +102,7 @@ mag_update_rate: 50
 mag_noise_stdev: 1.0
 mag_bias_init_bound: 50
 mag_walk_stdev: 1.0
+q_bmag: [1, 0, 0, 0] # rotation from body to mag
 
 ## Pitot Tube
 pitot_update_rate: 50

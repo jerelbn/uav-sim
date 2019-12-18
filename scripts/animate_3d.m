@@ -1,7 +1,7 @@
 function animate_3d(speed, name, s_pts)
 
     % Load data
-    env = reshape(fread(fopen(strcat('/tmp/landmarks.log'), 'r'), 'double'), 3, []);
+    lm = reshape(fread(fopen(strcat('/tmp/landmarks.log'), 'r'), 'double'), 3, []);
     air_state = reshape(fread(fopen(strcat(['/tmp/',name,'_true_state.log']), 'r'), 'double'), 1 + 19, []);
     gmbl_state = reshape(fread(fopen(strcat(['/tmp/','gimbal','_true_state.log']), 'r'), 'double'), 1 + 19, []);
     air_command = reshape(fread(fopen(strcat(['/tmp/',name,'_commanded_state.log']), 'r'), 'double'), 1 + 19, []);
@@ -9,6 +9,7 @@ function animate_3d(speed, name, s_pts)
     gmbl_params = ReadYaml('../params/gimbal.yaml');
     fov_x = 2*atan(gmbl_params.image_size{1}/2/gmbl_params.camera_matrix{1});
     fov_y = 2*atan(gmbl_params.image_size{2}/2/gmbl_params.camera_matrix{5});
+    R_g_cb = R_from_q(cell2mat(gmbl_params.q_bcb));
 
     persistent body_handle gmbl_handle true_path_handle cmd_handle bike_trail_handle bike_handle
 
@@ -47,17 +48,17 @@ function animate_3d(speed, name, s_pts)
             set(gca,'YDir','Reverse')
             set(gca,'ZDir','Reverse')
             
-            plot3(env(1,:), env(2,:), env(3,:), 'k.', 'MarkerSize', 4.0)
+            plot3(lm(1,:), lm(2,:), lm(3,:), 'k.', 'MarkerSize', 4.0)
             plot3([air_state(2,1),air_command(2,1)], [air_state(3,1),air_command(3,1)], [air_state(4,1),air_command(4,1)], 'g--')
             body_handle = draw_body(i, points, air_state, []);
-            gmbl_handle = draw_cam_fov(i, gmbl_state, fov_x, fov_y, []);
+            gmbl_handle = draw_cam_fov(i, gmbl_state, fov_x, fov_y, R_g_cb, []);
             true_path_handle = plot3(air_state(2,1:i), air_state(3,1:i), air_state(4,1:i), 'b', 'linewidth', 1.5);
             cmd_handle = plot3(air_command(2,1:i), air_command(3,1:i), air_command(4,1:i), 'g--', 'linewidth', 1.3);
             bike_trail_handle = plot3(bike_state(2,1:i), bike_state(3,1:i), bike_state(4,1:i), 'm', 'linewidth', 1.3);
             bike_handle = plot3(bike_state(2,i), bike_state(3,i), bike_state(4,i), 'm', 'Marker', '*', 'markersize', 5.0);
         else
             draw_body(i, points, air_state, body_handle);
-            draw_cam_fov(i, gmbl_state, fov_x, fov_y, gmbl_handle);
+            draw_cam_fov(i, gmbl_state, fov_x, fov_y, R_g_cb, gmbl_handle);
             set(true_path_handle, 'XData', air_state(2,i-qh:i), 'YData', air_state(3,i-qh:i),'ZData', air_state(4,i-qh:i));
             set(cmd_handle, 'XData', air_command(2,1:i), 'YData', air_command(3,1:i),'ZData', air_command(4,1:i));
             set(bike_trail_handle, 'XData', bike_state(2,i-bh:i), 'YData', bike_state(3,i-bh:i),'ZData', bike_state(4,i-bh:i));
@@ -106,7 +107,7 @@ function handle = draw_body(iter, body_verts, state, handle)
     end
 end
 
-function handle = draw_cam_fov(iter, state, fov_x, fov_y, handle)
+function handle = draw_cam_fov(iter, state, fov_x, fov_y, R_g_cb, handle)
     % extract data
     R_I_g = R_from_q(state(11:14, iter));
     pn = state(2, iter);
@@ -125,7 +126,7 @@ function handle = draw_cam_fov(iter, state, fov_x, fov_y, handle)
             ix,  iy,  iz ]'; % bot-right
         
     % transform from gimbal coordinates to inertial coordinates
-    pts = R_I_g'*pts;
+    pts = R_I_g'*R_g_cb'*pts;
 
     % first vertex is at center of MAV vehicle frame
     V = [pn, pe, pd]; 

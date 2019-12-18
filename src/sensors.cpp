@@ -7,7 +7,9 @@ namespace sensors
 
 Sensors::Sensors()
   : imu_id_(0), mocap_id_(0), image_id_(0), gps_id_(0), baro_id_(0), pitot_id_(0), wvane_id_(0)
-{}
+{
+  q_cbc_ = quat::Quatd(M_PI/2, 0, M_PI/2);
+}
 Sensors::~Sensors() {}
 
 
@@ -39,16 +41,16 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   // IMU
   stringstream ss_accel;
   double accel_bias_init_bound, accel_noise_stdev, accel_walk_stdev;
-  Vector4d q_ub;
+  Vector4d q_bu;
   common::get_yaml_node("imu_enabled", filename, imu_enabled_);
   common::get_yaml_node("imu_update_rate", filename, imu_update_rate_);
-  common::get_yaml_eigen("q_ub", filename, q_ub);
-  common::get_yaml_eigen("p_ub", filename, p_ub_);
+  common::get_yaml_eigen("q_bu", filename, q_bu);
+  common::get_yaml_eigen("p_bu", filename, p_bu_);
   common::get_yaml_node("use_accel_truth", filename, use_accel_truth_);
   common::get_yaml_node("accel_noise_stdev", filename, accel_noise_stdev);
   common::get_yaml_node("accel_walk_stdev", filename, accel_walk_stdev);
   common::get_yaml_node("accel_bias_init_bound", filename, accel_bias_init_bound);
-  q_ub_ = quat::Quatd(q_ub.normalized());
+  q_bu_ = quat::Quatd(q_bu.normalized());
   accel_noise_dist_ = normal_distribution<double>(0.0, accel_noise_stdev);
   accel_walk_dist_ = normal_distribution<double>(0.0, accel_walk_stdev);
   accel_bias_ = accel_bias_init_bound * Vector3d::Random();
@@ -78,7 +80,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   // Camera
   stringstream ss_cam;
   double pixel_noise_stdev, depth_noise_stdev;
-  Vector4d q_uc;
+  Vector4d q_bcb;
   common::get_yaml_node("camera_enabled", filename, camera_enabled_);
   common::get_yaml_node("camera_max_features", filename, cam_max_feat_);
   common::get_yaml_node("use_camera_truth", filename, use_camera_truth_);
@@ -89,12 +91,12 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("depth_noise_stdev", filename, depth_noise_stdev);
   common::get_yaml_eigen("image_size", filename, image_size_);
   common::get_yaml_eigen("camera_matrix", filename, K_);
-  common::get_yaml_eigen("q_uc", filename, q_uc);
-  common::get_yaml_eigen("p_uc", filename, p_uc_);
+  common::get_yaml_eigen("q_bcb", filename, q_bcb);
+  common::get_yaml_eigen("p_bcb", filename, p_bcb_);
   pixel_noise_dist_ = normal_distribution<double>(0.0, pixel_noise_stdev);
   depth_noise_dist_ = normal_distribution<double>(0.0, depth_noise_stdev);
   K_inv_ = K_.inverse();
-  q_uc_ = quat::Quatd(q_uc.normalized());
+  q_bcb_ = quat::Quatd(q_bcb.normalized());
   pixel_noise_.setZero();
   new_camera_meas_ = false;
   last_camera_update_ = 0.0;
@@ -105,7 +107,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   // Motion Capture
   stringstream ss_mocap;
   double mocap_noise_stdev;
-  Vector4d q_um;
+  Vector4d q_bm;
   common::get_yaml_node("mocap_enabled", filename, mocap_enabled_);
   common::get_yaml_node("use_mocap_truth", filename, use_mocap_truth_);
   common::get_yaml_node("mocap_update_rate", filename, mocap_update_rate_);
@@ -113,9 +115,9 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   if (mocap_time_delay_ < 0)
     throw runtime_error("Cannot have a negative motion capture time delay!");
   common::get_yaml_node("mocap_noise_stdev", filename, mocap_noise_stdev);
-  common::get_yaml_eigen("q_um", filename, q_um);
-  common::get_yaml_eigen("p_um", filename, p_um_);
-  q_um_ = quat::Quatd(q_um.normalized());
+  common::get_yaml_eigen("q_bm", filename, q_bm);
+  common::get_yaml_eigen("p_bm", filename, p_bm_);
+  q_bm_ = quat::Quatd(q_bm.normalized());
   mocap_noise_dist_ = normal_distribution<double>(0.0, mocap_noise_stdev);
   mocap_noise_.setZero();
   new_mocap_meas_ = false;
@@ -146,12 +148,15 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   // Magnetometer
   stringstream ss_mag;
   double mag_bias_init_bound, mag_noise_stdev, mag_walk_stdev;
+  Vector4d q_bmag;
   common::get_yaml_node("mag_enabled", filename, mag_enabled_);
   common::get_yaml_node("mag_update_rate", filename, mag_update_rate_);
   common::get_yaml_node("use_mag_truth", filename, use_mag_truth_);
   common::get_yaml_node("mag_noise_stdev", filename, mag_noise_stdev);
   common::get_yaml_node("mag_walk_stdev", filename, mag_walk_stdev);
   common::get_yaml_node("mag_bias_init_bound", filename, mag_bias_init_bound);
+  common::get_yaml_eigen("q_bmag", filename, q_bmag);
+  q_bmag_ = quat::Quatd(q_bmag.normalized());
   mag_noise_dist_ = normal_distribution<double>(0.0, mag_noise_stdev);
   mag_walk_dist_ = normal_distribution<double>(0.0, mag_walk_stdev);
   mag_bias_ = mag_bias_init_bound * Vector3d::Random();
@@ -175,7 +180,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("pitot_bias_init_bound", filename, pitot_bias_init_bound);
   common::get_yaml_node("pitot_azimuth", filename, pitot_azimuth);
   common::get_yaml_node("pitot_elevation", filename, pitot_elevation);
-  q_b2pt_ = quat::Quatd(0, pitot_elevation, pitot_azimuth);
+  q_bpt_ = quat::Quatd(0, pitot_elevation, pitot_azimuth);
   pitot_noise_dist_ = normal_distribution<double>(0.0, pitot_noise_stdev);
   pitot_noise_ = 0;
   pitot_walk_dist_ = normal_distribution<double>(0.0, pitot_walk_stdev);
@@ -197,7 +202,7 @@ void Sensors::load(const string& filename, const bool& use_random_seed, const st
   common::get_yaml_node("wvane_noise_stdev", filename, wvane_noise_stdev);
   common::get_yaml_node("wvane_resolution", filename, wvane_resolution_);
   common::get_yaml_node("wvane_roll", filename, wvane_roll);
-  q_b2wv_ = quat::Quatd(wvane_roll, 0, 0);
+  q_bwv_ = quat::Quatd(wvane_roll, 0, 0);
   wvane_noise_dist_ = normal_distribution<double>(0.0, wvane_noise_stdev);
   wvane_noise_ = 0;
   new_wvane_meas_ = false;
@@ -288,11 +293,10 @@ void Sensors::imu(const double t, const vehicle::Stated& x)
       common::randomNormal(gyro_walk_,gyro_walk_dist_,rng_);
       gyro_bias_ += gyro_walk_ * dt;
     }
-    quat::Quatd q_i2u = x.q * q_ub_.inverse();
-    Vector3d p_bu = q_ub_.rotp(-p_ub_);
-    imu_.accel = q_ub_.rota(x.lin_accel + x.omega.cross(x.v) + x.omega.cross(x.omega.cross(p_bu)) +
-                 x.ang_accel.cross(p_bu)) - common::gravity * q_i2u.rotp(common::e3) + accel_bias_ + accel_noise_;
-    imu_.gyro = q_ub_.rota(x.omega) + gyro_bias_ + gyro_noise_;
+    quat::Quatd q_Iu = x.q * q_bu_;
+    imu_.accel = q_bu_.rotp(x.lin_accel + x.omega.cross(x.v) + x.omega.cross(x.omega.cross(p_bu_)) +
+                 x.ang_accel.cross(p_bu_)) - common::gravity * q_Iu.rotp(common::e3) + accel_bias_ + accel_noise_;
+    imu_.gyro = q_bu_.rotp(x.omega) + gyro_bias_ + gyro_noise_;
     imu_.t = t;
     imu_.id = imu_id_++;
 
@@ -323,7 +327,7 @@ void Sensors::camera(const double t, const vehicle::Stated &x, environment::Envi
     for (int i = 0; i < env.getLandmarks().size(); ++i)
     {
       // Landmark vector in camera frame
-      Vector3d p_cl = q_uc_.rotp(q_ub_.rota(x.q.rotp(env.getLandmarks()[i] - x.p)) - p_uc_ + p_ub_);
+      Vector3d p_cl = q_cbc_.rotp(q_bcb_.rotp(x.q.rotp(env.getLandmarks()[i] - x.p) - p_bcb_));
 
       // Check if landmark is in front of camera
       if (p_cl(2) < 0)
@@ -340,8 +344,6 @@ void Sensors::camera(const double t, const vehicle::Stated &x, environment::Envi
     }
     image_.t = t;
     image_.id = image_id_++;
-
-    // Add features to image grid
 
     // Partition image into a grid
     const int cell_size = env.getGridCellFrac() * image_size_(1);
@@ -374,37 +376,37 @@ void Sensors::camera(const double t, const vehicle::Stated &x, environment::Envi
         int x_cell = i - y_cell*grid_width;
 
         // Randomly choose pixel position within the cell
-        double pix_x = x_cell*cell_size + double(std::rand()/RAND_MAX*cell_size);
-        double pix_y = y_cell*cell_size + double(std::rand()/RAND_MAX*cell_size);
+        double pix_x = x_cell*cell_size + std::rand()/double(RAND_MAX)*cell_size;
+        double pix_y = y_cell*cell_size + std::rand()/double(RAND_MAX)*cell_size;
         Vector2d new_pix(pix_x, pix_y);
 
         // Get direction vector from pixel points and rotate it to inertial frame
-        Vector3d new_dir_c;
-        common::dirFromPix(new_dir_c, new_pix, K_inv_);
-        Vector3d new_dir_I = x.q.rota(q_ub_.rotp(q_uc_.rota(new_dir_c)));
+        Vector3d l_c;
+        common::dirFromPix(l_c, new_pix, K_inv_);
+        Vector3d l = x.q.rota(q_bcb_.rota(q_cbc_.rota(l_c)));
 
         // Find intersection between direction vector and the environment box (assuming we're inside the box)
-        Vector3d p_cam = x.p + x.q.rota(q_ub_.rotp(p_uc_ - p_ub_));
-        Vector3d new_lm;
+        Vector3d l0 = x.p + x.q.rota(p_bcb_);
         double d = 1e9;
         for (auto& plane : env.getPlanes())
         {
-          double dir_dot_n = new_dir_I.dot(plane.n);
-          if (dir_dot_n >= 0)
+          Vector3d p0 = plane.r;
+          Vector3d n = plane.n;
+          double l_dot_n = l.dot(n);
+          if (l_dot_n >= 0)
             continue;
-          double d_new = (plane.r - p_cam).dot(plane.n) / dir_dot_n;
+          double d_new = (p0 - l0).dot(n) / l_dot_n;
           if (d_new < d)
-            new_lm = d_new*new_dir_I;
-          d = d_new;
+            d = d_new;
         }
 
         // Add some variance to depth of new landmark and add noise to pixel measurement
         new_pix += pixel_noise_;
-        d += env.getDepthVariation() * 2.0*(std::rand()/RAND_MAX - 0.5);
+        d += env.getDepthVariation() * 2.0*(std::rand()/double(RAND_MAX) - 0.5);
 
         // Store new landmark in environment and in the image
-        env.addLandmark(new_lm);
-        image_.feats.push_back(common::Featd(i, new_pix, d*new_dir_c));
+        env.addLandmark(l0 + d*l);
+        image_.feats.push_back(common::Featd(i, new_pix, d*l_c));
       }
     }
 
@@ -450,8 +452,8 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
       common::randomNormal(mocap_noise_,mocap_noise_dist_,rng_);
 
     // Populate mocap measurement
-    mocap_truth_.t_ = x.p + x.q.rota(q_ub_.rotp(p_um_ - p_ub_));
-    mocap_truth_.q_ = x.q * q_ub_.inverse() * q_um_;
+    mocap_truth_.t_ = x.p + x.q.rota(p_bm_);
+    mocap_truth_.q_ = x.q * q_bm_;
     mocap_.transform.t_ = mocap_truth_.t_ + mocap_noise_.head<3>();
     mocap_.transform.q_ = mocap_truth_.q_ + mocap_noise_.tail<3>();
     mocap_.t = t;
@@ -459,7 +461,7 @@ void Sensors::mocap(const double t, const vehicle::Stated &x)
 
     // Log data
     mocap_log_.log(t);
-    mocap_log_.logMatrix(mocap_.transform.arr_, mocap_truth_.arr_, p_um_, q_um_.arr_);
+    mocap_log_.logMatrix(mocap_.transform.arr_, mocap_truth_.arr_, p_bm_, q_bm_.arr_);
 
     // Store measurements in a buffer to be published later
     mocap_buffer_.push_back(mocap_);
@@ -534,7 +536,7 @@ void Sensors::mag(const double t, const vehicle::Stated& x)
     Vector3d B_mnp(-Btheta, 0.0, -Br);
 
     // Populate magnetic field measurement (currently uses simple dipole model)
-    mag_.field = x.q.rotp(X_ecef2ned_.q_.rotp(q_ecef_to_mnp_.rota(B_mnp)) + mag_bias_) + mag_noise_;
+    mag_.field = q_bmag_.rotp(x.q.rotp(X_ecef2ned_.q_.rotp(q_ecef_to_mnp_.rota(B_mnp)) + mag_bias_)) + mag_noise_;
     mag_.t = t;
     mag_.id = mag_id_++;
 
@@ -566,7 +568,7 @@ void Sensors::pitot(const double t, const vehicle::Stated& x, const Vector3d& vw
     // Populate pitot tube measurement
     pitot_.t = t;
     pitot_.id = pitot_id_++;
-    double Va = common::e1.dot(q_b2pt_.rotp(x.v - x.q.rotp(vw)));
+    double Va = common::e1.dot(q_bpt_.rotp(x.v - x.q.rotp(vw)));
     pitot_.pres = 0.5 * rho_ * Va * Va + pitot_bias_ + pitot_noise_;
 
     // Log data
@@ -593,7 +595,7 @@ void Sensors::wvane(const double t, const vehicle::Stated& x, const Vector3d& vw
     wvane_.t = t;
     wvane_.id = wvane_id_++;
     Vector3d v_aI_b = x.v - x.q.rotp(vw);
-    double wvane_true = asin(common::e2.dot(q_b2wv_.rotp(v_aI_b)) / v_aI_b.norm());
+    double wvane_true = asin(common::e2.dot(q_bwv_.rotp(v_aI_b)) / v_aI_b.norm());
     int num_ticks = round((wvane_true + wvane_noise_) * wvane_resolution_ / (2.0 * M_PI));
     wvane_.angle = 2.0 * M_PI * num_ticks / wvane_resolution_;
 

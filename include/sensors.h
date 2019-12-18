@@ -81,8 +81,8 @@ private:
   Vector3d gyro_bias_, gyro_noise_, gyro_walk_;
   normal_distribution<double> accel_noise_dist_, accel_walk_dist_;
   normal_distribution<double> gyro_noise_dist_, gyro_walk_dist_;
-  quat::Quatd q_ub_; // rotations IMU-to-body
-  Vector3d p_ub_; // translations IMU-to-body in IMU frame
+  quat::Quatd q_bu_; // rotation body to IMU
+  Vector3d p_bu_; // translation body to IMU in body frame
   common::Logger accel_log_, gyro_log_;
 
   // Camera
@@ -97,8 +97,9 @@ private:
   Vector2d pixel_noise_;
   Matrix3d K_, K_inv_;
   Vector2d image_size_;
-  quat::Quatd q_uc_; // rotations IMU-to-camera
-  Vector3d p_uc_; // translations IMU-to-camera in IMU frame
+  quat::Quatd q_cbc_; // rotation NED-style camera-body to camera
+  quat::Quatd q_bcb_; // rotation body to camera-body
+  Vector3d p_bcb_; // translation body to camera-body in body frame
   common::Logger cam_log_;
 
   // Motion Capture
@@ -111,8 +112,8 @@ private:
   normal_distribution<double> mocap_noise_dist_;
   Matrix<double, 6, 1> mocap_noise_;
   xform::Xformd mocap_truth_;
-  Vector3d p_um_; // translation IMU-to-mocap-body in IMU frame
-  quat::Quatd q_um_; // rotation IMU-to-mocap-body
+  Vector3d p_bm_; // translation body to mocap in body frame
+  quat::Quatd q_bm_; // rotation body to mocap
   common::Logger mocap_log_;
 
   // Barometer
@@ -133,6 +134,7 @@ private:
   normal_distribution<double> mag_walk_dist_;
   normal_distribution<double> mag_noise_dist_;
   Vector3d mag_bias_, mag_walk_, mag_noise_;
+  quat::Quatd q_bmag_; // rotation body to magnetometer
   common::Logger mag_log_;
 
   // Pitot Tube (for air speed along some axis)
@@ -143,7 +145,7 @@ private:
   normal_distribution<double> pitot_walk_dist_;
   normal_distribution<double> pitot_noise_dist_;
   double pitot_bias_, pitot_walk_, pitot_noise_;
-  quat::Quatd q_b2pt_; // rotation from body to pitot tube frame
+  quat::Quatd q_bpt_; // rotation from body to pitot tube frame
   common::Logger pitot_log_;
 
   // Weather vane (for sideslip angle)
@@ -154,7 +156,7 @@ private:
   normal_distribution<double> wvane_noise_dist_;
   int wvane_resolution_; // rotary encoder discrete measurement steps
   double wvane_noise_;
-  quat::Quatd q_b2wv_; // rotation from body to weather vane frame
+  quat::Quatd q_bwv_; // rotation from body to weather vane frame
   common::Logger wvane_log_;
 
   // GPS
