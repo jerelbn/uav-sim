@@ -21,6 +21,6 @@ plot_gimbal(gimbal_params)
 % plot_sensors(gimbal_params)
 % plot_quad_ekf(pbviekf_params, true, true, false)
 % animate_3d(50, 'quad1', 0.5)
-% animate_img(1,quad1_params,)
+% animate_img(1,gimbal_params)
 
 % plot_bicycle('bike1')

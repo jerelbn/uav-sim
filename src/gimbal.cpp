@@ -76,7 +76,8 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
   x_.lin_accel = q_bg_.rotp(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(p_bg_)) + omegadot_bI_b.cross(p_bg_));
 
   // Update controller
-  ctrl_.computeControl(t, x_.omega, q_bg_, u_);
+  Eigen::Vector3d dir_c = (Vector3d(20,0,0) - x_.p).normalized();
+  ctrl_.computeControl(t, x_.q, dir_c, x_.omega, q_bg_, u_);
   
   // Integrate torques applied to gimbal for rotational states
   omega_aircraft_ = q_Ib.rota(omega_bI_b);

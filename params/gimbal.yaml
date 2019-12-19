@@ -39,13 +39,13 @@ yaw_rate_kp: 2.0
 yaw_rate_ki: 0.0
 yaw_rate_kd: 0.4
 
-roll_kp: 0.0
+roll_kp: 5.0
 roll_ki: 0.0
 roll_kd: 0.0
-pitch_kp: 0.0
+pitch_kp: 5.0
 pitch_ki: 0.0
 pitch_kd: 0.0
-yaw_kp: 0.0
+yaw_kp: 5.0
 yaw_ki: 0.0
 yaw_kd: 0.0
 
@@ -89,8 +89,8 @@ camera_time_delay: 0.0
 pixel_noise_stdev: 0.5
 depth_noise_stdev: 1.0
 image_size: [640, 480]
-camera_matrix: [480,   0, 320,
-                  0, 480, 240,
+camera_matrix: [1200,   0, 320,
+                  0, 1200, 240,
                   0,   0,   1]
 p_bcb: [0, 0, 0] # translation from body to camera-body in body frame
 q_bcb: [1, 0, 0, 0] # rotation from body to camera-body

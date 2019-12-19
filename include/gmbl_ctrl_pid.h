@@ -18,14 +18,17 @@ public:
   ~Controller();
 
   void load(const std::string &filename, const std::string &name);
-  void computeControl(const double& t, const Eigen::Vector3d& omega, const quat::Quatd& q_bg, Eigen::Vector3d& u);
+  void computeControl(const double& t, const quat::Quatd& q, const Eigen::Vector3d& cmd_dir_I, 
+                      const Eigen::Vector3d& omega, const quat::Quatd& q_bg, Eigen::Vector3d& u);
 
 private:
 
   int update_rate_;
   bool initialized_;
   double prev_time_;
-  std::ofstream command_log_;
+  std::ofstream motor_command_log_;
+  std::ofstream euler_command_log_;
+  Eigen::Vector3d euler_c_;
 
   double max_roll_torque_;
   double max_pitch_torque_;
