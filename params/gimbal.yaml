@@ -14,28 +14,40 @@ origin_altitude: 1387.998309 # (meters) altitude above sea level at flight locat
 origin_temperature: 70 # (degrees Fahrenheit) temperature at flight location
 
 mass: 0.2
-inertia: [0.6271, 0.6271, 1.25]
+inertia: [0.1, 0.1, 0.1]
 p_gcg: [0, 0, 0] # center of gravity offsets
 omega_f: 0.1 # relative angular rate threshold for friction to apply
 K_friction: [0.1, 0.1, 0.1] # friction coefficient drop-off for each axis
 
-max_roll: 1.0
-max_pitch: 1.0
-max_yaw_rate: 1.5
-max_tau_x: 200.0
-max_tau_y: 200.0
-max_tau_z: 50.0
+max_roll: 1.0472
+max_pitch: 1.0472
+
+max_roll_torque: 1.0
+max_pitch_torque: 1.0
+max_yaw_torque: 1.0
 
 # Controller
-roll_kp: 10.0
-roll_ki: 0.0
-roll_kd: 5.0
-pitch_kp: 10.0
-pitch_ki: 0.0
-pitch_kd: 5.0
+controller_update_rate: 50
+
+roll_rate_kp: 2.0
+roll_rate_ki: 0.0
+roll_rate_kd: 0.4
+pitch_rate_kp: 2.0
+pitch_rate_ki: 0.0
+pitch_rate_kd: 0.4
 yaw_rate_kp: 2.0
 yaw_rate_ki: 0.0
-yaw_rate_kd: 0.0
+yaw_rate_kd: 0.4
+
+roll_kp: 0.0
+roll_ki: 0.0
+roll_kd: 0.0
+pitch_kp: 0.0
+pitch_ki: 0.0
+pitch_kd: 0.0
+yaw_kp: 0.0
+yaw_ki: 0.0
+yaw_kd: 0.0
 
 # Sensors
 imu_enabled: true

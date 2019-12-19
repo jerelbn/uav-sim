@@ -7,6 +7,7 @@
 #include "vehicle.h"
 #include "sensors.h"
 #include "environment.h"
+#include "gmbl_ctrl_pid.h"
 
 using namespace Eigen;
 
@@ -34,7 +35,7 @@ private:
   void log(const double &t);
   void f(const vehicle::Stated& x, const Vector3d& u, const Vector3d& vw, vehicle::dxVector& dx);
 
-  // controller here
+  gmbl_ctrl_pid::Controller ctrl_;
   sensors::Sensors sensors_;
   // estimator here
 
@@ -47,9 +48,11 @@ private:
   //   angular acceleration of gimbal w.r.t. inertial in gimbal frame
   vehicle::Stated x_;
   vehicle::dxVector dx_;
+  quat::Quatd q_bg_;
 
   bool accurate_integration_;
   double t_prev_, mass_, omega_f_;
+  double max_roll_, max_pitch_;
   Matrix3d inertia_matrix_, inertia_inv_;
   Vector3d p_bg_; // translation body to gimbal in body frame
   Vector3d p_gcg_; // center of gravity offset

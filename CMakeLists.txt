@@ -41,6 +41,7 @@ add_executable(uav_sim
   src/fw_lqr.cpp
   src/fw_ekf.cpp
   src/gimbal.cpp
+  src/gmbl_ctrl_pid.cpp
   )
 target_link_libraries(uav_sim
   common_cpp

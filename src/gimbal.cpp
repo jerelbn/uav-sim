@@ -24,9 +24,12 @@ void Gimbal::load(const std::string &filename, const bool& use_random_seed)
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("omega_f", filename, omega_f_);
+  common::get_yaml_node("max_roll", filename, max_roll_);
+  common::get_yaml_node("max_pitch", filename, max_pitch_);
   u_.setZero();
 
   // Load other modules (e.g. controller, estimator, sensors)
+  ctrl_.load(filename, name_);
   sensors_.load(filename, use_random_seed, name_);
 
   // Load all Gimbal parameters
@@ -67,9 +70,13 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
   Vector3d omegadot_bI_b = aircraft_state.ang_accel;
 
   // Compute current translational states based on aircraft states
+  q_bg_ = q_Ib.inverse() * x_.q;
   x_.p = p_bI_I + q_Ib.rota(p_bg_);
-  x_.v = q_Ib.rota(v_bI_b + omega_bI_b.cross(p_bg_));
-  x_.lin_accel = q_Ib.rota(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(p_bg_)) + omegadot_bI_b.cross(p_bg_));
+  x_.v = q_bg_.rotp(v_bI_b + omega_bI_b.cross(p_bg_));
+  x_.lin_accel = q_bg_.rotp(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(p_bg_)) + omegadot_bI_b.cross(p_bg_));
+
+  // Update controller
+  ctrl_.computeControl(t, x_.omega, q_bg_, u_);
   
   // Integrate torques applied to gimbal for rotational states
   omega_aircraft_ = q_Ib.rota(omega_bI_b);
@@ -88,6 +95,30 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
     dx_ *= dt;
   }
   x_ += dx_;
+
+  // Saturate gimbal roll/pitch angles
+  // NOTE: this could be improved by making angular rate/accel match the aircraft when aircraft rotates into the saturation but not otherwise
+  q_bg_ = q_Ib.inverse() * x_.q;
+  double roll = q_bg_.roll();
+  double pitch = q_bg_.pitch();
+  if (abs(roll) > max_roll_ || abs(pitch) > max_pitch_)
+  {
+    // Compute saturated attitude
+    roll = roll > max_roll_ ? max_roll_ : roll;
+    pitch = pitch > max_pitch_ ? max_pitch_ : pitch;
+    q_bg_ = q_bg_.from_euler(roll, pitch, q_bg_.yaw());
+    x_.q = q_Ib * q_bg_;
+
+    // Remove roll/pitch velocities
+    quat::Quatd q_g1_to_g;
+    q_g1_to_g.from_euler(q_bg_.roll(), q_bg_.pitch(), 0);
+    double omega_psi = q_g1_to_g.rota(x_.omega)(2);
+    x_.omega = q_g1_to_g.rotp(Vector3d(0,0,omega_psi));
+
+    // Remove roll/pitch accelerations
+    double domega_psi = q_g1_to_g.rota(x_.ang_accel)(2);
+    x_.ang_accel = q_g1_to_g.rotp(Vector3d(0,0,domega_psi));
+  }
 
   // Collect new sensor measurements
   sensors_.updateMeasurements(t, x_, env);
@@ -109,8 +140,8 @@ void Gimbal::f(const vehicle::Stated& x, const Vector3d& u,
 
   Vector3d tau_g = p_gcg_.cross(mass_*common::gravity*x_.q.rotp(common::e3));
 
-  quat::Quatd q_g2_g = quat::Quatd(x_.q.roll(), 0, 0);
-  quat::Quatd q_g1_g = quat::Quatd(x_.q.roll(), x_.q.pitch(), 0);
+  quat::Quatd q_g2_g = quat::Quatd(q_bg_.roll(), 0, 0);
+  quat::Quatd q_g1_g = quat::Quatd(q_bg_.roll(), q_bg_.pitch(), 0);
   Vector3d tau_m = u(0) * common::e1 +
                    u(1) * q_g2_g.rotp(common::e2) +
                    u(2) * q_g1_g.rotp(common::e3);

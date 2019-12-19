@@ -3,7 +3,7 @@ function plot_gimbal(params)
 % Load data
 true_state = reshape(fread(fopen(strcat(['/tmp/',params.name,'_true_state.log']), 'r'), 'double'), 1 + 19, []); % [time;pos;vel;accel;att;ang_vel;ang_accel]
 true_euler = reshape(fread(fopen(strcat(['/tmp/',params.name,'_euler_angles.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
-% motor_command = reshape(fread(fopen(strcat(['/tmp/',params.name,'_motor_command.log']), 'r'), 'double'), 1 + 4, []); % [time;roll;pitch;yaw]
+motor_command = reshape(fread(fopen(strcat(['/tmp/',params.name,'_motor_command.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
 % euler_command = reshape(fread(fopen(strcat(['/tmp/',params.name,'_euler_command.log']), 'r'), 'double'), 1 + 3, []); % [time;roll;pitch;yaw]
 
 
@@ -82,6 +82,15 @@ for i=1:3
 %     end
 end
 
+
+figure()
+set(gcf, 'name', strcat([params.name,' motor commands']), 'NumberTitle', 'off');
+titles = ["roll","pitch","yaw"];
+for i=1:3
+    subplot(3, 1, i), hold on, grid on
+    title(titles(i))
+    plot(motor_command(1,:), motor_command(i + 1, :), 'linewidth', 2.0)
+end
 
 % figure()
 % set(gcf, 'name', strcat([params.name,' commands']), 'NumberTitle', 'off');
