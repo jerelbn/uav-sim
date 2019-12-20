@@ -87,7 +87,7 @@ void Controller::computeControl(const double& t, const quat::Quatd& q, const Eig
     double yaw_c = atan2(dir_xy(1), dir_xy(0));
 
     quat::Quatd q_yaw = quat::Quatd::from_euler(0,0,yaw_c);
-    Eigen::Vector3d dir_p = q_yaw.rota(cmd_dir_I);
+    Eigen::Vector3d dir_p = q_yaw.rotp(cmd_dir_I);
     double pitch_c = atan2(-dir_p(2), dir_p(0));
 
     euler_c_ << roll_c, pitch_c, yaw_c;

@@ -1,7 +1,7 @@
 # Bicycle configuration
 name: bike1
 accurate_integration: true
-x0: [2, # NORTH
+x0: [100, # NORTH
      0, # EAST
      0, # DOWN
      0, # HEADING
@@ -20,9 +20,9 @@ k_theta: 5.0
 k_psi: 5.0
 velocity_command: 0.5
 
-waypoints: [8, 8,
-            -8, 8,
-            -8, -8,
-            8, -8]
+waypoints: [58, 58,
+            42, 58,
+            42, 42,
+            58, 42]
 waypoint_threshold: 1.0
 flat_ground: false

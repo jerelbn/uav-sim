@@ -15,6 +15,6 @@ wind_down_walk_stdev: 1.0 # Amount of random walk in down wind component
 
 grid_cell_fraction: 0.2 # Grid cell fraction of image size (smaller fraction = more image features)
 landmark_depth_variation: 1.0 # Maximum variation in depth of generated landmarks (m)
-north_dim: 100 # Total box length in north dimension (m)
-east_dim: 100 # Total box length in east dimension (m)
-height_dim: 50 # Total box height dimension (m)
+north_dim: 2000 # Total box length in north dimension (m)
+east_dim: 2000 # Total box length in east dimension (m)
+height_dim: 500 # Total box height dimension (m)

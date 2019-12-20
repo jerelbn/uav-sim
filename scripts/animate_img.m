@@ -6,7 +6,7 @@ pix = reshape(fread(fopen(strcat(['/tmp/',params.name,'_camera.log']), 'r'), 'do
 persistent image_handle
 
 for i =1:speed:size(pix,2)
-    pix_img = pix(pix(:,i) ~= nan,i);
+    pix_img = pix(~isnan(pix(:,i)),i);
     pix_img = reshape(pix_img(2:end),2,[]);
     if i == 1
         figure()

@@ -101,7 +101,8 @@ function handle = draw_body(iter, body_verts, state, handle)
         
     if iter == 1
         handle = patch('Vertices', V, 'Faces', F,...
-            'FaceVertexCData', patchcolors, 'FaceColor', 'flat', 'FaceAlpha', 0.5);
+                       'FaceVertexCData', patchcolors, 'FaceColor', 'flat',...
+                       'FaceAlpha', 0.5);
     else
         set(handle, 'Vertices', V, 'Faces', F);
     end
