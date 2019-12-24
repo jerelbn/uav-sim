@@ -152,7 +152,13 @@ public:
   void load(const string &filename, const string &name);
   void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
   static void f(const Stated &x, const uVector& u, dxVector& dx);
-  static void getFG(const Stated &x, const uVector& u, dxMatrix& F, nuMatrix& G);
+  static void h_gps(const Stated &x, const quat::Quatd &q_ecef2ned, Vector3d& h);
+  static void h_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, double& h);
+  static void getF(const Stated &x, const uVector& u, dxMatrix& F);
+  static void getG(const Stated &x, const uVector& u, nuMatrix& G);
+  static void getH_gps(const Stated &x, const Matrix3d &R_ecef2ned, Matrix<double,3,NUM_DOF> &H);
+  static void getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, Matrix<double,1,NUM_DOF> &H);
+  static Vector3d getMagFieldNED(const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp);
   vehicle::Stated getState() const;
 
 private:

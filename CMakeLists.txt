@@ -3,6 +3,7 @@ project(uav_sim)
 
 # default to release build
 if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Build type: Release")
   set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
 set(CMAKE_CXX_FLAGS "-std=c++14 -mavx2 -mfma -fopenmp")
@@ -11,6 +12,7 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Ceres REQUIRED)
+find_package(GTest REQUIRED)
 
 add_subdirectory(lib/common_cpp)
 add_subdirectory(lib/geometry)
@@ -62,3 +64,15 @@ target_link_libraries(fw_ekf_test
   geometry
   ${YAML_CPP_LIBRARIES}
   )
+
+add_executable(test_gmbl_ekf 
+  test/gmbl_ekf_test.cpp
+  src/gmbl_ekf.cpp
+)
+target_link_libraries(test_gmbl_ekf
+  gtest
+  gtest_main
+  pthread
+  ${GTEST_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
