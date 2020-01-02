@@ -50,11 +50,7 @@ struct State
 
   State()
   {
-    p.setZero();
-    v.setZero();
-    lin_accel.setZero();
-    omega.setZero();
-    ang_accel.setZero();
+    setZero();
   }
 
   State(const Matrix<T, NUM_STATES, 1>  &x0)
@@ -72,8 +68,10 @@ struct State
     State x;
     x.p = p + delta.template segment<3>(DP);
     x.v = v + delta.template segment<3>(DV);
+    x.lin_accel = lin_accel;
     x.q = q + delta.template segment<3>(DQ);
     x.omega = omega + delta.template segment<3>(DW);
+    x.ang_accel = ang_accel;
     x.drag = drag;
     return x;
   }

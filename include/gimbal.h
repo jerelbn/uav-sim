@@ -8,6 +8,7 @@
 #include "sensors.h"
 #include "environment.h"
 #include "gmbl_ctrl_pid.h"
+#include "gmbl_ekf.h"
 
 using namespace Eigen;
 
@@ -37,7 +38,7 @@ private:
 
   gmbl_ctrl_pid::Controller ctrl_;
   sensors::Sensors sensors_;
-  // estimator here
+  gmbl_ekf::EKF ekf_;
 
   // State members description:
   //   position inertial to gimbal in inertial frame

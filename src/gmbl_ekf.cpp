@@ -139,7 +139,7 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
 void EKF::updateMag(const Vector3d &z)
 {
   // Make sure GPS runs first
-  if (last_gps_pos_.sum() < 1e-6)
+  if (last_gps_pos_.norm() < 1e-6)
     return;
   
   // Measurement model and matrix
@@ -255,12 +255,25 @@ void EKF::getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd 
 
 void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
-  double accel_bias = sensors.getAccelBias().norm();
-  double mag_bias = sensors.getMagBias().norm();
+  // Get true accelerometer scale error
+  quat::Quatd q_Iu = x_true.q * q_bu_;
+  Vector3d acc_true = q_bu_.rotp(x_true.lin_accel + x_true.omega.cross(x_true.v) + x_true.omega.cross(x_true.omega.cross(p_bu_)) +
+                      x_true.ang_accel.cross(p_bu_)) - common::gravity * q_Iu.rotp(common::e3);
+  Vector3d acc_biased = acc_true + sensors.getAccelBias();
+  double accel_scale = acc_true.norm() / acc_biased.norm();
+  
+  // Get heading bias
+  Vector3d m_I_true = getMagFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
+  Vector3d m_I_biased = m_I_true + sensors.getMagBias();
+  Vector3d m_proj_true = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_true;
+  Vector3d m_proj_biased = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_biased;
+  Vector3d true_x_biased = m_proj_true.cross(m_proj_biased);
+  double mag_bias = common::sign(true_x_biased(2)) * acos(m_proj_true.dot(m_proj_biased) / (m_proj_true.norm()*m_proj_biased.norm()));
+
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)x_true.q.rota(x_true.v).data(), 3 * sizeof(double));
   true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)&accel_bias, sizeof(double)); // This is wrong. Need to compare with magnitude of de-noised measurement.
+  true_state_log_.write((char*)&accel_scale, sizeof(double)); // This is wrong. Need to compare with magnitude of de-noised measurement.
   true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
   true_state_log_.write((char*)&mag_bias, sizeof(double)); // This is wrong. Should be error in heading.
 }

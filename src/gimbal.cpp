@@ -31,6 +31,7 @@ void Gimbal::load(const std::string &filename, const bool& use_random_seed)
   // Load other modules (e.g. controller, estimator, sensors)
   ctrl_.load(filename, name_);
   sensors_.load(filename, use_random_seed, name_);
+  ekf_.load(filename, name_);
 
   // Load all Gimbal parameters
   double roll, pitch, yaw;
@@ -125,7 +126,8 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
     x_.ang_accel = q_g1_to_g.rotp(Vector3d(0,0,domega_psi));
   }
 
-  // Collect new sensor measurements
+  // Update the estimator, then collect new sensor measurements
+  ekf_.run(t, sensors_, vw_, x_);
   sensors_.updateMeasurements(t, x_, env);
 
   // Log all of that juicy data
@@ -151,8 +153,8 @@ void Gimbal::f(const vehicle::Stated& x, const Vector3d& u,
                    u(1) * q_g2_g.rotp(common::e2) +
                    u(2) * q_g1_g.rotp(common::e3);
 
-  dx.segment<3>(vehicle::DP).setZero();
-  dx.segment<3>(vehicle::DV).setZero();
+  dx.segment<3>(vehicle::DP) = x.v;
+  dx.segment<3>(vehicle::DV) = x.lin_accel;
   dx.segment<3>(vehicle::DQ) = x.omega;
   dx.segment<3>(vehicle::DW) = inertia_inv_ * (tau_f + tau_g + tau_m - x_.omega.cross(inertia_matrix_ * x_.omega));
 }
