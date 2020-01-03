@@ -45,18 +45,21 @@ void Controller::load(const std::string& filename, const bool& use_random_seed, 
   if (common::get_yaml_eigen("Kv", filename, Kv_diag))
     K_v_ = Kv_diag.asDiagonal();
 
-  common::get_yaml_node("roll_kp", filename, roll_.kp_);
-  common::get_yaml_node("roll_ki", filename, roll_.ki_);
-  common::get_yaml_node("roll_kd", filename, roll_.kd_);
-  common::get_yaml_node("pitch_kp", filename, pitch_.kp_);
-  common::get_yaml_node("pitch_ki", filename, pitch_.ki_);
-  common::get_yaml_node("pitch_kd", filename, pitch_.kd_);
-  common::get_yaml_node("yaw_rate_kp", filename, yaw_rate_.kp_);
-  common::get_yaml_node("yaw_rate_ki", filename, yaw_rate_.ki_);
-  common::get_yaml_node("yaw_rate_kd", filename, yaw_rate_.kd_);
-  common::get_yaml_node("max_tau_x", filename, roll_.max_);
-  common::get_yaml_node("max_tau_y", filename, pitch_.max_);
-  common::get_yaml_node("max_tau_z", filename, yaw_rate_.max_);
+  common::get_yaml_node("roll_kp", filename, roll_.kp);
+  common::get_yaml_node("roll_ki", filename, roll_.ki);
+  common::get_yaml_node("roll_kd", filename, roll_.kd);
+  common::get_yaml_node("pitch_kp", filename, pitch_.kp);
+  common::get_yaml_node("pitch_ki", filename, pitch_.ki);
+  common::get_yaml_node("pitch_kd", filename, pitch_.kd);
+  common::get_yaml_node("yaw_rate_kp", filename, yaw_rate_.kp);
+  common::get_yaml_node("yaw_rate_ki", filename, yaw_rate_.ki);
+  common::get_yaml_node("yaw_rate_kd", filename, yaw_rate_.kd);
+  common::get_yaml_node("max_tau_x", filename, roll_.max);
+  common::get_yaml_node("max_tau_y", filename, pitch_.max);
+  common::get_yaml_node("max_tau_z", filename, yaw_rate_.max);
+  roll_.min = -roll_.max;
+  pitch_.min = -pitch_.max;
+  yaw_rate_.min = -yaw_rate_.max;
   common::get_yaml_node("max_roll", filename, max_.roll);
   common::get_yaml_node("max_pitch", filename, max_.pitch);
   common::get_yaml_node("max_yaw_rate", filename, max_.yaw_rate);
@@ -136,7 +139,7 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, quadro
   double dt = t - prev_time_;
   prev_time_ = t;
 
-  if (dt < 0.0001)
+  if (dt <= 0)
   {
     u.setZero();
     return;
@@ -284,84 +287,6 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, quadro
 
   // Log all data
   log(t, u);
-}
-
-Controller::PID::PID() :
-  kp_(0.0f),
-  ki_(0.0f),
-  kd_(0.0f),
-  max_(1.0f),
-  integrator_(0.0f),
-  differentiator_(0.0f),
-  prev_x_(0.0f),
-  tau_(0.05)
-{}
-
-void Controller::PID::init(float kp, float ki, float kd, float max, float min, float tau)
-{
-  kp_ = kp;
-  ki_ = ki;
-  kd_ = kd;
-  max_ = max;
-  tau_ = tau;
-}
-
-float Controller::PID::run(float dt, float x, float x_c, bool update_integrator)
-{
-  float xdot;
-  if (dt > 0.0001f)
-  {
-    // calculate D term (use dirty derivative if we don't have access to a measurement of the derivative)
-    // The dirty derivative is a sort of low-pass filtered version of the derivative.
-    //// (Include reference to Dr. Beard's notes here)
-    differentiator_ = (2.0f * tau_ - dt) / (2.0f * tau_ + dt) * differentiator_
-        + 2.0f / (2.0f * tau_ + dt) * (x - prev_x_);
-    xdot = differentiator_;
-  }
-  else
-  {
-    xdot = 0.0f;
-  }
-  prev_x_ = x;
-
-  return run(dt, x, x_c, update_integrator, xdot);
-}
-
-float Controller::PID::run(float dt, float x, float x_c, bool update_integrator, float xdot)
-{
-  // Calculate Error
-  float error = x_c - x;
-
-  // Initialize Terms
-  float p_term = error * kp_;
-  float i_term = 0.0f;
-  float d_term = 0.0f;
-
-  // If there is a derivative term
-  if (kd_ > 0.0f)
-  {
-    d_term = kd_ * xdot;
-  }
-
-  //If there is an integrator term and we are updating integrators
-  if ((ki_ > 0.0f) && update_integrator)
-  {
-    // integrate
-    integrator_ += error * dt;
-    // calculate I term
-    i_term = ki_ * integrator_;
-  }
-
-  // sum three terms
-  float u = p_term - d_term + i_term;
-
-  // Integrator anti-windup
-  float u_sat = (u > max_) ? max_ : (u < -1.0 * max_) ? -1.0 * max_ : u;
-  if (u != u_sat && fabs(i_term) > fabs(u - p_term + d_term) && ki_ > 0.0f)
-    integrator_ = (u_sat - p_term + d_term)/ki_;
-
-  // Set output
-  return u_sat;
 }
 
 

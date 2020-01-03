@@ -42,27 +42,9 @@ private:
     double vel;
   } max_t;
 
-  struct PID
-  {
-    PID();
-    void init(float kp, float ki, float kd, float max, float min, float tau);
-    float run(float dt, float x, float x_c, bool update_integrator);
-    float run(float dt, float x, float x_c, bool update_integrator, float xdot);
-
-    float kp_;
-    float ki_;
-    float kd_;
-
-    float max_;
-
-    float integrator_;
-    float differentiator_;
-    float prev_x_;
-    float tau_;
-  };
-  PID roll_;
-  PID pitch_;
-  PID yaw_rate_;
+  common::PID<double> roll_;
+  common::PID<double> pitch_;
+  common::PID<double> yaw_rate_;
 
   // Parameters
   double throttle_eq_;
