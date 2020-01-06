@@ -26,6 +26,7 @@ void Gimbal::load(const std::string &filename, const bool& use_random_seed)
   common::get_yaml_node("omega_f", filename, omega_f_);
   common::get_yaml_node("max_roll", filename, max_roll_);
   common::get_yaml_node("max_pitch", filename, max_pitch_);
+  vw_.setZero();
   u_.setZero();
 
   // Load other modules (e.g. controller, estimator, sensors)
@@ -56,33 +57,19 @@ void Gimbal::load(const std::string &filename, const bool& use_random_seed)
 }
 
 
-void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, environment::Environment& env)
+void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, const sensors::Sensors &aircraft_sensors, environment::Environment& env)
 {
   // Time step for controller later
   double dt = t - t_prev_;
   t_prev_ = t;
 
-  // Unpack aircraft states for readability
-  Vector3d p_bI_I = aircraft_state.p;
-  Vector3d v_bI_b = aircraft_state.v;
-  Vector3d vdot_bI_b = aircraft_state.lin_accel;
-  quat::Quatd q_Ib = aircraft_state.q;
-  Vector3d omega_bI_b = aircraft_state.omega;
-  Vector3d omegadot_bI_b = aircraft_state.ang_accel;
-
-  // Compute current translational states based on aircraft states
-  q_bg_ = q_Ib.inverse() * x_.q;
-  x_.p = p_bI_I + q_Ib.rota(p_bg_);
-  x_.v = q_bg_.rotp(v_bI_b + omega_bI_b.cross(p_bg_));
-  x_.lin_accel = q_bg_.rotp(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(p_bg_)) + omegadot_bI_b.cross(p_bg_));
-
-  // Update controller
-  Eigen::Vector3d dir_c;
-  if (env.getVehiclePositions().size() > 0)
-    dir_c = (env.getVehiclePositions()[1] - x_.p).normalized();
-  else
-    dir_c = common::e1;
-  ctrl_.computeControl(t, x_.q, dir_c, x_.omega, q_bg_, u_);
+  // Unpack aircraft states at previous time for readability
+  Vector3d p_bI_I = aircraft_state_.p;
+  Vector3d v_bI_b = aircraft_state_.v;
+  Vector3d vdot_bI_b = aircraft_state_.lin_accel;
+  quat::Quatd q_Ib = aircraft_state_.q;
+  Vector3d omega_bI_b = aircraft_state_.omega;
+  Vector3d omegadot_bI_b = aircraft_state_.ang_accel;
   
   // Integrate torques applied to gimbal for rotational states
   omega_aircraft_ = q_Ib.rota(omega_bI_b);
@@ -102,8 +89,33 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
   }
   x_ += dx_;
 
+  // Unpack aircraft states at new time for readability
+  p_bI_I = aircraft_state.p;
+  v_bI_b = aircraft_state.v;
+  vdot_bI_b = aircraft_state.lin_accel;
+  q_Ib = aircraft_state.q;
+  omega_bI_b = aircraft_state.omega;
+  omegadot_bI_b = aircraft_state.ang_accel;
+
+  // Compute current translational states based on aircraft states
+  q_bg_ = q_Ib.inverse() * x_.q;
+  x_.p = p_bI_I + q_Ib.rota(p_bg_);
+  x_.v = q_bg_.rotp(v_bI_b + omega_bI_b.cross(p_bg_));
+  x_.lin_accel = q_bg_.rotp(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(p_bg_)) + omegadot_bI_b.cross(p_bg_));
+
+  // Update controller
+  Eigen::Vector3d dir_c;
+  if (env.getVehiclePositions().size() > 0)
+    dir_c = (env.getVehiclePositions()[1] - x_.p).normalized();
+  else
+    dir_c = common::e1;
+  ctrl_.computeControl(t, x_.q, dir_c, x_.omega, q_bg_, u_);
+
+  // Update angular acceleration
+  f(x_, u_, vw_, dx_);
+  x_.ang_accel = dx_.segment<3>(vehicle::DW);
+
   // Saturate gimbal roll/pitch angles
-  // NOTE: this could be improved by making angular rate/accel match the aircraft when aircraft rotates into the saturation but not otherwise
   q_bg_ = q_Ib.inverse() * x_.q;
   double roll = q_bg_.roll();
   double pitch = q_bg_.pitch();
@@ -119,15 +131,15 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
     quat::Quatd q_g1_to_g;
     q_g1_to_g.from_euler(q_bg_.roll(), q_bg_.pitch(), 0);
     double omega_psi = q_g1_to_g.rota(x_.omega)(2);
-    x_.omega = q_g1_to_g.rotp(Vector3d(0,0,omega_psi));
+    x_.omega = q_bg_.rotp(omega_bI_b) + q_g1_to_g.rotp(Vector3d(0,0,omega_psi));
 
     // Remove roll/pitch accelerations
     double domega_psi = q_g1_to_g.rota(x_.ang_accel)(2);
-    x_.ang_accel = q_g1_to_g.rotp(Vector3d(0,0,domega_psi));
+    x_.ang_accel = q_bg_.rotp(omegadot_bI_b) + q_g1_to_g.rotp(Vector3d(0,0,domega_psi));
   }
 
   // Update the estimator, then collect new sensor measurements
-  ekf_.run(t, sensors_, vw_, x_);
+  ekf_.run(t, sensors_, aircraft_sensors_, p_bg_, q_bg_, vw_, x_);
   sensors_.updateMeasurements(t, x_, env);
 
   // FIX ACCELEROMETER MEASUREMENT
@@ -142,6 +154,10 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
   sensors_.setImuAccel(sensors_.getImuAccel()
                        - q_bu.rotp(x_.omega.cross(x_.v) + x_.omega.cross(x_.omega.cross(p_bu)) + x_.ang_accel.cross(p_bu)) // remove incorrect parts
                        + q_bu.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu)) + ang_accel.cross(p_bu))); // add correct parts
+
+  // Store aircraft state and sensors for correct propagation
+  aircraft_state_ = aircraft_state;
+  aircraft_sensors_ = aircraft_sensors;
 
   // Log all of that juicy data
   log(t);

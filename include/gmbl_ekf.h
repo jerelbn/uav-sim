@@ -150,7 +150,8 @@ public:
   ~EKF();
 
   void load(const string &filename, const string &name);
-  void run(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_true);
+  void run(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors,
+           const Vector3d &p_bg, const quat::Quatd &q_bg, const Vector3d& vw, const vehicle::Stated& x_true);
   static void f(const Stated &x, const uVector& u, dxVector& dx);
   static void h_gps(const Stated &x, const quat::Quatd &q_ecef2ned, Vector3d& h);
   static void h_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, double& h);
@@ -165,12 +166,13 @@ private:
 
   void propagate(const double &t, const uVector &imu);
   void updateGPS(const Matrix<double,6,1>& z);
-  void updateMag(const Matrix<double,3,1>& z);
-  void logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true);
+  void updateMag(const Matrix<double,3,1>& z, const quat::Quatd &q_bg);
+  void logTruth(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors, const Vector3d& vw, const vehicle::Stated& x_true);
   void logEst(const double &t);
 
   // Primary variables
   double t_prev_;
+  bool mag_initialized_;
   State<double> x_;
   dxVector xdot_;
   dxMatrix P_, F_, A_;

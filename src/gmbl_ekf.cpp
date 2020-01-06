@@ -41,6 +41,7 @@ void EKF::load(const string &filename, const std::string& name)
   common::get_yaml_eigen("p_bu", filename, p_bu_);
   common::get_yaml_eigen("q_bu", filename, q_bu);
   common::get_yaml_node("ekf_R_mag", filename, R_mag_);
+  common::get_yaml_node("ekf_mag_initialized", filename, mag_initialized_);
   q_bu_ = quat::Quatd(q_bu);
 
   // GPS covariance is defined in local NED frame, transform it to ECEF
@@ -78,20 +79,33 @@ void EKF::load(const string &filename, const std::string& name)
 }
 
 
-void EKF::run(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
+void EKF::run(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors,
+              const Vector3d &p_bg, const quat::Quatd &q_bg, const Vector3d& vw, const vehicle::Stated& x_true)
 {
   // Propagate the state and covariance to the current time step
-  if (sensors.new_imu_meas_)
-    propagate(t, sensors.imu_.vec());
+  if (gimbal_sensors.new_imu_meas_)
+    propagate(t, gimbal_sensors.imu_.vec());
+
+  // Initialize mag bias at truth for now. Should to mag calibration later.
+  if (!mag_initialized_ && last_gps_pos_.norm() > 1e-6)
+  {
+    Vector3d m_I_true = getMagFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
+    Vector3d m_I_biased = m_I_true + aircraft_sensors.getMagBias();
+    Vector3d m_proj_true = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_true;
+    Vector3d m_proj_biased = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_biased;
+    Vector3d true_x_biased = m_proj_true.cross(m_proj_biased);
+    x_.bm = common::sign(true_x_biased(2)) * acos(m_proj_true.dot(m_proj_biased) / (m_proj_true.norm()*m_proj_biased.norm()));
+    mag_initialized_ = true;
+  }
 
   // Apply updates
-  if (sensors.new_gps_meas_ && t > 0)
-    updateGPS(sensors.gps_.vec());
-  if (sensors.new_mag_meas_ && t > 0)
-    updateMag(sensors.mag_.field);
+  if (aircraft_sensors.new_gps_meas_ && t > 0)
+    updateGPS(aircraft_sensors.gps_.vec()); // Gimbal is close enough to aircraft. Don't worry about tranforming measurement to Gimbal frame right now.
+  if (aircraft_sensors.new_mag_meas_ && t > 0)
+    updateMag(aircraft_sensors.mag_.field, q_bg);
 
   // Log data
-  logTruth(t, sensors, vw, x_true);
+  logTruth(t, gimbal_sensors, aircraft_sensors, vw, x_true);
   logEst(t);
 }
 
@@ -136,7 +150,7 @@ void EKF::updateGPS(const Matrix<double,6,1> &z)
 }
 
 
-void EKF::updateMag(const Vector3d &z)
+void EKF::updateMag(const Vector3d &z, const quat::Quatd &q_bg)
 {
   // Make sure GPS runs first
   if (last_gps_pos_.norm() < 1e-6)
@@ -149,8 +163,8 @@ void EKF::updateMag(const Vector3d &z)
   getH_mag(x_, last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_, H);
 
   // Kalman gain and update
-  double zx = common::e1.dot(x_.q.rota(z));
-  double zy = common::e2.dot(x_.q.rota(z));
+  double zx = common::e1.dot(x_.q.rota(q_bg.rotp(z)));
+  double zy = common::e2.dot(x_.q.rota(q_bg.rotp(z)));
   double z_psi = atan2(zy, zx);
   Matrix<double,NUM_DOF,1> K = P_ * H.transpose() / (R_mag_ + H * P_ * H.transpose());
   x_ += K * (z_psi - h);
@@ -253,28 +267,30 @@ void EKF::getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd 
 }
 
 
-void EKF::logTruth(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& x_true)
+void EKF::logTruth(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
   // Get true accelerometer scale error
   quat::Quatd q_Iu = x_true.q * q_bu_;
   Vector3d acc_true = q_bu_.rotp(x_true.lin_accel + x_true.omega.cross(x_true.v) + x_true.omega.cross(x_true.omega.cross(p_bu_)) +
                       x_true.ang_accel.cross(p_bu_)) - common::gravity * q_Iu.rotp(common::e3);
-  Vector3d acc_biased = acc_true + sensors.getAccelBias();
+  Vector3d acc_biased = acc_true + gimbal_sensors.getAccelBias();
   double accel_scale = acc_true.norm() / acc_biased.norm();
   
   // Get heading bias
   Vector3d m_I_true = getMagFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
-  Vector3d m_I_biased = m_I_true + sensors.getMagBias();
+  Vector3d m_I_biased = m_I_true + aircraft_sensors.getMagBias();
   Vector3d m_proj_true = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_true;
   Vector3d m_proj_biased = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_biased;
   Vector3d true_x_biased = m_proj_true.cross(m_proj_biased);
   double mag_bias = common::sign(true_x_biased(2)) * acos(m_proj_true.dot(m_proj_biased) / (m_proj_true.norm()*m_proj_biased.norm()));
 
+  Vector3d vI_true = x_true.q.rota(x_true.v);
+
   true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)x_true.q.rota(x_true.v).data(), 3 * sizeof(double));
+  true_state_log_.write((char*)vI_true.data(), 3 * sizeof(double));
   true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
   true_state_log_.write((char*)&accel_scale, sizeof(double)); // This is wrong. Need to compare with magnitude of de-noised measurement.
-  true_state_log_.write((char*)sensors.getGyroBias().data(), 3 * sizeof(double));
+  true_state_log_.write((char*)gimbal_sensors.getGyroBias().data(), 3 * sizeof(double));
   true_state_log_.write((char*)&mag_bias, sizeof(double)); // This is wrong. Should be error in heading.
 }
 

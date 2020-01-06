@@ -100,10 +100,10 @@ imu_enabled: true
 camera_enabled: false
 mocap_enabled: false
 baro_enabled: false
-mag_enabled: true
+mag_enabled: false
 pitot_enabled: false
 wvane_enabled: false
-gps_enabled: true
+gps_enabled: false
 
 use_accel_truth: false
 use_gyro_truth: false
@@ -158,10 +158,10 @@ baro_walk_stdev: 0.01
 
 ## Magnetometer
 mag_update_rate: 50
-mag_noise_stdev: 1.0
-mag_bias_init_bound: 50
-mag_walk_stdev: 1.0
-q_bmag: [0.9928, 0.0447, 0.0547, 0.0971] # rotation from body to mag
+mag_noise_stdev: 200.0 # (Tesla)
+mag_bias_init_bound: 2000 # (Tesla)
+mag_walk_stdev: 100.0 # (Tesla)
+q_bmag: [1, 0, 0, 0] # rotation from body to mag
 
 ## Pitot Tube
 pitot_update_rate: 50

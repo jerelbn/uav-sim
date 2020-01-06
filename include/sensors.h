@@ -26,6 +26,8 @@ public:
   Sensors();
   ~Sensors();
 
+  Sensors& operator=(const Sensors& sensors) { return *this; }
+
   void load(const string &filename, const bool &use_random_seed, const string &name);
   void updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env);
   const Vector3d& getAccelBias() const { return accel_bias_; }

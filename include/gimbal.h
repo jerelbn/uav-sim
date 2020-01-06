@@ -27,7 +27,7 @@ public:
   ~Gimbal();
 
   void load(const std::string &filename, const bool& use_random_seed);
-  void update(const double &t, const vehicle::Stated& aircraft_state, environment::Environment& env);
+  void update(const double &t, const vehicle::Stated& aircraft_state, const sensors::Sensors &aircraft_sensors, environment::Environment& env);
 
   std::string name_;
 
@@ -47,9 +47,10 @@ private:
   //   rotation inertial to gimbal
   //   angular rate of gimbal w.r.t. inertial in gimbal frame
   //   angular acceleration of gimbal w.r.t. inertial in gimbal frame
-  vehicle::Stated x_;
+  vehicle::Stated x_, aircraft_state_;
   vehicle::dxVector dx_;
   quat::Quatd q_bg_;
+  sensors::Sensors aircraft_sensors_;
 
   bool accurate_integration_;
   double t_prev_, mass_, omega_f_;

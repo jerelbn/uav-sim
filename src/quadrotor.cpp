@@ -61,8 +61,8 @@ void Quadrotor::load(const std::string &filename, environment::Environment& env,
   // Initialize other classes
   controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.getWindVel());
-  gimbal_.update(0, x_, env);
   sensors_.updateMeasurements(0, x_, env);
+  gimbal_.update(0, x_, sensors_, env);
   runEstimator(0, sensors_, env.getWindVel(), getState(), env.getLandmarks());
 
   // Initialize loggers and log initial data
@@ -84,9 +84,9 @@ void Quadrotor::run(const double &t, environment::Environment& env)
   else
     controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
   updateAccels(u_, env.getWindVel()); // Update true acceleration
-  gimbal_.update(t, x_, env);
-  sensors_.updateMeasurements(t, x_, env);
   runEstimator(t, sensors_, env.getWindVel(), getState(), env.getLandmarks());
+  sensors_.updateMeasurements(t, x_, env);
+  gimbal_.update(t, x_, sensors_, env); // Update gimbal to current time step
   log(t); // Log current data
 }
 
