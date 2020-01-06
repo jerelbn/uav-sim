@@ -130,6 +130,19 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, envi
   ekf_.run(t, sensors_, vw_, x_);
   sensors_.updateMeasurements(t, x_, env);
 
+  // FIX ACCELEROMETER MEASUREMENT
+  // Because the gimbal is able to rotate independent of the aircraft, the traditionally computed 
+  // accelerometer measurement is incorrect. Aircraft, NOT gimbal, linear/angular velocities and angular acceleration
+  // contribute to measured accelaration on the gimbal.
+  Vector3d p_bu = sensors_.getBodyToImuTranslation();
+  quat::Quatd q_bu = sensors_.getBodyToImuRotation();
+  Vector3d v = q_bg_.rotp(v_bI_b);
+  Vector3d omega = q_bg_.rotp(omega_bI_b);
+  Vector3d ang_accel = q_bg_.rotp(omegadot_bI_b);
+  sensors_.setImuAccel(sensors_.getImuAccel()
+                       - q_bu.rotp(x_.omega.cross(x_.v) + x_.omega.cross(x_.omega.cross(p_bu)) + x_.ang_accel.cross(p_bu)) // remove incorrect parts
+                       + q_bu.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu)) + ang_accel.cross(p_bu))); // add correct parts
+
   // Log all of that juicy data
   log(t);
 }

@@ -33,6 +33,10 @@ public:
   const double& getBaroBias() const { return baro_bias_; }
   const Vector3d& getMagBias() const { return mag_bias_; }
   const double& getPitotBias() const { return pitot_bias_; }
+  const Vector3d& getBodyToImuTranslation() const { return p_bu_; }
+  const quat::Quatd& getBodyToImuRotation() const { return q_bu_; }
+  const Vector3d& getImuAccel() const { return imu_.accel; }
+  void setImuAccel(const Vector3d& accel) { imu_.accel = accel; }
 
   common::Imud imu_;
   common::Mocapd mocap_;
