@@ -30,16 +30,16 @@ end
 
 figure()
 set(gcf, 'name', 'EKF Attitude', 'NumberTitle', 'off')
-titles = ["Roll (deg)","Pitch (deg)","Yaw (deg)"];
+titles = ["Roll (mrad)","Pitch (mrad)","Yaw (mrad)"];
 idx = 4;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
     title(titles(i))
-    plot(true_state(1,:), true_state(i + idx, :)*180/pi, 'linewidth', 2.0)
-    plot(ekf_state(1,:), ekf_state(i + idx, :)*180/pi, 'linewidth', 1.5)
+    plot(true_state(1,:), true_state(i + idx, :)*1000, 'linewidth', 2.0)
+    plot(ekf_state(1,:), ekf_state(i + idx, :)*1000, 'linewidth', 1.5)
     if plot_cov == true
-        plot(ekf_state(1,:), ekf_state(i + idx, :)*180/pi + 2 * sqrt(ekf_cov(i + idx, :))*180/pi, 'm-', 'linewidth', 0.5)
-        plot(ekf_state(1,:), ekf_state(i + idx, :)*180/pi - 2 * sqrt(ekf_cov(i + idx, :))*180/pi, 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :)*1000 + 2 * sqrt(ekf_cov(i + idx, :))*1000, 'm-', 'linewidth', 0.5)
+        plot(ekf_state(1,:), ekf_state(i + idx, :)*1000 - 2 * sqrt(ekf_cov(i + idx, :))*1000, 'm-', 'linewidth', 0.5)
     end
     if i == 1
         legend('Truth', 'EKF')

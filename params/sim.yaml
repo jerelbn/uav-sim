@@ -1,9 +1,9 @@
 # Parameters for time, randomness, environment, etc.
-tf: 300.0
+tf: 1800.0
 dt: 0.001
-use_random_seed: false
+use_random_seed: true
 
-enable_wind: false # Turn wind on and off
+enable_wind: true # Turn wind on and off
 random_initial_wind: true # Randomly initialize the wind vector
 wind_init_vector: [-6, 6, 1] # Initial wind vector if not initialized randomly
 wind_north_init_stdev: 6.0 # Variation on the initial north wind component

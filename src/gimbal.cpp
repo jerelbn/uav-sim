@@ -109,7 +109,8 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
     dir_c = (env.getVehiclePositions()[1] - x_.p).normalized();
   else
     dir_c = common::e1;
-  ctrl_.computeControl(t, x_.q, dir_c, x_.omega, q_bg_, u_);
+  vehicle::Stated xhat = ekf_.getState();
+  ctrl_.computeControl(t, xhat.q, dir_c, xhat.omega, q_bg_, u_);
 
   // Update angular acceleration
   f(x_, u_, vw_, dx_);

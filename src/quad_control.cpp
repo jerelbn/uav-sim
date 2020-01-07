@@ -145,6 +145,10 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, quadro
     return;
   }
 
+  // Hack to perform motion reducing estimator bias errors then hold position and point gimbal
+  if (t > 180.0 && path_type_ == 1)
+    path_type_ = 0;
+
   double throttle;
   if (path_type_ == 0 || path_type_ == 1)
   {

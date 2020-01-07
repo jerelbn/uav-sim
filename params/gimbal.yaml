@@ -74,9 +74,9 @@ imu_update_rate: 250
 p_bu: [0, 0, 0] # translation from body to IMU in body frame
 q_bu: [1, 0, 0, 0] # rotation from body to IMU frame
 
-accel_noise_stdev: 0.5
-accel_bias_init_bound: 0.1
-accel_walk_stdev: 0.01
+accel_noise_stdev: 1.0
+accel_bias_init_bound: 0.05
+accel_walk_stdev: 0.005
 
 gyro_noise_stdev: 0.01
 gyro_bias_init_bound: 0.005
@@ -112,7 +112,7 @@ baro_walk_stdev: 0.01
 ## Magnetometer
 mag_update_rate: 50
 mag_noise_stdev: 200.0 # (Tesla)
-mag_bias_init_bound: 2000 # (Tesla)
+mag_bias_init_bound: 1e6 # (Tesla)
 mag_walk_stdev: 100.0 # (Tesla)
 q_bmag: [1, 0, 0, 0] # rotation from body to mag
 
@@ -152,15 +152,15 @@ ekf_x0: [0, 0, 0,    # VEL
          0]          # MAG BIAS
 ekf_P0: [1e-6, 1e-6, 1e-6, # VEL
          1e-6, 1e-6, 1e-6, # ATT
-         1e-4,              # ACCEL SCALE
+         1e-6,              # ACCEL SCALE
          1e-5, 1e-5, 1e-5, # GYRO BIAS
-         1e-1]             # MAG BIAS
+         1e-3]             # MAG BIAS
 ekf_Qx: [0, 0, 0, # VEL
          0, 0, 0, # ATT
-         1e-8,    # ACCEL SCALE
+         1e-11,    # ACCEL SCALE
          1e-10, 1e-10, 1e-10, # GYRO BIAS
          1e-8]             # MAG BIAS
-ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
+ekf_Qu: [1.0, 1.0, 1.0, # ACCEL
          0.0001, 0.0001, 0.0001] # GYRO
 ekf_R_gps: [0.1, 0.1, 0.9] # VELOCITY
 ekf_R_mag: 0.1
