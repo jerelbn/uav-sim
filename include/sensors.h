@@ -24,9 +24,10 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Sensors();
+  Sensors(const Sensors& sensors);
   ~Sensors();
 
-  Sensors& operator=(const Sensors& sensors) { return *this; }
+  Sensors& operator=(const Sensors& sensors); // NOTE: Does not copy log file streams!
 
   void load(const string &filename, const bool &use_random_seed, const string &name);
   void updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env);

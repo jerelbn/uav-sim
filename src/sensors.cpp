@@ -10,7 +10,178 @@ Sensors::Sensors()
 {
   q_cbc_ = quat::Quatd(M_PI/2, 0, M_PI/2);
 }
+
+
+Sensors::Sensors(const Sensors& sensors)
+{
+  *this = sensors;
+}
+
+
 Sensors::~Sensors() {}
+
+
+Sensors& Sensors::operator=(const Sensors& sensors) // Maybe not a good idea to copy all of this data often...
+{
+  imu_ = sensors.imu_;
+  mocap_ = sensors.mocap_;
+  image_ = sensors.image_;
+  gps_ = sensors.gps_;
+  baro_ = sensors.baro_;
+  mag_ = sensors.mag_;
+  pitot_ = sensors.pitot_;
+  wvane_ = sensors.wvane_;
+
+  new_imu_meas_ = sensors.new_imu_meas_;
+  new_mocap_meas_ = sensors.new_mocap_meas_;
+  new_camera_meas_ = sensors.new_camera_meas_;
+  new_gps_meas_ = sensors.new_gps_meas_;
+  new_baro_meas_ = sensors.new_baro_meas_;
+  new_mag_meas_ = sensors.new_mag_meas_;
+  new_pitot_meas_ = sensors.new_pitot_meas_;
+  new_wvane_meas_ = sensors.new_wvane_meas_;
+
+  rng_ = sensors.rng_;
+  t_round_off_ = sensors.t_round_off_;
+  origin_lat_ = sensors.origin_lat_;
+  origin_lon_ = sensors.origin_lon_;
+  origin_alt_ = sensors.origin_alt_;
+  rho_ = sensors.rho_;
+  mnp_ecef_ = sensors.mnp_ecef_;
+  q_ecef_to_mnp_ = sensors.q_ecef_to_mnp_;
+
+  // IMU
+  use_accel_truth_ = sensors.use_accel_truth_;
+  use_gyro_truth_ = sensors.use_gyro_truth_;
+  imu_enabled_ = sensors.imu_enabled_;
+  imu_id_ = sensors.imu_id_;
+  last_imu_update_ = sensors.last_imu_update_;
+  imu_update_rate_ = sensors.imu_update_rate_;
+  accel_bias_ = sensors.accel_bias_;
+  accel_noise_ = sensors.accel_noise_;
+  accel_walk_ = sensors.accel_walk_;
+  gyro_bias_ = sensors.gyro_bias_;
+  gyro_noise_ = sensors.gyro_noise_;
+  gyro_walk_ = sensors.gyro_walk_;
+  accel_noise_dist_ = sensors.accel_noise_dist_;
+  accel_walk_dist_ = sensors.accel_walk_dist_;
+  gyro_noise_dist_ = sensors.gyro_noise_dist_;
+  gyro_walk_dist_ = sensors.gyro_walk_dist_;
+  q_bu_ = sensors.q_bu_;
+  p_bu_ = sensors.p_bu_;
+  // accel_log_ = sensors.accel_log_;
+  // gyro_log_ = sensors.gyro_log_;
+
+  // Camera
+  use_camera_truth_ = sensors.use_camera_truth_;
+  save_pixel_measurements_ = sensors.save_pixel_measurements_;
+  camera_enabled_ = sensors.camera_enabled_;
+  image_id_ = sensors.image_id_;
+  cam_max_feat_ = sensors.cam_max_feat_;
+  last_camera_update_ = sensors.last_camera_update_;
+  camera_update_rate_ = sensors.camera_update_rate_;
+  camera_time_delay_ = sensors.camera_time_delay_;
+  cam_buffer_ = sensors.cam_buffer_;
+  pixel_noise_dist_ = sensors.pixel_noise_dist_;
+  depth_noise_dist_ = sensors.depth_noise_dist_;
+  pixel_noise_ = sensors.pixel_noise_;
+  K_inv_ = sensors.K_inv_;
+  image_size_ = sensors.image_size_;
+  q_cbc_ = sensors.q_cbc_;
+  q_bcb_ = sensors.q_bcb_;
+  p_bcb_ = sensors.p_bcb_;
+  // cam_log_ = sensors.cam_log_;
+
+  // Motion Capture
+  use_mocap_truth_ = sensors.use_mocap_truth_;
+  mocap_enabled_ = sensors.mocap_enabled_;
+  mocap_id_ = sensors.mocap_id_;
+  last_mocap_update_ = sensors.last_mocap_update_;
+  mocap_update_rate_ = sensors.mocap_update_rate_;
+  mocap_time_delay_ = sensors.mocap_time_delay_;
+  mocap_buffer_ = sensors.mocap_buffer_;
+  mocap_noise_dist_ = sensors.mocap_noise_dist_;
+  mocap_noise_ = sensors.mocap_noise_;
+  mocap_truth_ = sensors.mocap_truth_;
+  p_bm_ = sensors.p_bm_;
+  q_bm_ = sensors.q_bm_;
+  // mocap_log_ = sensors.mocap_log_;
+
+  // Barometer
+  use_baro_truth_ = sensors.use_baro_truth_;
+  baro_enabled_ = sensors.baro_enabled_;
+  baro_id_ = sensors.baro_id_;
+  last_baro_update_ = sensors.last_baro_update_;
+  baro_update_rate_ = sensors.baro_update_rate_;
+  baro_walk_dist_ = sensors.baro_walk_dist_;
+  baro_noise_dist_ = sensors.baro_noise_dist_;
+  baro_bias_ = sensors.baro_bias_;
+  baro_walk_ = sensors.baro_walk_;
+  baro_noise_ = sensors.baro_noise_;
+  // baro_log_ = sensors.baro_log_;
+
+  // Magnetometer
+  use_mag_truth_ = sensors.use_mag_truth_;
+  mag_enabled_ = sensors.mag_enabled_;
+  mag_id_ = sensors.mag_id_;
+  last_mag_update_ = sensors.last_mag_update_;
+  mag_update_rate_ = sensors.mag_update_rate_;
+  mag_walk_dist_ = sensors.mag_walk_dist_;
+  mag_noise_dist_ = sensors.mag_noise_dist_;
+  mag_bias_ = sensors.mag_bias_;
+  mag_walk_ = sensors.mag_walk_;
+  mag_noise_ = sensors.mag_noise_;
+  q_bmag_ = sensors.q_bmag_;
+  // mag_log_ = sensors.mag_log_;
+
+  // Pitot Tube (for air speed along some axis)
+  use_pitot_truth_ = sensors.use_pitot_truth_;
+  pitot_enabled_ = sensors.pitot_enabled_;
+  pitot_id_ = sensors.pitot_id_;
+  last_pitot_update_ = sensors.last_pitot_update_;
+  pitot_update_rate_ = sensors.pitot_update_rate_;
+  pitot_walk_dist_ = sensors.pitot_walk_dist_;
+  pitot_noise_dist_ = sensors.pitot_noise_dist_;
+  pitot_bias_ = sensors.pitot_bias_;
+  pitot_walk_ = sensors.pitot_walk_;
+  pitot_noise_ = sensors.pitot_noise_;
+  q_bpt_ = sensors.q_bpt_;
+  // pitot_log_ = sensors.pitot_log_;
+
+  // Weather vane (for sideslip angle)
+  use_wvane_truth_ = sensors.use_wvane_truth_;
+  wvane_enabled_ = sensors.wvane_enabled_;
+  wvane_id_ = sensors.wvane_id_;
+  last_wvane_update_ = sensors.last_wvane_update_;
+  wvane_update_rate_ = sensors.wvane_update_rate_;
+  wvane_noise_dist_ = sensors.wvane_noise_dist_;
+  wvane_resolution_ = sensors.wvane_resolution_;
+  wvane_noise_ = sensors.wvane_noise_;
+  q_bwv_ = sensors.q_bwv_;
+  // wvane_log_ = sensors.wvane_log_;
+
+  // GPS
+  use_gps_truth_ = sensors.use_gps_truth_;
+  gps_enabled_ = sensors.gps_enabled_;
+  gps_id_ = sensors.gps_id_;
+  last_gps_update_ = sensors.last_gps_update_;
+  gps_update_rate_ = sensors.gps_update_rate_;
+  gps_time_constant_ = sensors.gps_time_constant_;
+  gps_hpos_noise_dist_ = sensors.gps_hpos_noise_dist_;
+  gps_hvel_noise_dist_ = sensors.gps_hvel_noise_dist_;
+  gps_vpos_noise_dist_ = sensors.gps_vpos_noise_dist_;
+  gps_vvel_noise_dist_ = sensors.gps_vvel_noise_dist_;
+  gps_hpos_bias_ = sensors.gps_hpos_bias_;
+  gps_vpos_bias_ = sensors.gps_vpos_bias_;
+  gps_hpos_noise_ = sensors.gps_hpos_noise_;
+  gps_hvel_noise_ = sensors.gps_hvel_noise_;
+  gps_vpos_noise_ = sensors.gps_vpos_noise_;
+  gps_vvel_noise_ = sensors.gps_vvel_noise_;
+  X_ecef2ned_ = sensors.X_ecef2ned_;
+  // gps_log_ = sensors.gps_log_;
+
+  return *this;
+}
 
 
 void Sensors::load(const string& filename, const bool& use_random_seed, const string& name)
