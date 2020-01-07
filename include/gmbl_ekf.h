@@ -155,10 +155,12 @@ public:
   static void f(const Stated &x, const uVector& u, dxVector& dx);
   static void h_gps(const Stated &x, const quat::Quatd &q_ecef2ned, Vector3d& h);
   static void h_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, double& h);
+  static void h_cam(const Stated &x, quat::Quatd& h);
   static void getF(const Stated &x, const uVector& u, dxMatrix& F);
   static void getG(const Stated &x, const uVector& u, nuMatrix& G);
   static void getH_gps(const Stated &x, const Matrix3d &R_ecef2ned, Matrix<double,3,NUM_DOF> &H);
   static void getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, Matrix<double,1,NUM_DOF> &H);
+  static void getH_cam(const Stated &x, Matrix<double,3,NUM_DOF> &H);
   static Vector3d getMagFieldNED(const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp);
   vehicle::Stated getState() const;
 
@@ -167,6 +169,7 @@ private:
   void propagate(const double &t, const uVector &imu);
   void updateGPS(const Matrix<double,6,1>& z);
   void updateMag(const Matrix<double,3,1>& z, const quat::Quatd &q_bg);
+  void updateCam(const vehicle::Stated& x_true);
   void logTruth(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors, const Vector3d& vw, const vehicle::Stated& x_true);
   void logEst(const double &t);
 
@@ -183,10 +186,11 @@ private:
 
   // Sensor parameters
   double rho_;
-  Matrix3d R_gps_;
+  Matrix3d R_gps_, R_cam_;
   double R_mag_;
-  Vector3d p_bu_;
-  quat::Quatd q_bu_, q_ecef_to_mnp_;
+  Vector3d p_bu_, p_gcb_;
+  quat::Quatd q_bu_, q_gcb_, q_ecef_to_mnp_;
+  quat::Quatd qk_, qkt_; // keyframe attitude and true keyframe attitude
   xform::Xformd X_ecef2ned_;
   Vector3d mnp_ecef_, last_gps_pos_;
 

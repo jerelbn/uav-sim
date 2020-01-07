@@ -36,13 +36,17 @@ void EKF::load(const string &filename, const std::string& name)
   rho_ = common::airDense(origin_alt, origin_temp);
   X_ecef2ned_ = WGS84::x_ecef2ned(WGS84::lla2ecef(Vector3d(origin_lat,origin_lon,origin_alt)));
 
-  Vector4d q_bu;
+  Vector4d q_bu, q_gcb;
   common::get_yaml_eigen_diag("ekf_R_gps", filename, R_gps_);
+  common::get_yaml_eigen_diag("ekf_R_cam", filename, R_cam_);
   common::get_yaml_eigen("p_bu", filename, p_bu_);
+  common::get_yaml_eigen("p_bcb", filename, p_gcb_);
   common::get_yaml_eigen("q_bu", filename, q_bu);
+  common::get_yaml_eigen("q_bcb", filename, q_gcb);
   common::get_yaml_node("ekf_R_mag", filename, R_mag_);
   common::get_yaml_node("ekf_mag_initialized", filename, mag_initialized_);
   q_bu_ = quat::Quatd(q_bu);
+  q_gcb_ = quat::Quatd(q_gcb);
 
   // GPS covariance is defined in local NED frame, transform it to ECEF
   R_gps_ = X_ecef2ned_.q_.inverse().R() * R_gps_ * X_ecef2ned_.q_.R();
@@ -103,6 +107,8 @@ void EKF::run(const double &t, const sensors::Sensors &gimbal_sensors, const sen
     updateGPS(aircraft_sensors.gps_.vec()); // Gimbal is close enough to aircraft. Don't worry about tranforming measurement to Gimbal frame right now.
   if (aircraft_sensors.new_mag_meas_ && t > 0)
     updateMag(aircraft_sensors.mag_.field, q_bg);
+  if (gimbal_sensors.new_camera_meas_ && t > 0)
+    updateCam(x_true);
 
   // Log data
   logTruth(t, gimbal_sensors, aircraft_sensors, vw, x_true);
@@ -173,6 +179,35 @@ void EKF::updateMag(const Vector3d &z, const quat::Quatd &q_bg)
 }
 
 
+void EKF::updateCam(const vehicle::Stated& x_true)
+{
+  // Establish new keyframe
+  Vector3d dq = x_.q - qk_;
+  if (dq.norm() > 0.5)
+  {
+    qk_ = x_.q;
+    qkt_ = x_true.q;
+    return;
+  }
+
+  // Compute measurement
+  Vector3d noise = 0.35 * Vector3d::Random();
+  Vector3d dqk = x_true.q - qkt_ + noise;
+  quat::Quatd z = qk_ + dqk;
+
+  // Compute measurement model
+  quat::Quatd h;
+  Matrix<double,3,NUM_DOF> H;
+  h_cam(x_, h);
+  getH_cam(x_, H);
+
+  // Kalman gain and update
+  Matrix<double,NUM_DOF,3> K = P_ * H.transpose() * (R_cam_ + H * P_ * H.transpose()).inverse();
+  x_ += K * (z - h);
+  P_ = (I_NUM_DOF_ - K * H) * P_ * (I_NUM_DOF_ - K * H).transpose() + K * R_cam_ * K.transpose();
+}
+
+
 void EKF::f(const Stated &x, const uVector &u, dxVector &dx)
 {
   dx.setZero();
@@ -202,6 +237,12 @@ void EKF::h_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_
 }
 
 
+void EKF::h_cam(const Stated &x, quat::Quatd& h)
+{
+  h = x.q;
+}
+
+
 void EKF::getF(const Stated &x, const uVector &u, dxMatrix &F)
 {
   F.setZero();
@@ -220,6 +261,7 @@ void EKF::getG(const Stated &x, const uVector &u, nuMatrix &G)
 }
 
 
+// This is constant and should be a class variable.
 void EKF::getH_gps(const Stated &x, const Matrix3d &R_ecef2ned, Matrix<double,3,NUM_DOF> &H)
 {
   H.setZero();
@@ -264,6 +306,14 @@ void EKF::getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd 
   H.setZero();
   H.segment<3>(DQ) = (mx*dmy_dq - my*dmx_dq)/(mx*mx + my*my);
   H(DBM) = 1.0;
+}
+
+
+// This is constant and should be a class variable.
+void EKF::getH_cam(const Stated &x, Matrix<double,3,NUM_DOF> &H)
+{
+  H.setZero();
+  H.block<3,3>(0,DQ) = common::I_3x3;
 }
 
 
