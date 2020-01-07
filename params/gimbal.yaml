@@ -27,7 +27,7 @@ max_pitch_torque: 1.0
 max_yaw_torque: 1.0
 
 # Controller
-controller_update_rate: 50
+controller_update_rate: 250
 
 roll_rate_kp: 2.0
 roll_rate_ki: 0.0
@@ -74,13 +74,13 @@ imu_update_rate: 250
 p_bu: [0, 0, 0] # translation from body to IMU in body frame
 q_bu: [1, 0, 0, 0] # rotation from body to IMU frame
 
-accel_noise_stdev: 1.0
-accel_bias_init_bound: 0.5
-accel_walk_stdev: 0.05
+accel_noise_stdev: 0.5
+accel_bias_init_bound: 0.1
+accel_walk_stdev: 0.01
 
 gyro_noise_stdev: 0.01
 gyro_bias_init_bound: 0.005
-gyro_walk_stdev: 0.005
+gyro_walk_stdev: 0.001
 
 ## Camera
 camera_max_features: 10000 # maximum number of features to project into image
@@ -141,7 +141,7 @@ gps_vertical_position_bias_init_bound: 9.2
 gps_vertical_velocity_noise_stdev: 0.15
 
 ## EKF Parameters
-ekf_mag_initialized: false # false initializes mag bias at truth
+ekf_mag_initialized: true # false initializes mag bias at truth
 ekf_random_init: false # randomly initialize pos/vel/att
 ekf_v0_err: 2
 ekf_q0_err: 0.3491
@@ -150,17 +150,17 @@ ekf_x0: [0, 0, 0,    # VEL
          1,          # ACCEL SCALE
          0, 0, 0,    # GYRO BIAS
          0]          # MAG BIAS
-ekf_P0: [4, 4, 4, # VEL
-         0.12, 0.12, 0.49, # ATT
-         1.0,              # ACCEL SCALE
-         0.04, 0.04, 0.04, # GYRO BIAS
-         0.36]             # MAG BIAS
+ekf_P0: [1e-6, 1e-6, 1e-6, # VEL
+         1e-6, 1e-6, 1e-6, # ATT
+         1e-4,              # ACCEL SCALE
+         1e-5, 1e-5, 1e-5, # GYRO BIAS
+         1e-1]             # MAG BIAS
 ekf_Qx: [0, 0, 0, # VEL
          0, 0, 0, # ATT
-         1e-6,    # ACCEL SCALE
-         1e-6, 1e-6, 1e-6, # GYRO BIAS
-         1e-4]             # MAG BIAS
+         1e-8,    # ACCEL SCALE
+         1e-10, 1e-10, 1e-10, # GYRO BIAS
+         1e-8]             # MAG BIAS
 ekf_Qu: [0.25, 0.25, 0.25, # ACCEL
-         0.01, 0.01, 0.01] # GYRO
-ekf_R_gps: [1.0, 1.0, 4.0] # VELOCITY
-ekf_R_mag: 0.18
+         0.0001, 0.0001, 0.0001] # GYRO
+ekf_R_gps: [0.1, 0.1, 0.9] # VELOCITY
+ekf_R_mag: 0.1

@@ -163,8 +163,9 @@ void EKF::updateMag(const Vector3d &z, const quat::Quatd &q_bg)
   getH_mag(x_, last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_, H);
 
   // Kalman gain and update
-  double zx = common::e1.dot(x_.q.rota(q_bg.rotp(z)));
-  double zy = common::e2.dot(x_.q.rota(q_bg.rotp(z)));
+  quat::Quatd q_g1_to_g = quat::Quatd::from_euler(x_.q.roll(), x_.q.pitch(), 0);
+  double zx = common::e1.dot(q_g1_to_g.rota(q_bg.rotp(z)));
+  double zy = common::e2.dot(q_g1_to_g.rota(q_bg.rotp(z)));
   double z_psi = atan2(zy, zx);
   Matrix<double,NUM_DOF,1> K = P_ * H.transpose() / (R_mag_ + H * P_ * H.transpose());
   x_ += K * (z_psi - h);
@@ -190,15 +191,14 @@ void EKF::h_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_
 {
   // Calculate magnetic field vector at current location (currently uses simple dipole model)
   Vector3d m_I = getMagFieldNED(pos_ecef, q_ecef2ned, mnp_ecef, q_ecef2mnp);
-  double psi_d = atan2(m_I(1), m_I(0));
 
   // Get heading relative to magnetic field
-  quat::Quatd q_psi = quat::Quatd::from_euler(0, 0, x.q.yaw());
-  Vector3d m_g1 = q_psi.rotp(m_I);
-  double psi_m = -atan2(m_g1(1), m_g1(0));
+  quat::Quatd q_I_to_g1 = quat::Quatd::from_euler(0, 0, x.q.yaw());
+  Vector3d m_g1 = q_I_to_g1.rotp(m_I);
+  double psi_m = atan2(m_g1(1), m_g1(0));
 
   // Compute output
-  h = psi_d + psi_m + x.bm;
+  h = psi_m + x.bm;
 }
 
 
@@ -262,7 +262,7 @@ void EKF::getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd 
   
   // Populate matrix
   H.setZero();
-  H.segment<3>(DQ) = -(mx*dmy_dq - my*dmx_dq)/(mx*mx + my*my);
+  H.segment<3>(DQ) = (mx*dmy_dq - my*dmx_dq)/(mx*mx + my*my);
   H(DBM) = 1.0;
 }
 
@@ -270,28 +270,25 @@ void EKF::getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd 
 void EKF::logTruth(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors, const Vector3d& vw, const vehicle::Stated& x_true)
 {
   // Get true accelerometer scale error
-  quat::Quatd q_Iu = x_true.q * q_bu_;
-  Vector3d acc_true = q_bu_.rotp(x_true.lin_accel + x_true.omega.cross(x_true.v) + x_true.omega.cross(x_true.omega.cross(p_bu_)) +
-                      x_true.ang_accel.cross(p_bu_)) - common::gravity * q_Iu.rotp(common::e3);
-  Vector3d acc_biased = acc_true + gimbal_sensors.getAccelBias();
-  double accel_scale = acc_true.norm() / acc_biased.norm();
+  Vector3d accel_true = gimbal_sensors.getImuAccel() - gimbal_sensors.getAccelBias() - gimbal_sensors.getAccelNoise();
+  Vector3d accel_biased = accel_true + gimbal_sensors.getAccelBias();
+  double accel_scale = accel_true.norm() / accel_biased.norm();
   
   // Get heading bias
   Vector3d m_I_true = getMagFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
   Vector3d m_I_biased = m_I_true + aircraft_sensors.getMagBias();
-  Vector3d m_proj_true = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_true;
-  Vector3d m_proj_biased = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_biased;
-  Vector3d true_x_biased = m_proj_true.cross(m_proj_biased);
-  double mag_bias = common::sign(true_x_biased(2)) * acos(m_proj_true.dot(m_proj_biased) / (m_proj_true.norm()*m_proj_biased.norm()));
+  double psi_d_true = atan2(m_I_true(1), m_I_true(0));
+  double psi_d_biased = atan2(m_I_biased(1), m_I_biased(0));
+  double mag_bias = psi_d_biased - psi_d_true;
 
   Vector3d vI_true = x_true.q.rota(x_true.v);
 
   true_state_log_.write((char*)&t, sizeof(double));
   true_state_log_.write((char*)vI_true.data(), 3 * sizeof(double));
   true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)&accel_scale, sizeof(double)); // This is wrong. Need to compare with magnitude of de-noised measurement.
+  true_state_log_.write((char*)&accel_scale, sizeof(double));
   true_state_log_.write((char*)gimbal_sensors.getGyroBias().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)&mag_bias, sizeof(double)); // This is wrong. Should be error in heading.
+  true_state_log_.write((char*)&mag_bias, sizeof(double));
 }
 
 

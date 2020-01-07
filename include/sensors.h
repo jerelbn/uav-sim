@@ -32,10 +32,15 @@ public:
   void load(const string &filename, const bool &use_random_seed, const string &name);
   void updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env);
   const Vector3d& getAccelBias() const { return accel_bias_; }
+  const Vector3d& getAccelNoise() const { return accel_noise_; }
   const Vector3d& getGyroBias() const { return gyro_bias_; }
+  const Vector3d& getGyroNoise() const { return gyro_noise_; }
   const double& getBaroBias() const { return baro_bias_; }
+  const double& getBaroNoise() const { return baro_noise_; }
   const Vector3d& getMagBias() const { return mag_bias_; }
+  const Vector3d& getMagNoise() const { return mag_noise_; }
   const double& getPitotBias() const { return pitot_bias_; }
+  const double& getPitotNoise() const { return pitot_noise_; }
   const Vector3d& getBodyToImuTranslation() const { return p_bu_; }
   const quat::Quatd& getBodyToImuRotation() const { return q_bu_; }
   const Vector3d& getImuAccel() const { return imu_.accel; }

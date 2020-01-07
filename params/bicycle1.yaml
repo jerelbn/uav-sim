@@ -1,7 +1,7 @@
 # Bicycle configuration
 name: bike1
 accurate_integration: true
-x0: [100, # NORTH
+x0: [500, # NORTH
      0, # EAST
      0, # DOWN
      0, # HEADING
@@ -18,7 +18,7 @@ max_steering_angle: 0.78
 k_u: 5.0
 k_theta: 5.0
 k_psi: 5.0
-velocity_command: 0.5
+velocity_command: 0.0
 
 waypoints: [58, 58,
             42, 58,

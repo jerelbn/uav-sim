@@ -151,9 +151,9 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
   Vector3d v = q_bg_.rotp(v_bI_b);
   Vector3d omega = q_bg_.rotp(omega_bI_b);
   Vector3d ang_accel = q_bg_.rotp(omegadot_bI_b);
-  sensors_.setImuAccel(sensors_.getImuAccel()
-                       - q_bu.rotp(x_.omega.cross(x_.v) + x_.omega.cross(x_.omega.cross(p_bu)) + x_.ang_accel.cross(p_bu)) // remove incorrect parts
-                       + q_bu.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu)) + ang_accel.cross(p_bu))); // add correct parts
+  Vector3d bad_part = q_bu.rotp(x_.omega.cross(x_.v) + x_.omega.cross(x_.omega.cross(p_bu)) + x_.ang_accel.cross(p_bu));
+  Vector3d good_part = q_bu.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu)) + ang_accel.cross(p_bu));
+  sensors_.setImuAccel(sensors_.getImuAccel() - bad_part + good_part);
 
   // Store aircraft state and sensors for correct propagation
   aircraft_state_ = aircraft_state;

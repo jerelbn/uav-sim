@@ -490,8 +490,6 @@ void Sensors::camera(const double t, const vehicle::Stated &x, environment::Envi
   if (t == 0 || dt >= 1.0 / camera_update_rate_)
   {
     last_camera_update_ = t;
-    if (!use_camera_truth_)
-      common::randomNormal(pixel_noise_,pixel_noise_dist_,rng_);
 
     // Project landmarks into image
     image_.feats.clear();
@@ -507,7 +505,11 @@ void Sensors::camera(const double t, const vehicle::Stated &x, environment::Envi
       // Project landmark into image and save it to the list
       Vector2d pix;
       common::projToImg(pix, p_cl, K_);
-      pix += pixel_noise_;
+      if (!use_camera_truth_)
+      {
+        common::randomNormal(pixel_noise_,pixel_noise_dist_,rng_);
+        pix += pixel_noise_;
+      }
       if (pix(0) >= 1 && pix(1) >= 1 && pix(0) <= image_size_(0) && pix(1) <= image_size_(1))
         image_.feats.push_back(common::Featd(i,pix,p_cl));
 
