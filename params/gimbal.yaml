@@ -163,5 +163,5 @@ ekf_Qx: [0, 0, 0, # VEL
 ekf_Qu: [1.0, 1.0, 1.0, # ACCEL
          0.0001, 0.0001, 0.0001] # GYRO
 ekf_R_gps: [0.1, 0.1, 0.9] # VELOCITY
-ekf_R_cam: [0.13, 0.13, 0.13] # ATTITUDE CHANGE
+ekf_R_cam: [1.0, 1.0, 1.0] # ATTITUDE CHANGE
 ekf_R_mag: 0.1

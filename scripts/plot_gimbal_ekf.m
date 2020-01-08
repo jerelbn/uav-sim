@@ -8,7 +8,7 @@ ekf_cov = reshape(fread(fopen(strcat(['/tmp/',params.name,'_ekf_cov.log']), 'r')
 
 figure()
 set(gcf, 'name', 'EKF Velocity', 'NumberTitle', 'off')
-titles = ["Velocity North", "Velocity East", "Velocity Down"];
+titles = ["Velocity North (m/s)", "Velocity East (m/s)", "Velocity Down (m/s)"];
 idx = 1;
 for i=1:3
     subplot(3, 1, i), hold on, grid on
@@ -77,11 +77,11 @@ figure()
 set(gcf, 'name', 'EKF Accel Scale and Mag Bias', 'NumberTitle', 'off')
 subplot(2, 1, 1), hold on, grid on
 title("Accel Scale")
-plot(true_state(1,:), true_state(1 + 7, :)*1000, 'b-', 'linewidth', 2.0, 'DisplayName', 'Truth')
-plot(ekf_state(1,:), ekf_state(1 + 7, :)*1000, 'r-', 'linewidth', 1.5, 'DisplayName', 'EKF')
+plot(true_state(1,:), true_state(1 + 7, :), 'b-', 'linewidth', 2.0, 'DisplayName', 'Truth')
+plot(ekf_state(1,:), ekf_state(1 + 7, :), 'r-', 'linewidth', 1.5, 'DisplayName', 'EKF')
 if plot_cov == true
-    plot(ekf_state(1,:), ekf_state(1 + 7, :)*1000 + 2 * sqrt(ekf_cov(1 + 7, :))*1000, 'r:', 'linewidth', 0.5, 'DisplayName', '2\sigma Bound')
-    plot(ekf_state(1,:), ekf_state(1 + 7, :)*1000 - 2 * sqrt(ekf_cov(1 + 7, :))*1000, 'r:', 'linewidth', 0.5, 'HandleVisibility', 'off')
+    plot(ekf_state(1,:), ekf_state(1 + 7, :) + 2 * sqrt(ekf_cov(1 + 7, :)), 'r:', 'linewidth', 0.5, 'DisplayName', '2\sigma Bound')
+    plot(ekf_state(1,:), ekf_state(1 + 7, :) - 2 * sqrt(ekf_cov(1 + 7, :)), 'r:', 'linewidth', 0.5, 'HandleVisibility', 'off')
 end
 legend()
 subplot(2, 1, 2), hold on, grid on
