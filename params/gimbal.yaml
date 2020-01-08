@@ -112,7 +112,7 @@ baro_walk_stdev: 0.01
 ## Magnetometer
 mag_update_rate: 50
 mag_noise_stdev: 200.0 # (Tesla)
-mag_bias_init_bound: 1e6 # (Tesla)
+mag_bias_init_bound: 20000 # (Tesla)
 mag_walk_stdev: 100.0 # (Tesla)
 q_bmag: [1, 0, 0, 0] # rotation from body to mag
 
