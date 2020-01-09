@@ -23,10 +23,10 @@ class Gimbal
 public:
 
   Gimbal();
-  Gimbal(const std::string &filename, const bool& use_random_seed);
+  Gimbal(const std::string &filename, const std::default_random_engine& rng);
   ~Gimbal();
 
-  void load(const std::string &filename, const bool& use_random_seed);
+  void load(const std::string &filename, const std::default_random_engine& rng);
   void update(const double &t, const vehicle::Stated& aircraft_state, const sensors::Sensors &aircraft_sensors, environment::Environment& env);
 
   std::string name_;

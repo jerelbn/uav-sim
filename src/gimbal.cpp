@@ -7,17 +7,17 @@ namespace gimbal
 Gimbal::Gimbal()  : t_prev_(0.0) {}
 
 
-Gimbal::Gimbal(const std::string &filename, const bool& use_random_seed)
+Gimbal::Gimbal(const std::string &filename, const std::default_random_engine& rng)
   : t_prev_(0.0)
 {
-  load(filename, use_random_seed);
+  load(filename, rng);
 }
 
 
 Gimbal::~Gimbal() {}
 
 
-void Gimbal::load(const std::string &filename, const bool& use_random_seed)
+void Gimbal::load(const std::string &filename, const std::default_random_engine& rng)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   common::get_yaml_node("name", filename, name_);
@@ -31,7 +31,7 @@ void Gimbal::load(const std::string &filename, const bool& use_random_seed)
 
   // Load other modules (e.g. controller, estimator, sensors)
   ctrl_.load(filename, name_);
-  sensors_.load(filename, use_random_seed, name_);
+  sensors_.load(filename, rng, name_);
   ekf_.load(filename, name_);
 
   // Load all Gimbal parameters

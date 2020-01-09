@@ -22,16 +22,10 @@ Controller::~Controller()
 }
 
 
-void Controller::load(const std::string& filename, const bool& use_random_seed, const std::string& name)
+void Controller::load(const std::string& filename, const std::default_random_engine& rng, const std::string& name)
 {
-  // Initialize random number generator
-  int seed;
-  if (use_random_seed)
-    seed = std::chrono::system_clock::now().time_since_epoch().count();
-  else
-    seed = 0;
-  rng_ = std::default_random_engine(seed);
-  srand(seed);
+  // Get random number generator
+  rng_ = rng;
 
   common::get_yaml_node("throttle_eq", filename, throttle_eq_);
   common::get_yaml_node("mass", filename, mass_);

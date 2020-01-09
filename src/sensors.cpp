@@ -184,16 +184,10 @@ Sensors& Sensors::operator=(const Sensors& sensors) // Maybe not a good idea to 
 }
 
 
-void Sensors::load(const string& filename, const bool& use_random_seed, const string& name)
+void Sensors::load(const string& filename, const std::default_random_engine& rng, const string& name)
 {
-  // Initialize random number generator
-  int seed;
-  if (use_random_seed)
-    seed = chrono::system_clock::now().time_since_epoch().count();
-  else
-    seed = 0;
-  rng_ = default_random_engine(seed);
-  srand(seed);
+  // Get random number generator
+  rng_ = rng;
 
   // General parameters
   double origin_temp;

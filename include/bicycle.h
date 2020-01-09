@@ -103,10 +103,10 @@ class Bicycle
 public:
 
   Bicycle();
-  Bicycle(const std::string &filename, const environment::Environment& env, const bool &use_random_seed, const int& id);
+  Bicycle(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng, const int& id);
   ~Bicycle();
 
-  void load(const std::string &filename, const environment::Environment& env, const bool &use_random_seed);
+  void load(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng);
   void run(const double &t, const environment::Environment& env);
   const State& getState() const { return x_; }
 

@@ -25,10 +25,10 @@ class Environment
 public:
 
   Environment();
-  Environment(const std::string filename);
+  Environment(const std::string filename, const std::default_random_engine& rng);
   ~Environment();
 
-  void load(const std::string filename);
+  void load(const std::string filename, const std::default_random_engine& rng);
   void addLandmark(const Eigen::Vector3d& p);
   void updateWind(const double t);
   void initVehicle(const Eigen::Vector3d& p, const int &id);
@@ -57,7 +57,7 @@ private:
   vectorVec3 landmarks_; // use a K-D Tree or OcTree for better efficiency in the future
   vectorVec3 vehicle_positions_;
 
-  bool enable_wind_, random_init_wind_;
+  bool enable_wind_;
   Eigen::Vector3d vw_, vw_walk_;
   std::normal_distribution<double> vw_north_walk_dist_;
   std::normal_distribution<double> vw_east_walk_dist_;

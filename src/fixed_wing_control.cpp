@@ -19,19 +19,13 @@ Controller::~Controller()
 }
 
 
-void Controller::load(const std::string& filename, const bool& use_random_seed, const std::string& name)
+void Controller::load(const std::string& filename, const std::default_random_engine& rng, const std::string& name)
 {
   // Initialize base class variables
   load_base(filename);
 
-  // Initialize random number generator
-  int seed;
-  if (use_random_seed)
-    seed = std::chrono::system_clock::now().time_since_epoch().count();
-  else
-    seed = 0;
-  rng_ = std::default_random_engine(seed);
-  srand(seed);
+  // Get random number generator
+  rng_ = rng;
 
   // General parameters
   common::get_yaml_node("controller_update_rate", filename, controller_update_rate_);

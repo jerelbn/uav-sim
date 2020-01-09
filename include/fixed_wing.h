@@ -24,10 +24,10 @@ class FixedWing : public FixedWingBase
 public:
 
   FixedWing();
-  FixedWing(const std::string &filename, environment::Environment& env, const bool &use_random_seed, const int& id);
+  FixedWing(const std::string &filename, environment::Environment& env, const std::default_random_engine& rng, const int& id);
   ~FixedWing();
 
-  void load(const std::string &filename, environment::Environment &env, const bool &use_random_seed);
+  void load(const std::string &filename, environment::Environment &env, const std::default_random_engine& rng);
   void run(const double &t, environment::Environment& env);
   void computeTrim(const std::string& filename) const;
 

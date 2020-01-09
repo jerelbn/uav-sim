@@ -7,10 +7,10 @@ namespace bicycle
 Bicycle::Bicycle()  : t_prev_(0.0), initialized_(false) {}
 
 
-Bicycle::Bicycle(const std::string &filename, const environment::Environment& env, const bool& use_random_seed, const int& id)
+Bicycle::Bicycle(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng, const int& id)
   : t_prev_(0.0), initialized_(false), id_(id)
 {
-  load(filename, env, use_random_seed);
+  load(filename, env, rng);
 }
 
 
@@ -21,7 +21,7 @@ Bicycle::~Bicycle()
 }
 
 
-void Bicycle::load(const std::string &filename, const environment::Environment &env, const bool& use_random_seed)
+void Bicycle::load(const std::string &filename, const environment::Environment &env, const std::default_random_engine& rng)
 {
   // Load all parameters
   xVector x0;

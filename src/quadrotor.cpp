@@ -7,24 +7,24 @@ namespace quadrotor
 Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename, environment::Environment& env, const bool& use_random_seed, const int& id)
+Quadrotor::Quadrotor(const std::string &filename, environment::Environment& env, const std::default_random_engine& rng, const int& id)
   : t_prev_(0.0), id_(id)
 {
-  load(filename, env, use_random_seed);
+  load(filename, env, rng);
 }
 
 
 Quadrotor::~Quadrotor() {}
 
 
-void Quadrotor::load(const std::string &filename, environment::Environment& env, const bool& use_random_seed)
+void Quadrotor::load(const std::string &filename, environment::Environment& env, const std::default_random_engine& rng)
 {
   // Instantiate Sensors, Controller, and Estimator classes
   common::get_yaml_node("name", filename, name_);
-  controller_.load(filename, use_random_seed, name_);
-  sensors_.load(filename, use_random_seed, name_);
+  controller_.load(filename, rng, name_);
+  sensors_.load(filename, rng, name_);
   estimator_.load("../params/pb_vi_ekf_params.yaml", name_);
-  gimbal_.load("../params/gimbal.yaml", use_random_seed);
+  gimbal_.load("../params/gimbal.yaml", rng);
 
   // Load all Quadrotor parameters
   common::get_yaml_node("accurate_integration", filename, accurate_integration_);

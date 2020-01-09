@@ -18,7 +18,7 @@ public:
   Controller();
   ~Controller();
 
-  void load(const std::string &filename, const bool &use_random_seed, const std::string &name);
+  void load(const std::string &filename, const std::default_random_engine& rng, const std::string &name);
   void computeControl(const vehicle::Stated &x, const double t, quadrotor::uVector& u, const Vector3d &pt);
   inline vehicle::Stated getCommandedState() const { return xc_; }
 

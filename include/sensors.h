@@ -29,7 +29,7 @@ public:
 
   Sensors& operator=(const Sensors& sensors); // NOTE: Does not copy log file streams!
 
-  void load(const string &filename, const bool &use_random_seed, const string &name);
+  void load(const string &filename, const std::default_random_engine& rng, const string &name);
   void updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env);
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getAccelNoise() const { return accel_noise_; }
