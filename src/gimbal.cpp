@@ -37,15 +37,15 @@ void Gimbal::load(const std::string &filename, const std::default_random_engine&
   // Load all Gimbal parameters
   double roll, pitch, yaw;
   Vector3d rpy;
+  x_.setZero();
   common::get_yaml_eigen_diag("inertia", filename, inertia_matrix_);
   common::get_yaml_eigen_diag("K_friction", filename, Kf_);
-  common::get_yaml_eigen("p_bg", filename, p_bg_);
+  common::get_yaml_eigen("p_bg", filename, x_.p);
   common::get_yaml_eigen("p_gcg", filename, p_gcg_);
   common::get_yaml_eigen("rpy", filename, rpy);
   common::get_yaml_eigen("omega", filename, x_.omega);
   inertia_inv_ = inertia_matrix_.inverse();
   x_.q = quat::Quatd(rpy(0), rpy(1), rpy(2));
-  x_.ang_accel.setZero();
 
   // Initialize loggers and log initial data
   std::stringstream ss_s, ss_e;
@@ -62,17 +62,8 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
   // Time step for controller later
   double dt = t - t_prev_;
   t_prev_ = t;
-
-  // Unpack aircraft states at previous time for readability
-  Vector3d p_bI_I = aircraft_state_.p;
-  Vector3d v_bI_b = aircraft_state_.v;
-  Vector3d vdot_bI_b = aircraft_state_.lin_accel;
-  quat::Quatd q_Ib = aircraft_state_.q;
-  Vector3d omega_bI_b = aircraft_state_.omega;
-  Vector3d omegadot_bI_b = aircraft_state_.ang_accel;
   
-  // Integrate torques applied to gimbal for rotational states
-  omega_aircraft_ = q_Ib.rota(omega_bI_b);
+  // Integrate rotational states
   if (accurate_integration_)
   {
     // 4th order Runge-Kutta
@@ -90,73 +81,61 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
   x_ += dx_;
 
   // Unpack aircraft states at new time for readability
-  p_bI_I = aircraft_state.p;
-  v_bI_b = aircraft_state.v;
-  vdot_bI_b = aircraft_state.lin_accel;
-  q_Ib = aircraft_state.q;
-  omega_bI_b = aircraft_state.omega;
-  omegadot_bI_b = aircraft_state.ang_accel;
+  Vector3d p_bI_I = aircraft_state.p;
+  Vector3d v_bI_b = aircraft_state.v;
+  Vector3d vdot_bI_b = aircraft_state.lin_accel;
+  quat::Quatd q_Ib = aircraft_state.q;
+  Vector3d omega_bI_b = aircraft_state.omega;
+  Vector3d omegadot_bI_b = aircraft_state.ang_accel;
 
   // Compute current translational states based on aircraft states
-  q_bg_ = q_Ib.inverse() * x_.q;
-  x_.p = p_bI_I + q_Ib.rota(p_bg_);
-  x_.v = q_bg_.rotp(v_bI_b + omega_bI_b.cross(p_bg_));
-  x_.lin_accel = q_bg_.rotp(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(p_bg_)) + omegadot_bI_b.cross(p_bg_));
+  Vector3d p_Ig = p_bI_I + q_Ib.rota(x_.p);
+  Vector3d v_gI_g = x_.q.rotp(v_bI_b + omega_bI_b.cross(x_.p));
+  Vector3d vdot_gI_g = x_.q.rotp(vdot_bI_b + omega_bI_b.cross(omega_bI_b.cross(x_.p)) + omegadot_bI_b.cross(x_.p));
 
   // Update controller
   Eigen::Vector3d dir_c;
   if (env.getVehiclePositions().size() > 0)
-    dir_c = (env.getVehiclePositions()[1] - x_.p).normalized();
+    dir_c = (env.getVehiclePositions()[1] - p_Ig).normalized();
   else
     dir_c = common::e1;
   vehicle::Stated xhat = ekf_.getState();
-  ctrl_.computeControl(t, xhat.q, dir_c, xhat.omega, q_bg_, u_);
+  ctrl_.computeControl(t, xhat.q, dir_c, xhat.omega, x_.q, u_);
 
   // Update angular acceleration
   f(x_, u_, vw_, dx_);
   x_.ang_accel = dx_.segment<3>(vehicle::DW);
 
-  // Saturate gimbal roll/pitch angles
-  q_bg_ = q_Ib.inverse() * x_.q;
-  double roll = q_bg_.roll();
-  double pitch = q_bg_.pitch();
-  if (abs(roll) > max_roll_ || abs(pitch) > max_pitch_)
-  {
-    // Compute saturated attitude
-    roll = roll > max_roll_ ? max_roll_ : roll;
-    pitch = pitch > max_pitch_ ? max_pitch_ : pitch;
-    q_bg_ = q_bg_.from_euler(roll, pitch, q_bg_.yaw());
-    x_.q = q_Ib * q_bg_;
+  // Saturate gimbal roll/pitch angles and zero out velocities/accelerations
+  saturateRollPitch(omega_bI_b, omegadot_bI_b);
 
-    // Remove roll/pitch velocities
-    quat::Quatd q_g1_to_g;
-    q_g1_to_g.from_euler(q_bg_.roll(), q_bg_.pitch(), 0);
-    double omega_psi = q_g1_to_g.rota(x_.omega)(2);
-    x_.omega = q_bg_.rotp(omega_bI_b) + q_g1_to_g.rotp(Vector3d(0,0,omega_psi));
-
-    // Remove roll/pitch accelerations
-    double domega_psi = q_g1_to_g.rota(x_.ang_accel)(2);
-    x_.ang_accel = q_bg_.rotp(omegadot_bI_b) + q_g1_to_g.rotp(Vector3d(0,0,domega_psi));
-  }
+  // Create true gimbal state w.r.t. inertial frame
+  vehicle::Stated x_Ig;
+  x_Ig.p = p_Ig;
+  x_Ig.v = v_gI_g;
+  x_Ig.lin_accel = vdot_gI_g;
+  x_Ig.q = q_Ib * x_.q;
+  x_Ig.omega = x_.q.rotp(omega_bI_b) + x_.omega;
+  x_Ig.ang_accel = x_.q.rotp(omegadot_bI_b) + x_.ang_accel;
 
   // Update the estimator, then collect new sensor measurements
-  ekf_.run(t, sensors_, aircraft_sensors_, p_bg_, q_bg_, vw_, x_);
-  sensors_.updateMeasurements(t, x_, env);
+  ekf_.run(t, sensors_, aircraft_sensors_, x_.p, x_.q, vw_, x_Ig);
+  sensors_.updateMeasurements(t, x_Ig, env);
 
   // FIX ACCELEROMETER MEASUREMENT
   // Because the gimbal is able to rotate independent of the aircraft, the traditionally computed 
-  // accelerometer measurement is incorrect. Aircraft, NOT gimbal, linear/angular velocities and angular acceleration
-  // contribute to measured accelaration on the gimbal.
+  // accelerometer measurement is incorrect. Aircraft linear/angular velocities and angular acceleration
+  // contribute to measured accelaration on the gimbal, NOT the gimbal counterparts.
   Vector3d p_bu = sensors_.getBodyToImuTranslation();
   quat::Quatd q_bu = sensors_.getBodyToImuRotation();
-  Vector3d v = q_bg_.rotp(v_bI_b);
-  Vector3d omega = q_bg_.rotp(omega_bI_b);
-  Vector3d ang_accel = q_bg_.rotp(omegadot_bI_b);
-  Vector3d bad_part = q_bu.rotp(x_.omega.cross(x_.v) + x_.omega.cross(x_.omega.cross(p_bu)) + x_.ang_accel.cross(p_bu));
+  Vector3d v = x_.q.rotp(v_bI_b);
+  Vector3d omega = x_.q.rotp(omega_bI_b);
+  Vector3d ang_accel = x_.q.rotp(omegadot_bI_b);
+  Vector3d bad_part = q_bu.rotp(x_Ig.omega.cross(x_Ig.v) + x_Ig.omega.cross(x_Ig.omega.cross(p_bu)) + x_Ig.ang_accel.cross(p_bu));
   Vector3d good_part = q_bu.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu)) + ang_accel.cross(p_bu));
   sensors_.setImuAccel(sensors_.getImuAccel() - bad_part + good_part);
 
-  // Store aircraft state and sensors for correct propagation
+  // Store aircraft sensors so that EKF propagates to current time using previous measurements
   aircraft_state_ = aircraft_state;
   aircraft_sensors_ = aircraft_sensors;
 
@@ -168,25 +147,91 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
 void Gimbal::f(const vehicle::Stated& x, const Vector3d& u,
                const Vector3d& vw, vehicle::dxVector& dx)
 {
-  Vector3d omega_rel = x_.q.rotp(omega_aircraft_) - x_.omega;
   Vector3d tau_f;
-  if (omega_rel.norm() < omega_f_)
-    tau_f = Kf_ * omega_rel;
+  if (x.omega.norm() < omega_f_)
+    tau_f = Kf_ * x.omega;
   else
     tau_f.setZero();
 
-  Vector3d tau_g = p_gcg_.cross(mass_*common::gravity*x_.q.rotp(common::e3));
+  quat::Quatd q_Ig = aircraft_state_.q * x.q;
+  Vector3d tau_g = p_gcg_.cross(mass_*common::gravity*q_Ig.rotp(common::e3));
 
-  quat::Quatd q_g2_g = quat::Quatd(q_bg_.roll(), 0, 0);
-  quat::Quatd q_g1_g = quat::Quatd(q_bg_.roll(), q_bg_.pitch(), 0);
+  quat::Quatd q_g2_g = quat::Quatd(x.q.roll(), 0, 0);
+  quat::Quatd q_g1_g = quat::Quatd(x.q.roll(), x.q.pitch(), 0);
   Vector3d tau_m = u(0) * common::e1 +
                    u(1) * q_g2_g.rotp(common::e2) +
                    u(2) * q_g1_g.rotp(common::e3);
 
-  dx.segment<3>(vehicle::DP) = x.v;
-  dx.segment<3>(vehicle::DV) = x.lin_accel;
+  dx.setZero();
   dx.segment<3>(vehicle::DQ) = x.omega;
-  dx.segment<3>(vehicle::DW) = inertia_inv_ * (tau_f + tau_g + tau_m - x_.omega.cross(inertia_matrix_ * x_.omega));
+  dx.segment<3>(vehicle::DW) = inertia_inv_ * (tau_f + tau_g + tau_m - x.omega.cross(inertia_matrix_ * x.omega));
+}
+
+
+void Gimbal::saturateRollPitch(const Vector3d& omega_bI_b, const Vector3d& omegadot_bI_b)
+{
+  double roll = x_.q.roll();
+  double pitch = x_.q.pitch();
+  if (abs(roll) > max_roll_ && abs(pitch) > max_pitch_)
+  {
+    roll = max_roll_;
+    pitch = max_pitch_;
+
+    Matrix3d R = R_euler_to_body(roll, pitch);
+    Vector3d euler_dot = R.transpose() * x_.omega;
+    Vector3d euler_dotdot = R.transpose() * x_.ang_accel;
+
+    euler_dot(0) = 0;
+    euler_dot(1) = 0;
+    euler_dotdot(0) = 0;
+    euler_dotdot(1) = 0;
+
+    x_.q = quat::Quatd::from_euler(roll, pitch, x_.q.yaw());
+    x_.omega = R * euler_dot;
+    x_.ang_accel = R * euler_dotdot;
+  }
+  if (abs(roll) > max_roll_)
+  {
+    roll = max_roll_;
+
+    Matrix3d R = R_euler_to_body(roll, pitch);
+    Vector3d euler_dot = R.transpose() * x_.omega;
+    Vector3d euler_dotdot = R.transpose() * x_.ang_accel;
+
+    euler_dot(0) = 0;
+    euler_dotdot(0) = 0;
+
+    x_.q = quat::Quatd::from_euler(roll, pitch, x_.q.yaw());
+    x_.omega = R * euler_dot;
+    x_.ang_accel = R * euler_dotdot;
+  }
+  if (abs(pitch) > max_pitch_)
+  {
+    pitch = max_pitch_;
+
+    Matrix3d R = R_euler_to_body(roll, pitch);
+    Vector3d euler_dot = R.transpose() * x_.omega;
+    Vector3d euler_dotdot = R.transpose() * x_.ang_accel;
+
+    euler_dot(1) = 0;
+    euler_dotdot(1) = 0;
+
+    x_.q = quat::Quatd::from_euler(roll, pitch, x_.q.yaw());
+    x_.omega = R * euler_dot;
+    x_.ang_accel = R * euler_dotdot;
+  }
+}
+
+
+Matrix3d Gimbal::R_euler_to_body(const double& roll, const double& pitch)
+{
+  Matrix3d R = Matrix3d::Identity();
+  R(0,2) = -sin(pitch);
+  R(1,1) = cos(roll);
+  R(1,2) = sin(roll) * cos(pitch);
+  R(2,1) = -sin(roll);
+  R(2,2) = cos(roll) * cos(pitch);
+  return R;
 }
 
 
