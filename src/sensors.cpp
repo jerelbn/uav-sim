@@ -519,14 +519,15 @@ void Sensors::updateMeasurements(const double& t, const vehicle::Stated &x, envi
 }
 
 
-void Sensors::updateEncoders(const double& t, const vehicle::Stated &x)
+void Sensors::updateMeasurements(const double& t, const vehicle::Stated &x1, const vehicle::Stated &x2, environment::Environment& env)
 {
+  updateMeasurements(t, x1, env);
   if (rollenc_enabled_)
-    rollenc(t, x);
+    rollenc(t, x2);
   if (pitchenc_enabled_)
-    pitchenc(t, x);
+    pitchenc(t, x2);
   if (yawenc_enabled_)
-    yawenc(t, x);
+    yawenc(t, x2);
 }
 
 

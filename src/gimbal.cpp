@@ -119,8 +119,7 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
   // Update the estimator, then collect new sensor measurements
   quat::Quatd q_bg = quat::Quatd::from_euler(sensors_.getRollAngle(), sensors_.getPitchAngle(), sensors_.getYawAngle());
   ekf_.run(t, sensors_, aircraft_sensors_, x_.p, q_bg, vw_, x_Ig);
-  sensors_.updateMeasurements(t, x_Ig, env);
-  sensors_.updateEncoders(t, x_);
+  sensors_.updateMeasurements(t, x_Ig, x_, env);
 
   // FIX ACCELEROMETER MEASUREMENT
   // Because the gimbal is able to rotate independent of the aircraft, the traditionally computed 

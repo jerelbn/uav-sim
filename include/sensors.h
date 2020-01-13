@@ -31,7 +31,9 @@ public:
 
   void load(const string &filename, const std::default_random_engine& rng, const string &name);
   void updateMeasurements(const double& t, const vehicle::Stated &x, environment::Environment& env);
-  void updateEncoders(const double& t, const vehicle::Stated &x);
+
+  // Overload for gimbal sensor updates, x1 is aircraft state relative to inertial frame, x2 is gimbal state relative to aircraft
+  void updateMeasurements(const double& t, const vehicle::Stated &x1, const vehicle::Stated &x2, environment::Environment& env);
 
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getAccelNoise() const { return accel_noise_; }
