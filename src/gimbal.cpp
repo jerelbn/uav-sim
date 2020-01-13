@@ -95,9 +95,7 @@ void Gimbal::update(const double &t, const vehicle::Stated& aircraft_state, cons
 
   // Update controller
   vehicle::Stated xhat = ekf_.getState();
-  Eigen::Vector3d dir_c = common::e1;
-  if (env.getVehiclePositions().size() > 1) // Track second vehicle in multiple vehicle simulation
-    dir_c = (env.getVehiclePositions()[1] - p_Ig).normalized();
+  Eigen::Vector3d dir_c = common::e1; // Just point straight north for now
   ctrl_.computeControl(t, xhat.q, dir_c, xhat.omega, x_.q, u_);
 
   // Update angular acceleration

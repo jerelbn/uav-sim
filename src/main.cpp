@@ -25,13 +25,13 @@ int main()
   // Create environment
   environment::Environment env("../params/sim.yaml", rng);
 
-  // Create vehicles -- last input is vehicle ID
+  // Create vehicles
   quadrotor::Quadrotor quad1("../params/quadrotor1.yaml", env, rng, 0);
   bicycle::Bicycle bike1("../params/bicycle1.yaml", env, rng, 1);
 
   // Store initial vehicle positions in environment
-  env.initVehicle(quad1.getState().p, quad1.id_);
-  env.initVehicle(bike1.getState().p, bike1.id_);
+  env.insertVehicle(quad1.name_, quad1.getState().p);
+  env.insertVehicle(bike1.name_, bike1.getState().p);
 
   // Main simulation loop
   while (t <= tf)
@@ -45,8 +45,8 @@ int main()
 
     // Update wind and stored vehicle positions in environment
     env.updateWind(t);
-    env.updateVehicle(quad1.getState().p, quad1.id_);
-    env.updateVehicle(bike1.getState().p, bike1.id_);
+    env.updateVehicle(quad1.name_, quad1.getState().p);
+    env.updateVehicle(bike1.name_, bike1.getState().p);
   }
   prog_bar.finished();
 

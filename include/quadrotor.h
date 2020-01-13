@@ -40,8 +40,7 @@ private:
          const Eigen::Vector3d& vw, vehicle::dxVector& dx);
   void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
   void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
-  void getOtherVehicles(const std::vector<Eigen::Vector3d,
-                        Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
+  void getOtherVehicles(const environment::mapVec3& all_vehicle_positions);
   void log(const double &t);
   void runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d &vw, const vehicle::Stated &x_t, const environment::vectorVec3 &lm);
   vehicle::Stated getControlStateFromEstimator() const;

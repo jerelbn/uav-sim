@@ -40,8 +40,7 @@ private:
 
   void propagate(const double &dt, const uVector& u, const Eigen::Vector3d& vw);
   void updateAccels(const uVector& u, const Eigen::Vector3d& vw);
-  void getOtherVehicles(const std::vector<Eigen::Vector3d,
-                        Eigen::aligned_allocator<Eigen::Vector3d> >& all_vehicle_positions);
+  void getOtherVehicles(const environment::mapVec3& all_vehicle_positions);
   void log(const double &t);
   void computeLinearizedThrottle(const DynamicsCost::TrimState& x, const uVector& cmd, double &C_F_t, double &C_tau_t) const;
 
@@ -54,7 +53,7 @@ private:
   uVector u_;
 
   bool accurate_integration_, control_using_estimates_;
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > other_vehicle_positions_;
+  environment::vectorVec3 other_vehicle_positions_;
   double t_prev_;
 
   std::ofstream state_log_;

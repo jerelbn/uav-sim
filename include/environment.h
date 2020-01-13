@@ -12,6 +12,8 @@ namespace environment
 {
 
 typedef std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> vectorVec3;
+typedef std::map<std::string, Eigen::Vector3d, std::less<std::string>, 
+                 Eigen::aligned_allocator<std::pair<const std::string, Eigen::Vector3d> > > mapVec3;
 
 struct Plane
 {
@@ -31,15 +33,15 @@ public:
   void load(const std::string filename, const std::default_random_engine& rng);
   void addLandmark(const Eigen::Vector3d& p);
   void updateWind(const double t);
-  void initVehicle(const Eigen::Vector3d& p, const int &id);
-  void updateVehicle(const Eigen::Vector3d& p, const int &id);
+  void insertVehicle(const std::string& name, const Eigen::Vector3d &position);
+  void updateVehicle(const std::string& name, const Eigen::Vector3d &position);
   void logWind(const double t);
   const double& getGridCellFrac() const { return grid_cell_frac_; }
   const double& getDepthVariation() const { return lm_depth_variation_; }
   const std::vector<Plane>& getPlanes() const { return planes_; }
   const Eigen::Vector3d& getWindVel() const { return vw_; }
   const vectorVec3& getLandmarks() const { return landmarks_; }
-  const vectorVec3& getVehiclePositions() const { return vehicle_positions_; }
+  const mapVec3& getVehiclePositions() const { return vehicle_positions_; }
 
 private:
 
@@ -55,7 +57,7 @@ private:
   Plane plane_west_;
   std::vector<Plane> planes_;
   vectorVec3 landmarks_; // use a K-D Tree or OcTree for better efficiency in the future
-  vectorVec3 vehicle_positions_;
+  mapVec3 vehicle_positions_;
 
   bool enable_wind_;
   Eigen::Vector3d vw_, vw_walk_;

@@ -148,12 +148,12 @@ void Quadrotor::log(const double &t)
 }
 
 
-void Quadrotor::getOtherVehicles(const std::vector<Vector3d, aligned_allocator<Vector3d> > &all_vehicle_positions)
+void Quadrotor::getOtherVehicles(const environment::mapVec3 &all_vehicle_positions)
 {
   other_vehicle_positions_.clear();
-  for (int i = 0; i < all_vehicle_positions.size(); ++i)
-    if (i != id_)
-      other_vehicle_positions_.push_back(all_vehicle_positions[i]);
+  for (auto it = all_vehicle_positions.begin(); it != all_vehicle_positions.end(); ++it)
+    if (it->first != name_)
+      other_vehicle_positions_.push_back(it->second);
 }
 
 
