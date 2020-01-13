@@ -30,20 +30,32 @@ public:
   Sensors& operator=(const Sensors& sensors); // NOTE: Does not copy log file streams!
 
   void load(const string &filename, const std::default_random_engine& rng, const string &name);
-  void updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env);
+  void updateMeasurements(const double& t, const vehicle::Stated &x, environment::Environment& env);
+  void updateEncoders(const double& t, const vehicle::Stated &x);
+
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getAccelNoise() const { return accel_noise_; }
+
   const Vector3d& getGyroBias() const { return gyro_bias_; }
   const Vector3d& getGyroNoise() const { return gyro_noise_; }
+
   const double& getBaroBias() const { return baro_bias_; }
   const double& getBaroNoise() const { return baro_noise_; }
+
   const Vector3d& getMagBias() const { return mag_bias_; }
   const Vector3d& getMagNoise() const { return mag_noise_; }
+
   const double& getPitotBias() const { return pitot_bias_; }
   const double& getPitotNoise() const { return pitot_noise_; }
+
   const Vector3d& getBodyToImuTranslation() const { return p_bu_; }
   const quat::Quatd& getBodyToImuRotation() const { return q_bu_; }
   const Vector3d& getImuAccel() const { return imu_.accel; }
+
+  const double& getRollAngle() const { return rollenc_.angle; }
+  const double& getPitchAngle() const { return pitchenc_.angle; }
+  const double& getYawAngle() const { return yawenc_.angle; }
+
   void setImuAccel(const Vector3d& accel) { imu_.accel = accel; }
 
   common::Imud imu_;
@@ -54,6 +66,9 @@ public:
   common::Magd mag_;
   common::Pitotd pitot_;
   common::Wvaned wvane_;
+  common::RotEncd rollenc_;
+  common::RotEncd pitchenc_;
+  common::RotEncd yawenc_;
 
   bool new_imu_meas_;
   bool new_mocap_meas_;
@@ -63,6 +78,9 @@ public:
   bool new_mag_meas_;
   bool new_pitot_meas_;
   bool new_wvane_meas_;
+  bool new_rollenc_meas_;
+  bool new_pitchenc_meas_;
+  bool new_yawenc_meas_;
 
 private:
 
@@ -74,6 +92,9 @@ private:
   void mag(const double t, const vehicle::Stated& x);
   void pitot(const double t, const vehicle::Stated& x, const Vector3d& vw);
   void wvane(const double t, const vehicle::Stated& x, const Vector3d& vw);
+  void rollenc(const double t, const vehicle::Stated& x);
+  void pitchenc(const double t, const vehicle::Stated& x);
+  void yawenc(const double t, const vehicle::Stated& x);
 
   default_random_engine rng_;
   double t_round_off_; // number of decimals to round off for time stamps
@@ -187,6 +208,25 @@ private:
   double gps_vpos_noise_, gps_vvel_noise_;
   xform::Xformd X_ecef2ned_;
   common::Logger gps_log_;
+
+  // Rotary Encoders
+  bool use_rollenc_truth_, rollenc_enabled_;
+  int rollenc_id_, rollenc_resolution_;
+  double last_rollenc_update_, rollenc_update_rate_, rollenc_noise_, rollenc_bias_;
+  normal_distribution<double> rollenc_noise_dist_;
+  common::Logger rollenc_log_;
+ 
+  bool use_pitchenc_truth_, pitchenc_enabled_;
+  int pitchenc_id_, pitchenc_resolution_;
+  double last_pitchenc_update_, pitchenc_update_rate_, pitchenc_noise_, pitchenc_bias_;
+  normal_distribution<double> pitchenc_noise_dist_;
+  common::Logger pitchenc_log_;
+ 
+  bool use_yawenc_truth_, yawenc_enabled_;
+  int yawenc_id_, yawenc_resolution_;
+  double last_yawenc_update_, yawenc_update_rate_, yawenc_noise_, yawenc_bias_;
+  normal_distribution<double> yawenc_noise_dist_;
+  common::Logger yawenc_log_;
 
 };
 

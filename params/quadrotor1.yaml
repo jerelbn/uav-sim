@@ -105,6 +105,9 @@ mag_enabled: true
 pitot_enabled: false
 wvane_enabled: false
 gps_enabled: true
+rollenc_enabled: false
+pitchenc_enabled: false
+yawenc_enabled: false
 
 use_accel_truth: false
 use_gyro_truth: false
@@ -115,6 +118,9 @@ use_mag_truth: false
 use_pitot_truth: false
 use_wvane_truth: false
 use_gps_truth: false
+use_rollenc_truth: false
+use_pitchenc_truth: false
+use_yawenc_truth: false
 
 ## IMU
 imu_update_rate: 250
@@ -187,6 +193,22 @@ gps_horizontal_velocity_noise_stdev: 0.05
 gps_vertical_position_noise_stdev: 0.40
 gps_vertical_position_bias_init_bound: 9.2
 gps_vertical_velocity_noise_stdev: 0.15
+
+## Rotary Encoders
+rollenc_update_rate: 2000
+rollenc_noise_stdev: 0.001
+rollenc_resolution: 1024 # number of rotary encoder ticks per revolution
+rollenc_bias: 0 # due to mounting misalignment
+
+pitchenc_update_rate: 2000
+pitchenc_noise_stdev: 0.000001
+pitchenc_resolution: 1024 # number of rotary encoder ticks per revolution
+pitchenc_bias: 0 # due to mounting misalignment
+
+yawenc_update_rate: 2000
+yawenc_noise_stdev: 0.001
+yawenc_resolution: 1024 # number of rotary encoder ticks per revolution
+yawenc_bias: 0 # due to mounting misalignment
 
 
 ## Target estimator parameters

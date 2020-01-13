@@ -180,6 +180,40 @@ Sensors& Sensors::operator=(const Sensors& sensors) // Maybe not a good idea to 
   X_ecef2ned_ = sensors.X_ecef2ned_;
   // gps_log_ = sensors.gps_log_;
 
+  // Rotary encoders
+  use_rollenc_truth_ = sensors.use_rollenc_truth_;
+  rollenc_enabled_ = sensors.rollenc_enabled_;
+  rollenc_id_ = sensors.rollenc_id_;
+  last_rollenc_update_ = sensors.last_rollenc_update_;
+  rollenc_update_rate_ = sensors.rollenc_update_rate_;
+  rollenc_noise_dist_ = sensors.rollenc_noise_dist_;
+  rollenc_resolution_ = sensors.rollenc_resolution_;
+  rollenc_noise_ = sensors.rollenc_noise_;
+  rollenc_bias_ = sensors.rollenc_bias_;
+  // rollenc_log_ = sensors.rollenc_log_;
+
+  use_pitchenc_truth_ = sensors.use_pitchenc_truth_;
+  pitchenc_enabled_ = sensors.pitchenc_enabled_;
+  pitchenc_id_ = sensors.pitchenc_id_;
+  last_pitchenc_update_ = sensors.last_pitchenc_update_;
+  pitchenc_update_rate_ = sensors.pitchenc_update_rate_;
+  pitchenc_noise_dist_ = sensors.pitchenc_noise_dist_;
+  pitchenc_resolution_ = sensors.pitchenc_resolution_;
+  pitchenc_noise_ = sensors.pitchenc_noise_;
+  pitchenc_bias_ = sensors.pitchenc_bias_;
+  // pitchenc_log_ = sensors.pitchenc_log_;
+
+  use_yawenc_truth_ = sensors.use_yawenc_truth_;
+  yawenc_enabled_ = sensors.yawenc_enabled_;
+  yawenc_id_ = sensors.yawenc_id_;
+  last_yawenc_update_ = sensors.last_yawenc_update_;
+  yawenc_update_rate_ = sensors.yawenc_update_rate_;
+  yawenc_noise_dist_ = sensors.yawenc_noise_dist_;
+  yawenc_resolution_ = sensors.yawenc_resolution_;
+  yawenc_noise_ = sensors.yawenc_noise_;
+  yawenc_bias_ = sensors.yawenc_bias_;
+  // yawenc_log_ = sensors.yawenc_log_;
+
   return *this;
 }
 
@@ -414,10 +448,56 @@ void Sensors::load(const string& filename, const std::default_random_engine& rng
   Vector3d origin_ecef = WGS84::lla2ecef(Vector3d(origin_lat_,origin_lon_,origin_alt_));
   X_ecef2ned_ = WGS84::x_ecef2ned(origin_ecef);
 
+  // Rotary Encoders
+  stringstream ss_rollenc;
+  double rollenc_noise_stdev;
+  common::get_yaml_node("rollenc_enabled", filename, rollenc_enabled_);
+  common::get_yaml_node("use_rollenc_truth", filename, use_rollenc_truth_);
+  common::get_yaml_node("rollenc_update_rate", filename, rollenc_update_rate_);
+  common::get_yaml_node("rollenc_noise_stdev", filename, rollenc_noise_stdev);
+  common::get_yaml_node("rollenc_resolution", filename, rollenc_resolution_);
+  common::get_yaml_node("rollenc_bias", filename, rollenc_bias_);
+  rollenc_noise_dist_ = normal_distribution<double>(0.0, rollenc_noise_stdev);
+  rollenc_noise_ = 0;
+  new_rollenc_meas_ = false;
+  last_rollenc_update_ = 0.0;
+  ss_rollenc << "/tmp/" << name << "_rollenc.log";
+  rollenc_log_.open(ss_rollenc.str());
+  
+  stringstream ss_pitchenc;
+  double pitchenc_noise_stdev;
+  common::get_yaml_node("pitchenc_enabled", filename, pitchenc_enabled_);
+  common::get_yaml_node("use_pitchenc_truth", filename, use_pitchenc_truth_);
+  common::get_yaml_node("pitchenc_update_rate", filename, pitchenc_update_rate_);
+  common::get_yaml_node("pitchenc_noise_stdev", filename, pitchenc_noise_stdev);
+  common::get_yaml_node("pitchenc_resolution", filename, pitchenc_resolution_);
+  common::get_yaml_node("pitchenc_bias", filename, pitchenc_bias_);
+  pitchenc_noise_dist_ = normal_distribution<double>(0.0, pitchenc_noise_stdev);
+  pitchenc_noise_ = 0;
+  new_pitchenc_meas_ = false;
+  last_pitchenc_update_ = 0.0;
+  ss_pitchenc << "/tmp/" << name << "_pitchenc.log";
+  pitchenc_log_.open(ss_pitchenc.str());
+  
+  stringstream ss_yawenc;
+  double yawenc_noise_stdev;
+  common::get_yaml_node("yawenc_enabled", filename, yawenc_enabled_);
+  common::get_yaml_node("use_yawenc_truth", filename, use_yawenc_truth_);
+  common::get_yaml_node("yawenc_update_rate", filename, yawenc_update_rate_);
+  common::get_yaml_node("yawenc_noise_stdev", filename, yawenc_noise_stdev);
+  common::get_yaml_node("yawenc_resolution", filename, yawenc_resolution_);
+  common::get_yaml_node("yawenc_bias", filename, yawenc_bias_);
+  yawenc_noise_dist_ = normal_distribution<double>(0.0, yawenc_noise_stdev);
+  yawenc_noise_ = 0;
+  new_yawenc_meas_ = false;
+  last_yawenc_update_ = 0.0;
+  ss_yawenc << "/tmp/" << name << "_yawenc.log";
+  yawenc_log_.open(ss_yawenc.str());
+
 }
 
 
-void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, environment::Environment& env)
+void Sensors::updateMeasurements(const double& t, const vehicle::Stated &x, environment::Environment& env)
 {
   // Update enabled sensor measurements
   if (imu_enabled_)
@@ -436,6 +516,17 @@ void Sensors::updateMeasurements(const double t, const vehicle::Stated &x, envir
     wvane(t, x, env.getWindVel());
   if (gps_enabled_)
     gps(t, x);
+}
+
+
+void Sensors::updateEncoders(const double& t, const vehicle::Stated &x)
+{
+  if (rollenc_enabled_)
+    rollenc(t, x);
+  if (pitchenc_enabled_)
+    pitchenc(t, x);
+  if (yawenc_enabled_)
+    yawenc(t, x);
 }
 
 
@@ -820,6 +911,93 @@ void Sensors::gps(const double t, const vehicle::Stated& x)
   else
   {
     new_gps_meas_ = false;
+  }
+}
+
+
+void Sensors::rollenc(const double t, const vehicle::Stated& x)
+{
+  double dt = common::round2dec(t - last_rollenc_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / rollenc_update_rate_)
+  {
+    new_rollenc_meas_ = true;
+    last_rollenc_update_ = t;
+    rollenc_.t = t;
+    rollenc_.id = rollenc_id_++;
+    double rollenc_true = x.q.roll();
+    if (!use_rollenc_truth_)
+    {
+      rollenc_noise_ = rollenc_noise_dist_(rng_);
+      int num_ticks = round((rollenc_true + rollenc_bias_ + rollenc_noise_) * rollenc_resolution_ / (2.0 * M_PI));
+      rollenc_.angle = 2.0 * M_PI * num_ticks / rollenc_resolution_;
+    }
+    else
+      rollenc_.angle = rollenc_true;
+
+    // Log data
+    rollenc_log_.log(t, rollenc_.angle, rollenc_true, rollenc_bias_);
+  }
+  else
+  {
+    new_rollenc_meas_ = false;
+  }
+}
+
+
+void Sensors::pitchenc(const double t, const vehicle::Stated& x)
+{
+  double dt = common::round2dec(t - last_pitchenc_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / pitchenc_update_rate_)
+  {
+    new_pitchenc_meas_ = true;
+    last_pitchenc_update_ = t;
+    pitchenc_.t = t;
+    pitchenc_.id = pitchenc_id_++;
+    double pitchenc_true = x.q.pitch();
+    if (!use_pitchenc_truth_)
+    {
+      pitchenc_noise_ = pitchenc_noise_dist_(rng_);
+      int num_ticks = round((pitchenc_true + pitchenc_bias_ + pitchenc_noise_) * pitchenc_resolution_ / (2.0 * M_PI));
+      pitchenc_.angle = 2.0 * M_PI * num_ticks / pitchenc_resolution_;
+    }
+    else
+      pitchenc_.angle = pitchenc_true;
+
+    // Log data
+    pitchenc_log_.log(t, pitchenc_.angle, pitchenc_true, pitchenc_bias_);
+  }
+  else
+  {
+    new_pitchenc_meas_ = false;
+  }
+}
+
+
+void Sensors::yawenc(const double t, const vehicle::Stated& x)
+{
+  double dt = common::round2dec(t - last_yawenc_update_, t_round_off_);
+  if (t == 0 || dt >= 1.0 / yawenc_update_rate_)
+  {
+    new_yawenc_meas_ = true;
+    last_yawenc_update_ = t;
+    yawenc_.t = t;
+    yawenc_.id = yawenc_id_++;
+    double yawenc_true = x.q.yaw();
+    if (!use_yawenc_truth_)
+    {
+      yawenc_noise_ = yawenc_noise_dist_(rng_);
+      int num_ticks = round((yawenc_true + yawenc_bias_ + yawenc_noise_) * yawenc_resolution_ / (2.0 * M_PI));
+      yawenc_.angle = 2.0 * M_PI * num_ticks / yawenc_resolution_;
+    }
+    else
+      yawenc_.angle = yawenc_true;
+
+    // Log data
+    yawenc_log_.log(t, yawenc_.angle, yawenc_true, yawenc_bias_);
+  }
+  else
+  {
+    new_yawenc_meas_ = false;
   }
 }
 
