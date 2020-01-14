@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include "common_cpp/common.h"
+#include "common_cpp/logger.h"
 #include "vehicle.h"
 #include "environment.h"
 
@@ -12,102 +13,17 @@ namespace bicycle
 {
 
 
-// State indices
-enum
-{
-  PX,
-  PY,
-  PZ,
-  VEL,
-  PSI,
-  THETA,
-  NUM_STATES
-};
-
-// Input indices
-enum
-{
-  FORCE,
-  TORQUE,
-  COMMAND_SIZE
-};
-
-// Convenient definitions
-typedef Matrix<double, NUM_STATES, 1> xVector, dxVector;
-typedef Matrix<double, COMMAND_SIZE, 1> uVector;
-
-struct State
-{
-
-  Vector3d p;
-  double v;
-  double psi; // heading
-  double theta; // steering angle
-
-  State()
-  {
-    p.setZero();
-    v = 0;
-    psi = 0;
-    theta =0;
-  }
-
-  State(const xVector &x0)
-  {
-    p = x0.segment<3>(PX);
-    v = x0(VEL);
-    psi = x0(PSI);
-    theta = x0(THETA);
-  }
-
-  State operator+(const dxVector &delta) const
-  {
-    State x;
-    x.p = p + delta.segment<3>(PX);
-    x.v = v + delta(VEL);
-    x.psi = psi + delta(PSI);
-    x.theta = theta + delta(THETA);
-    return x;
-  }
-
-  void operator+=(const dxVector &delta)
-  {
-    *this = *this + delta;
-  }
-
-  Matrix<double, NUM_STATES, 1> toEigen() const
-  {
-    Matrix<double, NUM_STATES, 1> x;
-    x << p, v, psi, theta;
-    return x;
-  }
-
-};
-
-inline void rk4(std::function<void(const State&, const uVector&, const Vector3d&, dxVector&)> f,
-                                   const double& dt, const State& x, const uVector& u,
-                                   const Vector3d& vw, dxVector& dx)
-{
-  dxVector k1, k2, k3, k4;
-  f(x, u, vw, k1);
-  f(x + k1 * dt / 2, u, vw, k2);
-  f(x + k2 * dt / 2, u, vw, k3);
-  f(x + k3 * dt, u, vw, k4);
-  dx = (k1 + 2 * k2 + 2 * k3 + k4) * dt / 6.0;
-}
-
-
 class Bicycle
 {
 
 public:
 
   Bicycle();
-  Bicycle(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng, const int& id);
+  Bicycle(const std::string &filename, const environment::Environment& env);
   ~Bicycle();
 
-  void load(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng);
-  void run(const double &t, const environment::Environment& env);
+  void load(const std::string &filename, const environment::Environment& env);
+  void propagate(const double &t, const uVector& u, const environment::Environment& env);
   
   const std::string& name() const { return name_; }
   const State& x() const { return x_; }
@@ -115,31 +31,18 @@ public:
 
 private:
 
-  void f(const State& x, const uVector& u, const Vector3d& vw, xVector& dx);
-  void propagate(const double &t, const uVector& u, const Vector3d& vw);
-  void computeControl();
-  void updateWaypoint();
+  void f(const State& x, const uVector& u, xVector& dx);
   void updateElevation(const environment::Environment& env);
   void log(const double &t);
 
   std::string name_;
   State x_;
   xVector dx_;
-  uVector u_;
 
   bool initialized_, flat_ground_;
-  double mass_, inertia_, max_force_, max_torque_, max_steering_angle_, L_, t_prev_;
-  double ku_, ktheta_, kpsi_;
-  double vel_cmd_;
+  double mass_, inertia_, max_steering_angle_, L_, t_prev_;
 
-  std::ofstream true_state_log_;
-  std::ofstream command_log_;
-
-  // Waypoint Parameters
-  MatrixXd waypoints_;
-  int current_waypoint_id_;
-  double waypoint_threshold_;
-  Vector2d wp_;
+  common::Logger state_log_;
 
 };
 

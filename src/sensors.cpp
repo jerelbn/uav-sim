@@ -519,9 +519,9 @@ void Sensors::updateMeasurements(const double& t, const vehicle::Stated &x, envi
   if (mag_enabled_)
     mag(t, x);
   if (pitot_enabled_)
-    pitot(t, x, env.getWindVel());
+    pitot(t, x, env.vw());
   if (wvane_enabled_)
-    wvane(t, x, env.getWindVel());
+    wvane(t, x, env.vw());
   if (gps_enabled_)
     gps(t, x);
 }

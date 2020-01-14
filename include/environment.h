@@ -39,7 +39,7 @@ public:
   const double& getGridCellFrac() const { return grid_cell_frac_; }
   const double& getDepthVariation() const { return lm_depth_variation_; }
   const std::vector<Plane>& getPlanes() const { return planes_; }
-  const Eigen::Vector3d& getWindVel() const { return vw_; }
+  const Eigen::Vector3d& vw() const { return vw_; }
   const vectorVec3& getLandmarks() const { return landmarks_; }
   const mapVec3& getVehiclePositions() const { return vehicle_positions_; }
   const Eigen::Vector3d& getVehiclePosition(const std::string& name) const // std::map::operator[] is non-const so this is not as clean as desired
@@ -82,4 +82,4 @@ private:
 };
 
 
-}
+} // namespace environment

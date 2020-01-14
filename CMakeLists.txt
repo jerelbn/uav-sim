@@ -36,7 +36,6 @@ add_executable(uav_sim
   src/fixed_wing.cpp
   src/fixed_wing_trim.cpp
   src/fixed_wing_base.cpp
-  src/bicycle.cpp
   src/sensors.cpp
   src/quad_control.cpp
   src/fixed_wing_control.cpp
@@ -45,6 +44,8 @@ add_executable(uav_sim
   src/gimbal.cpp
   src/gmbl_ctrl_pid.cpp
   src/gmbl_ekf.cpp
+  src/bicycle.cpp
+  src/bicycle_ctrl_pid.cpp
   )
 target_link_libraries(uav_sim
   common_cpp

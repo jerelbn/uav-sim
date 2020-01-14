@@ -8,6 +8,7 @@
 #include "gmbl_ctrl_pid.h"
 #include "gmbl_ekf.h"
 #include "bicycle.h"
+#include "bicycle_ctrl_pid.h"
 
 
 
@@ -40,7 +41,8 @@ int main()
   gmbl_ekf::EKF gimbal1_ekf("../params/gimbal.yaml", gimbal1.name());
   sensors::Sensors gimbal1_sensors("../params/gimbal.yaml", rng, gimbal1.name());
 
-  bicycle::Bicycle bike1("../params/bicycle1.yaml", env, rng, 1);
+  bicycle::Bicycle bike1("../params/bicycle1.yaml", env);
+  bicycle_ctrl_pid::Controller bike1_ctrl("../params/bicycle1.yaml", bike1.name());
 
   // Store initial vehicle positions in Environment class
   env.insertVehicle(quad1.name(), quad1.x().p);
@@ -55,9 +57,9 @@ int main()
     env.updateVehicle(bike1.name(), bike1.x().p);
     
     // Update vehicles, controllers, sensors, estimators
-    quad1.propagate(t, quad1_ctrl.u_, env.getWindVel());
+    quad1.propagate(t, quad1_ctrl.u_, env.vw());
     quad1_ctrl.computeControl(quad1.x(), t, env.getVehiclePosition(bike1.name()));
-    quad1.updateAccelerations(quad1_ctrl.u_, env.getWindVel());
+    quad1.updateAccelerations(quad1_ctrl.u_, env.vw());
     quad1_sensors.updateMeasurements(t, quad1.x(), env);
 
     gimbal1.propagate(t, gimbal1_ctrl.u(), quad1.x().q);
@@ -66,7 +68,8 @@ int main()
     gimbal1_sensors.updateMeasurements(t, quad1.x(), gimbal1.x(), env);
     gimbal1_ekf.run(t, gimbal1_sensors, quad1_sensors, gimbal1_sensors.qEnc(), gimbal1.x(), quad1.x());
 
-    bike1.run(t, env);
+    bike1.propagate(t, bike1_ctrl.u(), env);
+    bike1_ctrl.computeControl(bike1.x());
     
     // Update time step
     t += dt;

@@ -39,10 +39,10 @@ void FixedWing::load(const std::string &filename, environment::Environment& env,
   x_ = vehicle::Stated(x0);
 
   // Initialize other classes
-  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.getWindVel());
-  updateAccels(u_, env.getWindVel());
+  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0], env.vw());
+  updateAccels(u_, env.vw());
   sensors_.updateMeasurements(0, x_, env);
-  ekf_.run(0, sensors_, env.getWindVel(), getState());
+  ekf_.run(0, sensors_, env.vw(), getState());
 
   // Compute trim
   bool compute_trim;
@@ -88,14 +88,14 @@ void FixedWing::propagate(const double &t, const uVector& u, const Vector3d& vw)
 void FixedWing::run(const double &t, environment::Environment& env)
 {
   getOtherVehicles(env.getVehiclePositions());
-  propagate(t, u_, env.getWindVel()); // Propagate truth to current time step
+  propagate(t, u_, env.vw()); // Propagate truth to current time step
   if (control_using_estimates_)
     controller_.computeControl(ekf_.getState(), t, u_, other_vehicle_positions_[0], ekf_.getWind());
   else
-    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.getWindVel());
-  updateAccels(u_, env.getWindVel()); // Update true acceleration
+    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0], env.vw());
+  updateAccels(u_, env.vw()); // Update true acceleration
   sensors_.updateMeasurements(t, x_, env);
-  ekf_.run(t, sensors_, env.getWindVel(), getState());
+  ekf_.run(t, sensors_, env.vw(), getState());
   log(t); // Log current data
 }
 
