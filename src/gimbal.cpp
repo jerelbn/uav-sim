@@ -41,11 +41,9 @@ void Gimbal::load(const std::string &filename, const std::default_random_engine&
   x_.q = quat::Quatd(rpy(0), rpy(1), rpy(2));
 
   // Initialize loggers and log initial data
-  std::stringstream ss_s, ss_e;
-  ss_s << "/tmp/" << name_ << "_true_state.log";
-  ss_e << "/tmp/" << name_ << "_euler_angles.log";
-  state_log_.open(ss_s.str());
-  euler_log_.open(ss_e.str());
+  std::string logname_true_state;
+  common::get_yaml_node("logname_true_state", filename, logname_true_state);
+  state_log_.open(logname_true_state);
 }
 
 
@@ -177,11 +175,8 @@ Matrix3d Gimbal::R_euler_to_body(const double& roll, const double& pitch)
 
 void Gimbal::log(const double &t)
 {
-  // Write data to binary files and plot in another program
   state_log_.log(t);
-  state_log_.logMatrix(x_.p, x_.v, x_.lin_accel, x_.q.elements(), x_.omega, x_.ang_accel);
-  euler_log_.log(t);
-  euler_log_.logMatrix(x_.q.euler());
+  state_log_.logMatrix(x_.p, x_.v, x_.lin_accel, x_.q.elements(), x_.omega, x_.ang_accel, x_.q.euler());
 }
 
 

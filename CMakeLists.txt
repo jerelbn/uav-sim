@@ -29,8 +29,8 @@ include_directories(include
   ${CERES_INCLUDE_DIRS}
   )
 
-add_executable(uav_sim
-  src/main.cpp
+add_executable(sim_gimbal
+  test/simulation_gimbal.cpp
   src/environment.cpp
   src/quadrotor.cpp
   src/fixed_wing.cpp
@@ -47,7 +47,7 @@ add_executable(uav_sim
   src/bicycle.cpp
   src/bicycle_ctrl_pid.cpp
   )
-target_link_libraries(uav_sim
+target_link_libraries(sim_gimbal
   common_cpp
   geometry
   lin_alg_tools
@@ -67,7 +67,7 @@ target_link_libraries(fw_ekf_test
   )
 
 add_executable(test_gmbl_ekf 
-  test/gmbl_ekf_test.cpp
+  test/gmbl_ekf.cpp
   src/gmbl_ekf.cpp
 )
 target_link_libraries(test_gmbl_ekf

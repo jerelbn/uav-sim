@@ -34,9 +34,9 @@ void Bicycle::load(const std::string &filename, const environment::Environment &
   updateElevation(env);
 
   // Initialize loggers
-  std::stringstream ss;
-  ss << "/tmp/" << name_ << "_true_state.log";
-  state_log_.open(ss.str());
+  std::string logname_true_state;
+  common::get_yaml_node("logname_true_state", filename, logname_true_state);
+  state_log_.open(logname_true_state);
 }
 
 

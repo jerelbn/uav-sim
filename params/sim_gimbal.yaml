@@ -17,3 +17,6 @@ landmark_depth_variation: 1.0 # Maximum variation in depth of generated landmark
 north_dim: 2000 # Total box length in north dimension (m)
 east_dim: 2000 # Total box length in east dimension (m)
 height_dim: 500 # Total box height dimension (m)
+
+logname_landmarks: /tmp/landmarks.log
+logname_wind: /tmp/wind.log

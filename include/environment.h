@@ -6,6 +6,7 @@
 #include <eigen3/Eigen/Eigen>
 
 #include "common_cpp/common.h"
+#include "common_cpp/logger.h"
 
 
 namespace environment
@@ -76,8 +77,8 @@ private:
   std::normal_distribution<double> vw_east_walk_dist_;
   std::normal_distribution<double> vw_down_walk_dist_;
 
-  std::ofstream landmark_log_;
-  std::ofstream wind_log_;
+  common::Logger landmark_log_;
+  common::Logger wind_log_;
 
 };
 

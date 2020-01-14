@@ -82,9 +82,14 @@ void EKF::load(const string &filename, const std::string& name)
   ss_t << "/tmp/" << name << "_ekf_truth.log";
   ss_e << "/tmp/" << name << "_ekf_est.log";
   ss_c << "/tmp/" << name << "_ekf_cov.log";
-  true_state_log_.open(ss_t.str());
-  ekf_state_log_.open(ss_e.str());
-  cov_log_.open(ss_c.str());
+
+  std::string logname_truth, logname_est, logname_cov;
+  common::get_yaml_node("logname_ekf_truth", filename, logname_truth);
+  common::get_yaml_node("logname_ekf_est", filename, logname_est);
+  common::get_yaml_node("logname_ekf_cov", filename, logname_cov);
+  true_state_log_.open(logname_truth);
+  ekf_state_log_.open(logname_est);
+  cov_log_.open(logname_cov);
 }
 
 

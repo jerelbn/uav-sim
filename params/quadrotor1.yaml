@@ -1,6 +1,6 @@
 # Quadrotor 1 configuration
-name: quad1
-control_using_estimates: false
+name: quadrotor1
+logname_true_state: /tmp/quadrotor1_true_state.log
 
 # Monte Carlo Parameters
 ekf_random_init: true

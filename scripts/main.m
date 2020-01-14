@@ -3,10 +3,10 @@ clear, close all
 format compact
 set(0,'DefaultFigureWindowStyle','docked')
 addpath('../lib/yamlmatlab')
-sim_params = ReadYaml('../params/sim.yaml');
+sim_params = ReadYaml('../params/sim_gimbal.yaml');
 wing1_params = ReadYaml('../params/fixed_wing1.yaml');
 quad1_params = ReadYaml('../params/quadrotor1.yaml');
-gimbal_params = ReadYaml('../params/gimbal.yaml');
+gimbal_params = ReadYaml('../params/gimbal1.yaml');
 pbviekf_params = ReadYaml('../params/pb_vi_ekf_params.yaml');
 
 % plot_environment('wing1', sim_params, quad1_params)

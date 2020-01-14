@@ -16,9 +16,9 @@ int main()
 {
   int seed;
   double t(0), tf, dt;
-  common::get_yaml_node("seed", "../params/sim.yaml", seed);
-  common::get_yaml_node("tf", "../params/sim.yaml", tf);
-  common::get_yaml_node("dt", "../params/sim.yaml", dt);
+  common::get_yaml_node("seed", "../params/sim_gimbal.yaml", seed);
+  common::get_yaml_node("tf", "../params/sim_gimbal.yaml", tf);
+  common::get_yaml_node("dt", "../params/sim_gimbal.yaml", dt);
   if (seed < 0)
     seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rng(seed);
@@ -29,17 +29,17 @@ int main()
   prog_bar.init(tf/dt,40);
 
   // Create environment
-  environment::Environment env("../params/sim.yaml", rng);
+  environment::Environment env("../params/sim_gimbal.yaml", rng);
 
   // Create vehicles, controllers, estimators, sensor packages
   quadrotor::Quadrotor quad1("../params/quadrotor1.yaml", rng);
   quadrotor::Controller quad1_ctrl("../params/quadrotor1.yaml", rng, quad1.name());
   sensors::Sensors quad1_sensors("../params/quadrotor1.yaml", rng, quad1.name());
 
-  gimbal::Gimbal gimbal1("../params/gimbal.yaml", rng);
-  gmbl_ctrl_pid::Controller gimbal1_ctrl("../params/gimbal.yaml", gimbal1.name());
-  gmbl_ekf::EKF gimbal1_ekf("../params/gimbal.yaml", gimbal1.name());
-  sensors::Sensors gimbal1_sensors("../params/gimbal.yaml", rng, gimbal1.name());
+  gimbal::Gimbal gimbal1("../params/gimbal1.yaml", rng);
+  gmbl_ctrl_pid::Controller gimbal1_ctrl("../params/gimbal1.yaml", gimbal1.name());
+  gmbl_ekf::EKF gimbal1_ekf("../params/gimbal1.yaml", gimbal1.name());
+  sensors::Sensors gimbal1_sensors("../params/gimbal1.yaml", rng, gimbal1.name());
 
   bicycle::Bicycle bike1("../params/bicycle1.yaml", env);
   bicycle_ctrl_pid::Controller bike1_ctrl("../params/bicycle1.yaml", bike1.name());

@@ -1,6 +1,9 @@
 # Gimbal configuration
-name: gimbal
-control_using_estimates: false
+name: gimbal1
+logname_true_state: /tmp/gimbal1_true_state.log
+logname_ekf_truth: /tmp/gimbal1_ekf_truth.log
+logname_ekf_est: /tmp/gimbal1_ekf_est.log
+logname_ekf_cov: /tmp/gimbal1_ekf_cov.log
 
 # Physical parameters
 p_bg: [0, 0, 0] # body to gimbal translation in body frame

@@ -33,9 +33,9 @@ void Quadrotor::load(const std::string &filename, const std::default_random_engi
   inertia_inv_ = inertia_matrix_.inverse();
 
   // Initialize loggers and log initial data
-  std::stringstream ss_s;
-  ss_s << "/tmp/" << name_ << "_true_state.log";
-  state_log_.open(ss_s.str());
+  std::string logname_true_state;
+  common::get_yaml_node("logname_true_state", filename, logname_true_state);
+  state_log_.open(logname_true_state);
 }
 
 

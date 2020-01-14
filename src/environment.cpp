@@ -22,9 +22,7 @@ Environment::Environment(const std::string filename, const std::default_random_e
 Environment::~Environment()
 {
   for (auto& lm : landmarks_)
-    landmark_log_.write((char*)lm.data(), lm.rows() * sizeof(double));
-  landmark_log_.close();
-  wind_log_.close();
+    landmark_log_.logMatrix(lm);
 }
 
 
@@ -92,11 +90,11 @@ void Environment::load(const std::string filename, const std::default_random_eng
   planes_.push_back(plane_west_);
 
   // Initialize loggers
-  landmark_log_.open("/tmp/landmarks.log");
-  wind_log_.open("/tmp/wind.log");
-
-  // Log environment initial wind data
-  logWind(0);
+  std::string logname_landmarks, logname_wind;
+  common::get_yaml_node("logname_landmarks", filename, logname_landmarks);
+  common::get_yaml_node("logname_wind", filename, logname_wind);
+  landmark_log_.open(logname_landmarks);
+  wind_log_.open(logname_wind);
 }
 
 
@@ -109,8 +107,8 @@ void Environment::addLandmark(const Eigen::Vector3d& p)
 void Environment::logWind(const double t)
 {
   // Write data to binary files and plot in another program
-  wind_log_.write((char*)&t, sizeof(double));
-  wind_log_.write((char*)vw_.data(), vw_.rows() * sizeof(double));
+  wind_log_.log(t);
+  wind_log_.logMatrix(vw_);
 }
 
 
