@@ -3,7 +3,8 @@
 #include <fstream>
 
 #include "common_cpp/common.h"
-#include "geometry/quat.h"
+#include "common_cpp/logger.h"
+#include "vehicle.h"
 
 
 namespace gmbl_ctrl_pid
@@ -15,20 +16,23 @@ class Controller
 public:
 
   Controller();
+  Controller(const std::string &filename, const std::string &name);
   ~Controller();
 
   void load(const std::string &filename, const std::string &name);
-  void computeControl(const double& t, const quat::Quatd& q, const Eigen::Vector3d& cmd_dir_I, 
-                      const Eigen::Vector3d& omega, const quat::Quatd& q_bg, Eigen::Vector3d& u);
+  void computeControl(const double& t, const vehicle::Stated& x_Ib, const vehicle::Stated& x_bg, const Eigen::Vector3d& cmd_dir_I);
+
+  const Vector3d& u() const { return u_; }
 
 private:
 
   int update_rate_;
   bool initialized_;
-  double prev_time_;
-  std::ofstream motor_command_log_;
-  std::ofstream euler_command_log_;
-  Eigen::Vector3d euler_c_;
+  double t_prev_;
+  Eigen::Vector3d u_, euler_c_;
+
+  common::Logger motor_command_log_;
+  common::Logger euler_command_log_;
 
   double max_roll_torque_;
   double max_pitch_torque_;
@@ -50,7 +54,7 @@ private:
   common::PID<double> pitch_;
   common::PID<double> yaw_;
 
-  void log(const double &t, const Eigen::Vector3d &u);
+  void log(const double &t);
 
 };
 

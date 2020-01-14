@@ -42,6 +42,17 @@ public:
   const Eigen::Vector3d& getWindVel() const { return vw_; }
   const vectorVec3& getLandmarks() const { return landmarks_; }
   const mapVec3& getVehiclePositions() const { return vehicle_positions_; }
+  const Eigen::Vector3d& getVehiclePosition(const std::string& name) const // std::map::operator[] is non-const so this is not as clean as desired
+  { 
+    auto pos = vehicle_positions_.find(name);
+    if (pos == vehicle_positions_.end())
+    {
+      std::stringstream ss;
+      ss << "environment.h: Unable to find " << name << " in vehicle_positions_";
+      throw std::runtime_error(ss.str());
+    }
+    return pos->second;
+  }
 
 private:
 

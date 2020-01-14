@@ -18,6 +18,14 @@ Sensors::Sensors(const Sensors& sensors)
 }
 
 
+Sensors::Sensors(const string &filename, const std::default_random_engine& rng, const string &name)
+  : imu_id_(0), mocap_id_(0), image_id_(0), gps_id_(0), baro_id_(0), pitot_id_(0), wvane_id_(0)
+{
+  q_cbc_ = quat::Quatd(M_PI/2, 0, M_PI/2);
+  load(filename, rng, name);
+}
+
+
 Sensors::~Sensors() {}
 
 
@@ -519,15 +527,45 @@ void Sensors::updateMeasurements(const double& t, const vehicle::Stated &x, envi
 }
 
 
-void Sensors::updateMeasurements(const double& t, const vehicle::Stated &x1, const vehicle::Stated &x2, environment::Environment& env)
+void Sensors::updateMeasurements(const double& t, const vehicle::Stated &xa, const vehicle::Stated &xg, environment::Environment& env)
 {
-  updateMeasurements(t, x1, env);
+  // Create true gimbal state w.r.t. inertial frame
+  vehicle::Stated x_Ig;
+  x_Ig.p = xa.p + xa.q.rota(xg.p);
+  x_Ig.v = xg.q.rotp(xa.v + xa.omega.cross(xg.p));
+  x_Ig.lin_accel = xg.q.rotp(xa.lin_accel + xa.omega.cross(xa.omega.cross(xg.p)) + xa.ang_accel.cross(xg.p));
+  x_Ig.q = xa.q * xg.q;
+  x_Ig.omega = xg.q.rotp(xa.omega) + xg.omega;
+  x_Ig.ang_accel = xg.q.rotp(xa.ang_accel) + xg.ang_accel;
+
+  // Regular sensor update
+  updateMeasurements(t, x_Ig, env);
+
+  // Fix gimbal accelerometer measurement
+  // Because the gimbal is able to rotate independent of the aircraft, the traditionally computed 
+  // accelerometer measurement is incorrect. Aircraft linear/angular velocities and angular acceleration
+  // contribute to measured accelaration on the gimbal, NOT the gimbal counterparts.
+  static Vector3d v, omega, ang_accel, good_part, bad_part;
+
+  v = xg.q.rotp(xa.v + xa.omega.cross(xg.p));
+  omega = xg.q.rotp(xa.omega) + xg.omega;
+  ang_accel = xg.q.rotp(xa.ang_accel) + xg.ang_accel;
+  bad_part = q_bu_.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu_)) + ang_accel.cross(p_bu_));
+
+  v = xg.q.rotp(xa.v);
+  omega = xg.q.rotp(xa.omega);
+  ang_accel = xg.q.rotp(xa.ang_accel);
+  good_part = q_bu_.rotp(omega.cross(v) + omega.cross(omega.cross(p_bu_)) + ang_accel.cross(p_bu_));
+
+  setImuAccel(getImuAccel() - bad_part + good_part);
+
+  // Update encoder measurements
   if (rollenc_enabled_)
-    rollenc(t, x2);
+    rollenc(t, xg);
   if (pitchenc_enabled_)
-    pitchenc(t, x2);
+    pitchenc(t, xg);
   if (yawenc_enabled_)
-    yawenc(t, x2);
+    yawenc(t, xg);
 }
 
 

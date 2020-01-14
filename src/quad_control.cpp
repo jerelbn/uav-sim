@@ -10,6 +10,17 @@ Controller::Controller() :
   initialized_(false)
 {
   dhat_.setZero();
+  u_.setZero();
+}
+
+
+Controller::Controller(const std::string& filename, const std::default_random_engine& rng, const std::string& name) :
+  prev_time_(0),
+  initialized_(false)
+{
+  dhat_.setZero();
+  u_.setZero();
+  load(filename, rng, name);
 }
 
 
@@ -120,7 +131,7 @@ void Controller::load(const std::string& filename, const std::default_random_eng
 }
 
 
-void Controller::computeControl(const vehicle::Stated &x, const double t, quadrotor::uVector& u, const Vector3d& pt)
+void Controller::computeControl(const vehicle::Stated &x, const double t, const Vector3d& pt)
 {
   // Update state estimate for waypoint manager
   xhat_ = x;
@@ -135,7 +146,7 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, quadro
 
   if (dt <= 0)
   {
-    u.setZero();
+    u_.setZero();
     return;
   }
 
@@ -278,13 +289,13 @@ void Controller::computeControl(const vehicle::Stated &x, const double t, quadro
   r_c = common::saturate(r_c, max_.yaw_rate, -max_.yaw_rate);
 
   // Calculate the Final Output Torques using PID
-  u(quadrotor::THRUST) = throttle;
-  u(quadrotor::TAUX) = roll_.run(dt, phi, phi_c, false, x.omega(0));
-  u(quadrotor::TAUY) = pitch_.run(dt, theta, theta_c, false, x.omega(1));
-  u(quadrotor::TAUZ) = yaw_rate_.run(dt, x.omega(2), r_c, false);
+  u_(quadrotor::THRUST) = throttle;
+  u_(quadrotor::TAUX) = roll_.run(dt, phi, phi_c, false, x.omega(0));
+  u_(quadrotor::TAUY) = pitch_.run(dt, theta, theta_c, false, x.omega(1));
+  u_(quadrotor::TAUZ) = yaw_rate_.run(dt, x.omega(2), r_c, false);
 
   // Log all data
-  log(t, u);
+  log(t);
 }
 
 
@@ -326,14 +337,14 @@ void Controller::updateTrajectoryManager(const double& t)
 }
 
 
-void Controller::log(const double &t, const uVector& u)
+void Controller::log(const double &t)
 {
   // Write data to binary files and plot in another program
   vehicle::xVector commanded_state = xc_.toEigen();
   command_state_log_.write((char*)&t, sizeof(double));
   command_state_log_.write((char*)commanded_state.data(), commanded_state.rows() * sizeof(double));
   command_log_.write((char*)&t, sizeof(double));
-  command_log_.write((char*)u.data(), u.rows() * sizeof(double));
+  command_log_.write((char*)u_.data(), u_.rows() * sizeof(double));
   euler_command_log_.write((char*)&t, sizeof(double));
   euler_command_log_.write((char*)xc_.q.euler().data(), 3 * sizeof(double));
   target_log_.write((char*)&t, sizeof(double));

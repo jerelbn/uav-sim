@@ -1,6 +1,5 @@
 # Gimbal configuration
 name: gimbal
-accurate_integration: true
 control_using_estimates: false
 
 # Physical parameters

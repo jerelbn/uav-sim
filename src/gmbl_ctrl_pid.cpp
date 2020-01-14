@@ -6,15 +6,23 @@ namespace gmbl_ctrl_pid
 
 
 Controller::Controller() :
-  prev_time_(0),
+  t_prev_(0),
   initialized_(false)
-{}
-
-
-Controller::~Controller()
 {
-  motor_command_log_.close();
+  u_.setZero();
 }
+
+
+Controller::Controller(const std::string& filename, const std::string& name) :
+  t_prev_(0),
+  initialized_(false)
+{
+  u_.setZero();
+  load(filename, name);
+}
+
+
+Controller::~Controller() {}
 
 
 void Controller::load(const std::string& filename, const std::string& name)
@@ -66,18 +74,17 @@ void Controller::load(const std::string& filename, const std::string& name)
 }
 
 
-void Controller::computeControl(const double& t, const quat::Quatd& q, const Eigen::Vector3d& cmd_dir_I, 
-                                const Eigen::Vector3d& omega, const quat::Quatd& q_bg, Eigen::Vector3d& u)
+void Controller::computeControl(const double& t, const vehicle::Stated& x_Ib, const vehicle::Stated& x_bg, const Eigen::Vector3d& cmd_dir_I)
 {
-  double dt = common::round2dec(t - prev_time_, 6);
+  double dt = common::round2dec(t - t_prev_, 6);
   if (t == 0 || dt >= 1.0 / update_rate_)
   {
     // Copy the current state and time
-    prev_time_ = t;
+    t_prev_ = t;
 
     // Roll and pitch rotations
-    quat::Quatd q_g2_g = quat::Quatd(q_bg.roll(), 0, 0);
-    quat::Quatd q_g1_g = quat::Quatd(q_bg.roll(), q_bg.pitch(), 0);
+    quat::Quatd q_g2_g = quat::Quatd(x_bg.q.roll(), 0, 0);
+    quat::Quatd q_g1_g = quat::Quatd(x_bg.q.roll(), x_bg.q.pitch(), 0);
     
     // Calculate commanded Euler angles
     double roll_c = 0;
@@ -93,9 +100,12 @@ void Controller::computeControl(const double& t, const quat::Quatd& q, const Eig
     euler_c_ << roll_c, pitch_c, yaw_c;
     
     // Current states of gimbal axes
-    double roll = q.roll();
-    double pitch = q.pitch();
-    double yaw = q.yaw();
+    quat::Quatd q_Ig = x_Ib.q * x_bg.q;
+    Vector3d omega = x_Ib.omega + x_bg.omega;
+
+    double roll = q_Ig.roll();
+    double pitch = q_Ig.pitch();
+    double yaw = q_Ig.yaw();
     
     double omega_roll = common::e1.dot(omega);
     double omega_pitch = common::e2.dot(q_g2_g.rota(omega));
@@ -115,23 +125,23 @@ void Controller::computeControl(const double& t, const quat::Quatd& q, const Eig
     double torque_yaw_rate = yaw_rate_.run(dt, omega_yaw, 0, true);
 
     // Populate output
-    u(0) = torque_roll + torque_roll_rate;
-    u(1) = torque_pitch + torque_pitch_rate;
-    u(2) = torque_yaw + torque_yaw_rate;
+    u_(0) = torque_roll + torque_roll_rate;
+    u_(1) = torque_pitch + torque_pitch_rate;
+    u_(2) = torque_yaw + torque_yaw_rate;
   }
 
   // Log all data
-  log(t, u);
+  log(t);
 }
 
 
-void Controller::log(const double &t, const Eigen::Vector3d& u)
+void Controller::log(const double &t)
 {
   // Write data to binary files and plot in another program
-  motor_command_log_.write((char*)&t, sizeof(double));
-  motor_command_log_.write((char*)u.data(), u.rows() * sizeof(double));
-  euler_command_log_.write((char*)&t, sizeof(double));
-  euler_command_log_.write((char*)euler_c_.data(), euler_c_.rows() * sizeof(double));
+  motor_command_log_.log(t);
+  motor_command_log_.logMatrix(u_);
+  euler_command_log_.log(t);
+  euler_command_log_.logMatrix(euler_c_);
 }
 
 

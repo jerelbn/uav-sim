@@ -108,10 +108,10 @@ public:
 
   void load(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng);
   void run(const double &t, const environment::Environment& env);
-  const State& getState() const { return x_; }
+  
+  const std::string& name() const { return name_; }
+  const State& x() const { return x_; }
 
-  int id_;
-  std::string name_;
 
 private:
 
@@ -122,11 +122,12 @@ private:
   void updateElevation(const environment::Environment& env);
   void log(const double &t);
 
+  std::string name_;
   State x_;
   xVector dx_;
   uVector u_;
 
-  bool accurate_integration_, initialized_, flat_ground_;
+  bool initialized_, flat_ground_;
   double mass_, inertia_, max_force_, max_torque_, max_steering_angle_, L_, t_prev_;
   double ku_, ktheta_, kpsi_;
   double vel_cmd_;

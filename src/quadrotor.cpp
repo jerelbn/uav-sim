@@ -7,30 +7,21 @@ namespace quadrotor
 Quadrotor::Quadrotor()  : t_prev_(0.0) {}
 
 
-Quadrotor::Quadrotor(const std::string &filename, environment::Environment& env, const std::default_random_engine& rng, const int& id)
-  : t_prev_(0.0), id_(id)
+Quadrotor::Quadrotor(const std::string &filename, const std::default_random_engine& rng)
 {
-  load(filename, env, rng);
+  load(filename, rng);
 }
 
 
 Quadrotor::~Quadrotor() {}
 
 
-void Quadrotor::load(const std::string &filename, environment::Environment& env, const std::default_random_engine& rng)
+void Quadrotor::load(const std::string &filename, const std::default_random_engine& rng)
 {
-  // Instantiate Sensors, Controller, and Estimator classes
-  common::get_yaml_node("name", filename, name_);
-  controller_.load(filename, rng, name_);
-  sensors_.load(filename, rng, name_);
-  estimator_.load("../params/pb_vi_ekf_params.yaml", name_);
-  gimbal_.load("../params/gimbal.yaml", rng);
-
   // Load all Quadrotor parameters
-  common::get_yaml_node("accurate_integration", filename, accurate_integration_);
+  common::get_yaml_node("name", filename, name_);
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("max_thrust", filename, max_thrust_);
-  common::get_yaml_node("control_using_estimates", filename, control_using_estimates_);
 
   vehicle::xVector x0;
   common::get_yaml_eigen("x0", filename, x0);
@@ -41,53 +32,29 @@ void Quadrotor::load(const std::string &filename, environment::Environment& env,
   x_.drag = linear_drag_matrix_(0,0);
   inertia_inv_ = inertia_matrix_.inverse();
 
-  // Randomly initialize estimator vel/roll/pitch/drag
-  bool random_init;
-  double v0_err, roll0_err, pitch0_err, drag0_err;
-  common::get_yaml_node("ekf_random_init", filename, random_init);
-  common::get_yaml_node("ekf_v0_err", filename, v0_err);
-  common::get_yaml_node("ekf_roll0_err", filename, roll0_err);
-  common::get_yaml_node("ekf_pitch0_err", filename, pitch0_err);
-  common::get_yaml_node("ekf_drag0_err", filename, drag0_err);
-  if (random_init)
-  {
-    double roll_new = x_.q.roll() + roll0_err * Vector1d::Random()(0);
-    double pitch_new = x_.q.pitch() + pitch0_err * Vector1d::Random()(0);
-    estimator_.setVelocity(x_.v + v0_err * Vector3d::Random());
-    estimator_.setAttitude(quat::Quatd(roll_new,pitch_new,x_.q.yaw()).elements());
-    estimator_.setDrag(x_.drag + drag0_err * Vector1d::Random()(0));
-  }
-
-  // Initialize other classes
-  controller_.computeControl(getState(), 0, u_, other_vehicle_positions_[0]);
-  updateAccels(u_, env.getWindVel());
-  sensors_.updateMeasurements(0, x_, env);
-  gimbal_.update(0, x_, sensors_, env);
-  runEstimator(0, sensors_, env.getWindVel(), getState(), env.getLandmarks());
-
   // Initialize loggers and log initial data
-  std::stringstream ss_s, ss_e;
+  std::stringstream ss_s;
   ss_s << "/tmp/" << name_ << "_true_state.log";
-  ss_e << "/tmp/" << name_ << "_euler_angles.log";
   state_log_.open(ss_s.str());
-  euler_log_.open(ss_e.str());
-  log(0);
 }
 
 
-void Quadrotor::run(const double &t, environment::Environment& env)
+void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
 {
-  getOtherVehicles(env.getVehiclePositions());
-  propagate(t, u_, env.getWindVel()); // Propagate truth to current time step
-  if (control_using_estimates_)
-    controller_.computeControl(getControlStateFromEstimator(), t, u_, other_vehicle_positions_[0]);
-  else
-    controller_.computeControl(getState(), t, u_, other_vehicle_positions_[0]);
-  updateAccels(u_, env.getWindVel()); // Update true acceleration
-  runEstimator(t, sensors_, env.getWindVel(), getState(), env.getLandmarks());
-  sensors_.updateMeasurements(t, x_, env);
-  gimbal_.update(t, x_, sensors_, env); // Update gimbal to current time step
-  log(t); // Log current data
+  double dt = t - t_prev_;
+  t_prev_ = t;
+
+  if (t > 0)
+  {
+    // 4th order Runge-Kutta integration
+    vehicle::rk4<COMMAND_SIZE>(std::bind(&Quadrotor::f, this,
+                                std::placeholders::_1,std::placeholders::_2,
+                                std::placeholders::_3,std::placeholders::_4),
+                                dt, x_, u, vw, dx_);
+    x_ += dx_;
+  }
+
+  log(t);
 }
 
 
@@ -104,32 +71,7 @@ void Quadrotor::f(const vehicle::Stated& x, const uVector& u,
 }
 
 
-void Quadrotor::propagate(const double &t, const uVector& u, const Vector3d& vw)
-{
-  // Time step
-  double dt = t - t_prev_;
-  t_prev_ = t;
-
-  // Integration
-  if (accurate_integration_)
-  {
-    // 4th order Runge-Kutta
-    vehicle::rk4<COMMAND_SIZE>(std::bind(&Quadrotor::f, this,
-                               std::placeholders::_1,std::placeholders::_2,
-                               std::placeholders::_3,std::placeholders::_4),
-                               dt, x_, u, vw, dx_);
-  }
-  else
-  {
-    // Euler
-    f(x_, u, vw, dx_);
-    dx_ *= dt;
-  }
-  x_ += dx_;
-}
-
-
-void Quadrotor::updateAccels(const uVector &u, const Vector3d &vw)
+void Quadrotor::updateAccelerations(const uVector &u, const Vector3d &vw)
 {
   static vehicle::dxVector dx;
   f(x_, u, vw, dx);
@@ -143,45 +85,7 @@ void Quadrotor::log(const double &t)
   // Write data to binary files and plot in another program
   state_log_.log(t);
   state_log_.logMatrix(x_.toEigen());
-  euler_log_.log(t);
-  euler_log_.logMatrix(x_.q.euler());
-}
-
-
-void Quadrotor::getOtherVehicles(const environment::mapVec3 &all_vehicle_positions)
-{
-  other_vehicle_positions_.clear();
-  for (auto it = all_vehicle_positions.begin(); it != all_vehicle_positions.end(); ++it)
-    if (it->first != name_)
-      other_vehicle_positions_.push_back(it->second);
-}
-
-
-void Quadrotor::runEstimator(const double &t, const sensors::Sensors &sensors, const Vector3d& vw, const vehicle::Stated& xt, const environment::vectorVec3& lm)
-{
-  // Run all sensor callbacks
-  if (sensors.new_imu_meas_)
-  {
-    estimator_.imuCallback(sensors.imu_);
-    if (estimator_.getFilterUpdateStatus())
-      estimator_.logTruth(t, xt.p, xt.v, xt.q, sensors.getAccelBias(), sensors.getGyroBias(), xt.drag, xt.omega, lm);
-  }
-  if (sensors.new_camera_meas_)
-    estimator_.cameraCallback(sensors.image_);
-  if (sensors.new_gps_meas_)
-    estimator_.gpsCallback(sensors.gps_);
-  if (sensors.new_mocap_meas_)
-    estimator_.mocapCallback(sensors.mocap_);
-}
-
-
-vehicle::Stated Quadrotor::getControlStateFromEstimator() const
-{
-  vehicle::Stated state;
-  state.p = estimator_.getGlobalPosition();
-  state.q = estimator_.getGlobalAttitude();
-  state.v = estimator_.getState().v;
-  return state;
+  state_log_.logMatrix(x_.q.euler());
 }
 
 

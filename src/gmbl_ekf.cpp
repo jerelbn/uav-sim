@@ -5,15 +5,20 @@ namespace gmbl_ekf
 {
 
 
-EKF::EKF() : t_prev_(0) {}
-
-
-EKF::~EKF()
+EKF::EKF() : t_prev_(0)
 {
-  true_state_log_.close();
-  ekf_state_log_.close();
-  cov_log_.close();
+  imu_prev_.setZero();
 }
+
+
+EKF::EKF(const string &filename, const string &name) : t_prev_(0)
+{
+  imu_prev_.setZero();
+  load(filename, name);
+}
+
+
+EKF::~EKF() {}
 
 
 void EKF::load(const string &filename, const std::string& name)
@@ -84,16 +89,19 @@ void EKF::load(const string &filename, const std::string& name)
 
 
 void EKF::run(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors,
-              const Vector3d &p_bg, const quat::Quatd &q_bg, const Vector3d& vw, const vehicle::Stated& x_true)
+              const quat::Quatd& q_bg, const vehicle::Stated& xg_true, const vehicle::Stated& xac_true)
 {
   // Propagate the state and covariance to the current time step
   if (gimbal_sensors.new_imu_meas_)
-    propagate(t, gimbal_sensors.imu_.vec());
+  {
+    propagate(t, imu_prev_);
+    imu_prev_ = gimbal_sensors.imu_.vec();
+  }
 
   // Initialize mag bias at truth for now. Should to mag calibration later.
   if (!mag_initialized_ && last_gps_pos_.norm() > 1e-6)
   {
-    Vector3d m_I_true = getMagFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
+    Vector3d m_I_true = magFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
     Vector3d m_I_biased = m_I_true + aircraft_sensors.getMagBias();
     Vector3d m_proj_true = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_true;
     Vector3d m_proj_biased = (common::I_3x3 - common::e3 * common::e3.transpose()) * m_I_biased;
@@ -108,10 +116,10 @@ void EKF::run(const double &t, const sensors::Sensors &gimbal_sensors, const sen
   if (aircraft_sensors.new_mag_meas_ && t > 0)
     updateMag(aircraft_sensors.mag_.field, q_bg);
   if (gimbal_sensors.new_camera_meas_ && t > 0)
-    updateCam(x_true);
+    updateCam(xac_true, xg_true);
 
   // Log data
-  logTruth(t, gimbal_sensors, aircraft_sensors, vw, x_true);
+  logTruth(t, gimbal_sensors, aircraft_sensors, xg_true, xac_true);
   logEst(t);
 }
 
@@ -179,20 +187,23 @@ void EKF::updateMag(const Vector3d &z, const quat::Quatd &q_bg)
 }
 
 
-void EKF::updateCam(const vehicle::Stated& x_true)
+void EKF::updateCam(const vehicle::Stated& xac_true, const vehicle::Stated& xg_true)
 {
+  // Compute true gimbal attitude
+  quat::Quatd q_Ig = xac_true.q * xg_true.q;
+
   // Establish new keyframe
   Vector3d dq = x_.q - qk_;
   if (dq.norm() > 0.5)
   {
     qk_ = x_.q;
-    qkt_ = x_true.q;
+    qkt_ = q_Ig;
     return;
   }
 
   // Compute measurement
   Vector3d noise = 0.35 * Vector3d::Random();
-  Vector3d dqk = x_true.q - qkt_ + noise;
+  Vector3d dqk = q_Ig - qkt_ + noise;
   quat::Quatd z = qk_ + dqk;
 
   // Compute measurement model
@@ -225,7 +236,7 @@ void EKF::h_gps(const Stated &x, const quat::Quatd &q_ecef2ned, Vector3d& h)
 void EKF::h_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, double& h)
 {
   // Calculate magnetic field vector at current location (currently uses simple dipole model)
-  Vector3d m_I = getMagFieldNED(pos_ecef, q_ecef2ned, mnp_ecef, q_ecef2mnp);
+  Vector3d m_I = magFieldNED(pos_ecef, q_ecef2ned, mnp_ecef, q_ecef2mnp);
 
   // Get heading relative to magnetic field
   quat::Quatd q_I_to_g1 = quat::Quatd::from_euler(0, 0, x.q.yaw());
@@ -272,7 +283,7 @@ void EKF::getH_gps(const Stated &x, const Matrix3d &R_ecef2ned, Matrix<double,3,
 void EKF::getH_mag(const Stated &x, const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp, Matrix<double,1,NUM_DOF> &H)
 {
   // Calculate magnetic field vector at current location (currently uses simple dipole model)
-  Vector3d m_I = getMagFieldNED(pos_ecef, q_ecef2ned, mnp_ecef, q_ecef2mnp);
+  Vector3d m_I = magFieldNED(pos_ecef, q_ecef2ned, mnp_ecef, q_ecef2mnp);
 
   // Rotate magnetic field by aircraft heading
   quat::Quatd q_psi = quat::Quatd::from_euler(0, 0, x.q.yaw());
@@ -317,47 +328,7 @@ void EKF::getH_cam(const Stated &x, Matrix<double,3,NUM_DOF> &H)
 }
 
 
-void EKF::logTruth(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors, const Vector3d& vw, const vehicle::Stated& x_true)
-{
-  // Get true accelerometer scale error
-  Vector3d accel_true = gimbal_sensors.getImuAccel() - gimbal_sensors.getAccelBias() - gimbal_sensors.getAccelNoise();
-  Vector3d accel_biased = accel_true + gimbal_sensors.getAccelBias();
-  double accel_scale = accel_true.norm() / accel_biased.norm();
-  
-  // Get heading bias
-  Vector3d m_I_true = getMagFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
-  Vector3d m_I_biased = m_I_true + aircraft_sensors.getMagBias();
-  double psi_d_true = atan2(m_I_true(1), m_I_true(0));
-  double psi_d_biased = atan2(m_I_biased(1), m_I_biased(0));
-  double mag_bias = psi_d_biased - psi_d_true;
-
-  Vector3d vI_true = x_true.q.rota(x_true.v);
-
-  true_state_log_.write((char*)&t, sizeof(double));
-  true_state_log_.write((char*)vI_true.data(), 3 * sizeof(double));
-  true_state_log_.write((char*)x_true.q.euler().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)&accel_scale, sizeof(double));
-  true_state_log_.write((char*)gimbal_sensors.getGyroBias().data(), 3 * sizeof(double));
-  true_state_log_.write((char*)&mag_bias, sizeof(double));
-}
-
-
-void EKF::logEst(const double &t)
-{
-  ekf_state_log_.write((char*)&t, sizeof(double));
-  ekf_state_log_.write((char*)x_.v.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)x_.q.euler().data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)&x_.sa, sizeof(double));
-  ekf_state_log_.write((char*)x_.bg.data(), 3 * sizeof(double));
-  ekf_state_log_.write((char*)&x_.bm, sizeof(double));
-
-  dxVector P_diag = P_.diagonal();
-  cov_log_.write((char*)&t, sizeof(double));
-  cov_log_.write((char*)P_diag.data(), P_diag.rows() * sizeof(double));
-}
-
-
-Vector3d EKF::getMagFieldNED(const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp)
+Vector3d EKF::magFieldNED(const Vector3d &pos_ecef, const quat::Quatd &q_ecef2ned, const Vector3d &mnp_ecef, const quat::Quatd &q_ecef2mnp)
 {
   // Calculate magnetic field vector at current location (currently uses simple dipole model)
   // NOTE: MNP coordinates are rotated by the shortest rotation between ECEF Z-axis and the magnetic north pole
@@ -372,14 +343,57 @@ Vector3d EKF::getMagFieldNED(const Vector3d &pos_ecef, const quat::Quatd &q_ecef
 }
 
 
-vehicle::Stated EKF::getState() const
+vehicle::Stated EKF::stateRelToBody(const vehicle::Stated& x_Ib) const
 {
   vehicle::Stated x;
   x.p = Vector3d::Constant(NAN);
-  x.v = x_.q.rotp(x_.v);
-  x.q = x_.q;
-  x.omega = xdot_.segment<3>(DQ);
+  x.v.setZero();
+  x.lin_accel.setConstant(NAN);
+  x.q = x_Ib.q.inverse() * x_.q;
+  x.omega = xdot_.segment<3>(DQ) - x_Ib.omega;
+  x.ang_accel.setConstant(NAN);
   return x;
+}
+
+
+void EKF::logTruth(const double &t, const sensors::Sensors &gimbal_sensors, const sensors::Sensors &aircraft_sensors,
+                   const vehicle::Stated& xg_true, const vehicle::Stated& xac_true)
+{
+  // Compute true accelerometer scale error
+  Vector3d accel_true = gimbal_sensors.getImuAccel() - gimbal_sensors.getAccelBias() - gimbal_sensors.getAccelNoise();
+  Vector3d accel_biased = accel_true + gimbal_sensors.getAccelBias();
+  double accel_scale = accel_true.norm() / accel_biased.norm();
+  
+  // Compute true heading bias
+  Vector3d m_I_true = magFieldNED(last_gps_pos_, X_ecef2ned_.q_, mnp_ecef_, q_ecef_to_mnp_);
+  Vector3d m_I_biased = m_I_true + aircraft_sensors.getMagBias();
+  double psi_d_true = atan2(m_I_true(1), m_I_true(0));
+  double psi_d_biased = atan2(m_I_biased(1), m_I_biased(0));
+  double mag_bias = psi_d_biased - psi_d_true;
+
+  // Create true gimbal states w.r.t. inertial frame
+  quat::Quatd q_Ig = xac_true.q * xg_true.q;
+  Vector3d v_gI_I = xac_true.q.rota(xac_true.v + xac_true.omega.cross(xg_true.p));
+
+  true_state_log_.log(t);
+  true_state_log_.logMatrix(v_gI_I, q_Ig.euler());
+  true_state_log_.log(accel_scale);
+  true_state_log_.logMatrix(gimbal_sensors.getGyroBias());
+  true_state_log_.log(mag_bias);
+}
+
+
+void EKF::logEst(const double &t)
+{
+  ekf_state_log_.log(t);
+  ekf_state_log_.logMatrix(x_.v, x_.q.euler());
+  ekf_state_log_.log(x_.sa);
+  ekf_state_log_.logMatrix(x_.bg);
+  ekf_state_log_.log(x_.bm);
+
+  dxVector P_diag = P_.diagonal();
+  cov_log_.log(t);
+  cov_log_.logMatrix(P_diag);
 }
 
 

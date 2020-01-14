@@ -25,6 +25,7 @@ public:
 
   Sensors();
   Sensors(const Sensors& sensors);
+  Sensors(const string &filename, const std::default_random_engine& rng, const string &name);
   ~Sensors();
 
   Sensors& operator=(const Sensors& sensors); // NOTE: Does not copy log file streams!
@@ -32,8 +33,8 @@ public:
   void load(const string &filename, const std::default_random_engine& rng, const string &name);
   void updateMeasurements(const double& t, const vehicle::Stated &x, environment::Environment& env);
 
-  // Overload for gimbal sensor updates, x1 is aircraft state relative to inertial frame, x2 is gimbal state relative to aircraft
-  void updateMeasurements(const double& t, const vehicle::Stated &x1, const vehicle::Stated &x2, environment::Environment& env);
+  // Overload for gimbal sensor updates, xa is aircraft state relative to inertial frame, xg is gimbal state relative to aircraft
+  void updateMeasurements(const double& t, const vehicle::Stated &xa, const vehicle::Stated &xg, environment::Environment& env);
 
   const Vector3d& getAccelBias() const { return accel_bias_; }
   const Vector3d& getAccelNoise() const { return accel_noise_; }
@@ -54,9 +55,10 @@ public:
   const quat::Quatd& getBodyToImuRotation() const { return q_bu_; }
   const Vector3d& getImuAccel() const { return imu_.accel; }
 
-  const double& getRollAngle() const { return rollenc_.angle; }
-  const double& getPitchAngle() const { return pitchenc_.angle; }
-  const double& getYawAngle() const { return yawenc_.angle; }
+  const double& rollEncAngle() const { return rollenc_.angle; }
+  const double& pitchEncAngle() const { return pitchenc_.angle; }
+  const double& yawEncAngle() const { return yawenc_.angle; }
+  const quat::Quatd qEnc() const { return quat::Quatd::from_euler(rollEncAngle(), pitchEncAngle(), yawEncAngle()); }
 
   void setImuAccel(const Vector3d& accel) { imu_.accel = accel; }
 

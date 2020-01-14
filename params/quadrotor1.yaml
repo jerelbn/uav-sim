@@ -1,6 +1,5 @@
 # Quadrotor 1 configuration
 name: quad1
-accurate_integration: true
 control_using_estimates: false
 
 # Monte Carlo Parameters

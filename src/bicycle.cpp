@@ -8,7 +8,7 @@ Bicycle::Bicycle()  : t_prev_(0.0), initialized_(false) {}
 
 
 Bicycle::Bicycle(const std::string &filename, const environment::Environment& env, const std::default_random_engine& rng, const int& id)
-  : t_prev_(0.0), initialized_(false), id_(id)
+  : t_prev_(0.0), initialized_(false)
 {
   load(filename, env, rng);
 }
@@ -26,7 +26,6 @@ void Bicycle::load(const std::string &filename, const environment::Environment &
   // Load all parameters
   xVector x0;
   common::get_yaml_node("name", filename, name_);
-  common::get_yaml_node("accurate_integration", filename, accurate_integration_);
   common::get_yaml_node("mass", filename, mass_);
   common::get_yaml_node("inertia", filename, inertia_);
   common::get_yaml_node("length", filename, L_);
@@ -61,7 +60,6 @@ void Bicycle::load(const std::string &filename, const environment::Environment &
   ss_c << "/tmp/" << name_ << "_command.log";
   true_state_log_.open(ss_ts.str());
   command_log_.open(ss_c.str());
-  log(0);
 }
 
 
@@ -82,28 +80,19 @@ void Bicycle::propagate(const double &t, const uVector& u, const Vector3d& vw)
   double dt = t - t_prev_;
   t_prev_ = t;
 
-  // Differential Equations
-  if (accurate_integration_)
+  if (t > 0)
   {
-    // 4th order Runge-Kutta
+    // 4th order Runge-Kutta integration
     rk4(std::bind(&Bicycle::f, this,
                   std::placeholders::_1,std::placeholders::_2,
                   std::placeholders::_3,std::placeholders::_4),
                   dt, x_, u, vw, dx_);
-  }
-  else
-  {
-    // Euler integration
-    f(x_, u, vw, dx_);
-    dx_ *= dt;
-  }
+    x_ += dx_;
 
-  // Add change to state
-  x_ += dx_;
-
-  // Wrap angles and enforce limits
-  x_.psi = common::wrapAngle(x_.psi, M_PI);
-  x_.theta = common::saturate(x_.theta, max_steering_angle_, -max_steering_angle_);
+    // Wrap angles and enforce limits
+    x_.psi = common::wrapAngle(x_.psi, M_PI);
+    x_.theta = common::saturate(x_.theta, max_steering_angle_, -max_steering_angle_);
+  }
 }
 
 
